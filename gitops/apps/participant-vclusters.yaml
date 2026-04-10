@@ -76,4 +76,21 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
-          - ServerSideApply=true
+      # The vcluster 0.33.1 chart renders some StatefulSet fields that Kubernetes
+      # then defaults (podSpec restartPolicy/dnsPolicy/schedulerName, PVC
+      # volumeMode, persistentVolumeClaimRetentionPolicy.whenScaled, etc.) and
+      # also emits a literal `imagePullPolicy: null` that SSA keeps trying to
+      # unset. Client-side apply (the default, i.e. without ServerSideApply=true)
+      # three-way-merges around all of these. Ignore the noisy subtrees
+      # explicitly so the diff stays quiet even if a future chart bump
+      # reintroduces drift.
+      ignoreDifferences:
+        - group: apps
+          kind: StatefulSet
+          jqPathExpressions:
+            - .spec.volumeClaimTemplates[].apiVersion
+            - .spec.volumeClaimTemplates[].kind
+            - .spec.volumeClaimTemplates[].spec.volumeMode
+            - .spec.volumeClaimTemplates[].status
+            - .spec.persistentVolumeClaimRetentionPolicy.whenScaled
+            - .spec.template.spec.containers[].imagePullPolicy

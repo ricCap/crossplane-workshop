@@ -59,6 +59,9 @@ tasks:
 
   bootstrap:argocd:
     desc: Install ArgoCD via Helm into the current KUBECONFIG context.
+    # Multiple downstream tasks declare this as a dep; without `run: once`
+    # task would invoke `helm upgrade` in parallel and race itself.
+    run: once
     cmds:
       - helm repo add argo https://argoproj.github.io/argo-helm
       - helm repo update argo
@@ -163,6 +166,59 @@ tasks:
       - kubectl -n participant-{{.PAIR}} wait --for=condition=Ready pod -l app=vcluster --timeout=300s
       - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} -- kubectl get ns
       - echo "{{.PAIR}} OK"
+
+  verify:all:
+    desc: |
+      End-to-end Phase 1 green check. Asserts ArgoCD is installed, the
+      app-of-apps hierarchy is Synced+Healthy, and every vcluster generated
+      from gitops/participant-vclusters/pairs/ has a Ready pod in its
+      participant-* namespace. Runs verify:pair for each discovered pair.
+    cmds:
+      - |
+        set -euo pipefail
+        fail() { echo "FAIL: $*" >&2; exit 1; }
+        ok()   { echo "  ok: $*"; }
+
+        echo "==> ArgoCD helm release"
+        helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd' || fail "argo-cd helm release missing"
+        ok "argo-cd installed"
+
+        echo "==> Root app-of-apps"
+        kubectl -n {{.ARGOCD_NS}} get application root-app >/dev/null || fail "root-app Application missing"
+        sync=$(kubectl -n {{.ARGOCD_NS}} get application root-app -o jsonpath='{.status.sync.status}')
+        health=$(kubectl -n {{.ARGOCD_NS}} get application root-app -o jsonpath='{.status.health.status}')
+        [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ] || fail "root-app: sync=$sync health=$health"
+        ok "root-app Synced+Healthy"
+
+        echo "==> Workshop AppProject"
+        kubectl -n {{.ARGOCD_NS}} get appproject workshop >/dev/null || fail "workshop AppProject missing"
+        ok "workshop AppProject present"
+
+        echo "==> ApplicationSet"
+        kubectl -n {{.ARGOCD_NS}} get applicationset participant-vclusters >/dev/null || fail "participant-vclusters ApplicationSet missing"
+        ok "participant-vclusters ApplicationSet present"
+
+        echo "==> Docs Application"
+        kubectl -n {{.ARGOCD_NS}} get application docs >/dev/null 2>&1 && ok "docs Application present" || echo "  (docs Application not yet applied — skipping)"
+
+        echo "==> Per-pair verification"
+        pairs=$(ls gitops/participant-vclusters/pairs/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
+        [ -n "$pairs" ] || fail "no pair files under gitops/participant-vclusters/pairs/"
+        for pair in $pairs; do
+          echo "  --> $pair"
+          app="vcluster-$pair"
+          kubectl -n {{.ARGOCD_NS}} get application "$app" >/dev/null || fail "$app Application missing"
+          sync=$(kubectl -n {{.ARGOCD_NS}} get application "$app" -o jsonpath='{.status.sync.status}')
+          health=$(kubectl -n {{.ARGOCD_NS}} get application "$app" -o jsonpath='{.status.health.status}')
+          [ "$sync" = "Synced" ] || fail "$app: sync=$sync (expected Synced)"
+          [ "$health" = "Healthy" ] || fail "$app: health=$health (expected Healthy)"
+          kubectl get ns "participant-$pair" >/dev/null || fail "namespace participant-$pair missing"
+          kubectl -n "participant-$pair" wait --for=condition=Ready pod -l app=vcluster --timeout=300s >/dev/null || fail "$pair vcluster pod not Ready"
+          ok "$pair Synced+Healthy, pod Ready"
+        done
+
+        echo
+        echo "Phase 1 verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s))"
 
   # ------------------------------------------------------------------
   # Phase 2 — ArubaCloud
