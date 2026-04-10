@@ -63,9 +63,15 @@ spec:
                 ingresses:
                   enabled: false
             # Secret name defaults to vc-<release>; the validator
-            # (gitops/docs/) relies on that default.
+            # (gitops/docs/) relies on that default. The server URL in
+            # that kubeconfig must be reachable from the docs pod on
+            # the management cluster, so point it at the in-cluster
+            # Service instead of the chart's default localhost:8443
+            # (which is only valid inside the vcluster control-plane
+            # container). The chart regenerates the TLS certs to
+            # cover this hostname.
             exportKubeConfig:
-              server: ""
+              server: 'https://{{ .pair_id }}.participant-{{ .pair_id }}.svc:443'
       # -----------------------------------------------------------------
       destination:
         server: https://kubernetes.default.svc
