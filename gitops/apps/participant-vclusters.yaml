@@ -71,7 +71,11 @@ spec:
             # container). The chart regenerates the TLS certs to
             # cover this hostname.
             exportKubeConfig:
-              server: 'https://{{ .pair_id }}.participant-{{ .pair_id }}.svc:443'
+              # The chart's auto-generated server cert covers
+              # `<release>.<namespace>` (no trailing `.svc`), so we
+              # match that form here. With the trailing `.svc` the
+              # validator would hit an x509 hostname mismatch.
+              server: 'https://{{ .pair_id }}.participant-{{ .pair_id }}:443'
       # -----------------------------------------------------------------
       destination:
         server: https://kubernetes.default.svc
