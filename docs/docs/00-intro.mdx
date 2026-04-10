@@ -4,6 +4,8 @@ slug: /
 title: Introduction
 ---
 
+import PairId from '@site/src/components/PairId';
+
 # Welcome to the Crossplane Workshop
 
 This workshop guides you through using [Crossplane](https://crossplane.io) to provision and manage
@@ -12,7 +14,14 @@ cloud infrastructure using Kubernetes-native APIs.
 ## Your environment
 
 Each participant pair has an isolated [vCluster](https://www.vcluster.com) sandbox on the shared
-management cluster. Your pair ID is embedded in this page's URL: `/p/<pair-id>/...`.
+management cluster. Your instructor has given you a **pair ID** — something like `fancy-lemon`.
+Enter it here once and every validation check in the workshop will know which vcluster to talk to:
+
+<PairId />
+
+Your pair ID is stored in this browser's local storage, so you can refresh the page, close the
+tab, or take a coffee break and come back — it will still be there. To switch pairs, click
+**change** above.
 
 - **Your vcluster**: `<pair-id>` in namespace `participant-<pair-id>` on the management cluster
 - **What you own**: everything inside that vcluster
