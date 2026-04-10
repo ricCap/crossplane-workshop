@@ -1,0 +1,32 @@
+# NOTE on scope: RBAC does not support prefix-matching on resource names in a
+# ClusterRole rule. A resourceNames list would require enumerating every pair
+# explicitly, which defeats the purpose of a dynamic multi-pair setup.
+# Instead, we grant cluster-wide get/list on Secrets and Namespaces, and the
+# validator code is responsible for constraining access to the correct
+# "participant-<pairId>" namespace and "vc-<pairId>" secret name.
+# This is acceptable for a workshop environment where the validator pod is
+# operator-controlled and not exposed to the public internet directly.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: validator
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: validator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: validator
+subjects:
+  - kind: ServiceAccount
+    name: validator
+    namespace: docs
