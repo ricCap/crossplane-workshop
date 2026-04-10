@@ -40,11 +40,9 @@ Do not `kubectl apply` against the management cluster outside the documented boo
 
 ## Required tools
 
-`docker`, `vind`, `helm`, `kubectl`, `task` (go-task), `vcluster` CLI. `argocd` CLI is optional.
+`docker`, `helm`, `kubectl`, `task` (go-task), and the `vcluster` CLI (>= 0.31.0). `argocd` CLI is optional.
 
-## Why `sudo` for vind?
-
-`task local:up` runs `vind` under `sudo` because vind's load balancer needs to bind host ports — without it, neither the ArgoCD UI nor the nested vclusters are reachable from the host. This is Phase 1 only; the remote ArubaCloud flow does not need `sudo`.
+"vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
 ## Out of scope
 

@@ -32,14 +32,38 @@ spec:
       source:
         repoURL: https://charts.loft.sh
         chart: vcluster
-        targetRevision: 0.20.0   # placeholder — pin after `helm search repo loft/vcluster --versions`
+        # Current stable on https://charts.loft.sh as of the commit that
+        # introduced this pin. Chart schema is the v0.20+ `sync.toHost.*`
+        # shape; the v0.19 flat schema would not work here.
+        targetRevision: 0.33.1
         helm:
           releaseName: '{{ .pair_id }}'
           values: |
+            # OSS build — no loft-sh/vcluster-pro image, no telemetry
+            # surprises during a public workshop.
+            controlPlane:
+              statefulSet:
+                image:
+                  registry: ghcr.io
+                  repository: loft-sh/vcluster-oss
+                # Workshop-sized: enough to run crossplane + a couple of
+                # managed resources per pair, small enough that ~15 pairs
+                # fit on one modest management cluster.
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                    ephemeral-storage: 500Mi
+                  limits:
+                    cpu: 500m
+                    memory: 1Gi
+                    ephemeral-storage: 5Gi
             sync:
               toHost:
                 ingresses:
                   enabled: false
+            # Secret name defaults to vc-<release>; the validator
+            # (gitops/docs/) relies on that default.
             exportKubeConfig:
               server: ""
       # -----------------------------------------------------------------

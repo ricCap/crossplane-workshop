@@ -9,7 +9,9 @@ version: '3'
 vars:
   CLUSTER_NAME: crossplane-workshop
   ARGOCD_NS: argocd
-  ARGOCD_CHART_VERSION: 7.7.11   # argo/argo-cd — bump deliberately
+  # argo/argo-cd — ArgoCD 3.3.6 app version. Bump deliberately.
+  # https://github.com/argoproj/argo-helm/releases/tag/argo-cd-9.5.0
+  ARGOCD_CHART_VERSION: 9.5.0
   ROOT_APP: bootstrap/root-app.yaml
   ARGOCD_VALUES: bootstrap/argocd-values.yaml
 
@@ -22,22 +24,25 @@ tasks:
     silent: true
 
   # ------------------------------------------------------------------
-  # Phase 1 — local vind
+  # Phase 1 — local (vind = vcluster CLI with Docker driver, aka
+  # "vCluster in Docker" — see https://github.com/loft-sh/vind).
+  # Requires vcluster CLI >= 0.31.0 and a running Docker daemon.
   # ------------------------------------------------------------------
 
   local:up:
-    desc: "Create the local vind cluster (sudo — vind needs host ports)."
+    desc: "Create the local vind cluster (vcluster create with Docker driver)."
     cmds:
-      - sudo vind create --name {{.CLUSTER_NAME}}
-      - kubectl cluster-info --context vind-{{.CLUSTER_NAME}}
+      - vcluster use driver docker
+      - vcluster create {{.CLUSTER_NAME}}
+      - kubectl cluster-info
 
   local:down:
     desc: Delete the local vind cluster.
     cmds:
-      - sudo vind delete --name {{.CLUSTER_NAME}}
+      - vcluster delete {{.CLUSTER_NAME}}
 
   local:all:
-    desc: "Phase 1 one-shot: vind up + bootstrap ArgoCD + apply root app."
+    desc: "Phase 1 one-shot: local cluster up + bootstrap ArgoCD + apply root app."
     cmds:
       - task: local:up
       - task: bootstrap:all

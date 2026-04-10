@@ -16,16 +16,14 @@ Project roadmap for the Crossplane workshop GitOps scaffolding. See [AGENTS.md](
 
 **Goal**: pushing a config to this repo → ArgoCD on a local `vind` cluster provisions one participant vcluster via the `loft-sh/vcluster` Helm chart.
 
-**Prereqs**: `docker`, `vind`, `helm`, `kubectl`, `task`, `vcluster` CLI.
+**Prereqs**: `docker`, `helm`, `kubectl`, `task`, `vcluster` CLI (>= 0.31.0). "vind" is the `vcluster` CLI with the Docker driver — not a separate binary. See [loft-sh/vind](https://github.com/loft-sh/vind).
 
 **Run**:
 ```
-task local:all                           # sudo vind create + helm install argocd + apply root-app
+task local:all                           # vcluster create (Docker driver) + helm install argocd + apply root-app
 task argocd:ui                           # port-forward the ArgoCD UI
 task verify:pair PAIR=fancy-lemon        # programmatic success check for one pair
 ```
-
-> `local:up` runs `vind` under `sudo` because vind's load balancer needs to bind host ports for ArgoCD and nested vclusters to be reachable from the host.
 
 **Success criteria**:
 1. `helm list -n argocd` shows `argo-cd`.
@@ -101,12 +99,19 @@ task verify:pair PAIR=fancy-lemon
 - Per-pair `ResourceQuota` on the management cluster.
 - Ingress / TLS / DNS / SSO for ArgoCD.
 - Automated vcluster.cloud cluster registration (stays a one-time manual step).
-- `vind` documentation for the participant local-fallback contingency on workshop day.
+- Local fallback docs (`vcluster --driver docker`) for the participant contingency on workshop day.
 
 ## Open items
 
-- **ApplicationSet git-files generator** — confirm that `gitops/apps/participant-vclusters.yaml`'s go-template substitution (`{{ .pair_id }}`) matches the ArgoCD version installed by the chart. Adjust on first run if needed.
-- **`loft-sh/vcluster` chart version** — the `targetRevision` in the ApplicationSet is a placeholder. Run `helm search repo loft/vcluster --versions` and pin the version you actually want before Phase 1 is declared green.
-- **`vind` CLI invocation** — `Taskfile.yml` uses `vind create --name <name>` and `vind delete --name <name>` as a first guess. Confirm exact flags and the kubeconfig output path on first run; adjust `local:up` / `local:down` if they differ.
 - **vcluster.cloud registration mechanics** — confirm the exact `vcluster platform login` / `vcluster platform connect cluster` incantation on first Phase 2 run, and whether it silently installs an agent. If it does, that install stays a manual one-time prereq, **not** GitOps-managed.
 - **Phase 3 sanity check** — before committing to the seam design, spend five minutes verifying that `provider-helm` + `loft-sh/vcluster` is a supported combo with no known sharp edges.
+- **`vcluster-oss` image compatibility** — the ApplicationSet values now pin `controlPlane.statefulSet.image.repository: loft-sh/vcluster-oss`. Confirm this image tag is published for `v0.33.1` and that it doesn't miss anything used by the workshop content. If missing, fall back to the default `loft-sh/vcluster-pro` image (pro modules are off by default anyway).
+- **Docs pod image pipeline dry-run** — the two `.github/workflows/*.yml` build and push images to `ghcr.io/riccap/…`; on first merge to `main`, watch the Actions run and adjust Dockerfiles if the image sizes or build times are unreasonable.
+
+### Recently closed
+
+- ~~ApplicationSet git-files generator syntax~~ — verified: `goTemplate: true` + `{{ .pair_id }}` is the standard ArgoCD v3.x shape, compatible with the pinned chart `9.5.0` (ArgoCD app version `v3.3.6`).
+- ~~`loft-sh/vcluster` chart version~~ — pinned to `0.33.1` (current stable on https://charts.loft.sh as of commit `6d21665`).
+- ~~`vind` CLI invocation~~ — turned out "vind" is *not* a separate binary; it is `loft-sh/vind` mode = `vcluster create` with the Docker driver. `Taskfile.yml` now calls `vcluster use driver docker && vcluster create <name>`. No `sudo` needed.
+- ~~ArgoCD chart version~~ — bumped from the initial `7.7.11` to `9.5.0` (ArgoCD `v3.3.6`).
+- ~~`bootstrap/argocd-values.yaml` sanity check~~ — all keys (`global.domain`, `configs.params`, `server.extraArgs`, `applicationSet.enabled`, `controller.replicas`, `repoServer.replicas`, `redis.enabled`) are stable across argo-cd chart v7–v9 and valid for `9.5.0`. No changes needed.
