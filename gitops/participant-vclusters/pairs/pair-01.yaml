@@ -1,0 +1,3 @@
+# One file per participant pair. Copy this to pair-02.yaml etc. to scale.
+# The `participant-vclusters` ApplicationSet picks new files up within ~2 min.
+pair_id: pair-01

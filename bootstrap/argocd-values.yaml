@@ -1,0 +1,29 @@
+# Helm values for the argo/argo-cd chart.
+# Kept minimal on purpose — ingress/TLS/DNS/SSO are deferred (see PLAN.md).
+#
+# The ApplicationSet controller is required so the participant-vclusters
+# ApplicationSet works.
+
+global:
+  domain: argocd.local
+
+configs:
+  params:
+    # Phase 1 port-forward runs TLS-terminated on the server; keep defaults.
+    server.insecure: false
+
+server:
+  extraArgs:
+    - --insecure=false
+
+applicationSet:
+  enabled: true
+
+controller:
+  replicas: 1
+
+repoServer:
+  replicas: 1
+
+redis:
+  enabled: true

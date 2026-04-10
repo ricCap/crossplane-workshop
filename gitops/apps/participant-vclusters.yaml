@@ -1,0 +1,55 @@
+# The Phase 3 swap seam lives in the `template.spec.source` block below.
+# See PLAN.md §Phase 3: the eventual "gotcha moment" is that this block
+# is replaced with one that renders an XVCluster XR backed by a Crossplane
+# Composition using provider-helm — same chart, same values, different layer.
+#
+# The git-files generator reads one file per participant pair from
+# gitops/participant-vclusters/pairs/ — that directory is the scale lever.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: participant-vclusters
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/ricCap/crossplane-workshop.git
+        revision: main
+        files:
+          - path: gitops/participant-vclusters/pairs/*.yaml
+  template:
+    metadata:
+      name: 'vcluster-{{ .pair_id }}'
+    spec:
+      project: workshop
+      # -----------------------------------------------------------------
+      # PHASE 3 SWAP SEAM — everything inside `source` is what Phase 3
+      # replaces with a Crossplane XR. Keep the shape outside this block
+      # stable so the swap is a minimal diff.
+      # -----------------------------------------------------------------
+      source:
+        repoURL: https://charts.loft.sh
+        chart: vcluster
+        targetRevision: 0.20.0   # placeholder — pin after `helm search repo loft/vcluster --versions`
+        helm:
+          releaseName: '{{ .pair_id }}'
+          values: |
+            sync:
+              toHost:
+                ingresses:
+                  enabled: false
+            exportKubeConfig:
+              server: ""
+      # -----------------------------------------------------------------
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'participant-{{ .pair_id }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

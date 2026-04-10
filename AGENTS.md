@@ -1,0 +1,51 @@
+# AGENTS.md
+
+Operational guide for anyone (human or AI) working in this repo. For the roadmap, phases, and deferred work, see [PLAN.md](PLAN.md).
+
+## Purpose
+
+GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central management cluster runs ArgoCD; ArgoCD reconciles one isolated vCluster per participant pair so people can break and rebuild their Crossplane setup without affecting each other.
+
+## Layout
+
+- `bootstrap/` — one-time install inputs: ArgoCD Helm values and the root app-of-apps Application.
+- `gitops/projects/` — ArgoCD `AppProject` definitions.
+- `gitops/apps/` — top-level ArgoCD Applications and ApplicationSets reconciled by the root app.
+- `gitops/participant-vclusters/pairs/` — **one file per participant pair**. This is the scale lever.
+- `Taskfile.yml` — every command lives here.
+
+The **Phase 3 swap seam** (where the workshop's "gotcha moment" Crossplane Composition will later plug in) is the `template` block of `gitops/apps/participant-vclusters.yaml`. See PLAN.md §Phase 3.
+
+## How to run anything
+
+Every command goes through `task <name>`. Never copy-paste raw `helm`/`kubectl` invocations from the web — they may not match the namespaces and values this repo assumes.
+
+```
+task                      # list available tasks
+task local:all            # Phase 1 one-shot (local vind)
+task bootstrap:all        # Phase 2 bootstrap (against whatever KUBECONFIG points at)
+task argocd:ui            # port-forward the ArgoCD UI to https://localhost:8080
+task verify:pair-01       # programmatic Phase 1 success check
+```
+
+See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which phase.
+
+## Scaling to more pairs
+
+Drop a new file under `gitops/participant-vclusters/pairs/` following the `pair-01.yaml` shape, commit, and push. ArgoCD's `participant-vclusters` ApplicationSet picks it up within ~2 min. No tasks involved.
+
+## GitOps discipline
+
+Do not `kubectl apply` against the management cluster outside the documented bootstrap tasks. Once `task bootstrap:all` has run, ArgoCD owns cluster state — out-of-band changes will be reverted by `selfHeal: true`.
+
+## Required tools
+
+`docker`, `vind`, `helm`, `kubectl`, `task` (go-task), `vcluster` CLI. `argocd` CLI is optional.
+
+## Why `sudo` for vind?
+
+`task local:up` runs `vind` under `sudo` because vind's load balancer needs to bind host ports — without it, neither the ArgoCD UI nor the nested vclusters are reachable from the host. This is Phase 1 only; the remote ArubaCloud flow does not need `sudo`.
+
+## Out of scope
+
+See [PLAN.md](PLAN.md) §Deferred.

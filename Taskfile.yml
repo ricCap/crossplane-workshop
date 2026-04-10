@@ -1,0 +1,113 @@
+version: '3'
+
+# Every workshop operation lives here. See AGENTS.md and PLAN.md.
+#
+# Phase 1 (local vind):   task local:all
+# Phase 2 (ArubaCloud):   task bootstrap:all && task remote:register-vcluster-cloud
+# Verify a pair:          task verify:pair-01
+
+vars:
+  CLUSTER_NAME: crossplane-workshop
+  ARGOCD_NS: argocd
+  ARGOCD_CHART_VERSION: 7.7.11   # argo/argo-cd — bump deliberately
+  ROOT_APP: bootstrap/root-app.yaml
+  ARGOCD_VALUES: bootstrap/argocd-values.yaml
+
+tasks:
+
+  default:
+    desc: List available tasks.
+    cmds:
+      - task --list
+    silent: true
+
+  # ------------------------------------------------------------------
+  # Phase 1 — local vind
+  # ------------------------------------------------------------------
+
+  local:up:
+    desc: "Create the local vind cluster (sudo — vind needs host ports)."
+    cmds:
+      - sudo vind create --name {{.CLUSTER_NAME}}
+      - kubectl cluster-info --context vind-{{.CLUSTER_NAME}}
+
+  local:down:
+    desc: Delete the local vind cluster.
+    cmds:
+      - sudo vind delete --name {{.CLUSTER_NAME}}
+
+  local:all:
+    desc: "Phase 1 one-shot: vind up + bootstrap ArgoCD + apply root app."
+    cmds:
+      - task: local:up
+      - task: bootstrap:all
+
+  # ------------------------------------------------------------------
+  # Bootstrap (shared by Phase 1 and Phase 2)
+  # ------------------------------------------------------------------
+
+  bootstrap:argocd:
+    desc: Install ArgoCD via Helm into the current KUBECONFIG context.
+    cmds:
+      - helm repo add argo https://argoproj.github.io/argo-helm
+      - helm repo update argo
+      - |
+        helm upgrade --install argo-cd argo/argo-cd \
+          --namespace {{.ARGOCD_NS}} --create-namespace \
+          --version {{.ARGOCD_CHART_VERSION}} \
+          --values {{.ARGOCD_VALUES}} \
+          --wait
+
+  bootstrap:root-app:
+    desc: Apply the root app-of-apps Application.
+    deps: [bootstrap:argocd]
+    cmds:
+      - kubectl apply -f {{.ROOT_APP}}
+
+  bootstrap:all:
+    desc: Install ArgoCD and apply the root app-of-apps.
+    cmds:
+      - task: bootstrap:argocd
+      - task: bootstrap:root-app
+
+  # ------------------------------------------------------------------
+  # ArgoCD UI
+  # ------------------------------------------------------------------
+
+  argocd:ui:
+    desc: "Port-forward the ArgoCD UI to https://localhost:8080."
+    cmds:
+      - |
+        echo "ArgoCD UI: https://localhost:8080"
+        echo "Username:  admin"
+        echo "Password:  $(kubectl -n {{.ARGOCD_NS}} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+        kubectl -n {{.ARGOCD_NS}} port-forward svc/argo-cd-argocd-server 8080:443
+
+  # ------------------------------------------------------------------
+  # Verify
+  # ------------------------------------------------------------------
+
+  verify:pair-01:
+    desc: Programmatic Phase 1 success check against pair-01.
+    cmds:
+      - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
+      - kubectl -n {{.ARGOCD_NS}} get application root-app
+      - kubectl -n {{.ARGOCD_NS}} get applicationset participant-vclusters
+      - kubectl -n {{.ARGOCD_NS}} get application vcluster-pair-01
+      - kubectl get ns participant-pair-01
+      - kubectl -n participant-pair-01 wait --for=condition=Ready pod -l app=vcluster --timeout=300s
+      - vcluster connect pair-01 -n participant-pair-01 -- kubectl get ns
+      - echo "pair-01 OK"
+
+  # ------------------------------------------------------------------
+  # Phase 2 — ArubaCloud
+  # ------------------------------------------------------------------
+
+  remote:register-vcluster-cloud:
+    desc: "One-time: register the current cluster to vcluster.cloud (SaaS UI)."
+    cmds:
+      - |
+        echo "Run interactively against the ArubaCloud KUBECONFIG:"
+        echo "  vcluster platform login <your-vcluster.cloud-host>"
+        echo "  vcluster platform connect cluster <cluster-name>"
+        echo "Confirm the exact incantation on first run; see PLAN.md open items."

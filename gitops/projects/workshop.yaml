@@ -1,0 +1,24 @@
+# AppProject scoping every Application the workshop manages.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workshop
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Crossplane workshop — participant vclusters and supporting apps.
+  sourceRepos:
+    - https://github.com/ricCap/crossplane-workshop.git
+    - https://charts.loft.sh
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true
