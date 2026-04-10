@@ -24,15 +24,15 @@ Every command goes through `task <name>`. Never copy-paste raw `helm`/`kubectl` 
 task                      # list available tasks
 task local:all            # Phase 1 one-shot (local vind)
 task bootstrap:all        # Phase 2 bootstrap (against whatever KUBECONFIG points at)
-task argocd:ui            # port-forward the ArgoCD UI to https://localhost:8080
-task verify:pair-01       # programmatic Phase 1 success check
+task argocd:ui                           # port-forward the ArgoCD UI to https://localhost:8080
+task verify:pair PAIR=fancy-lemon        # programmatic Phase 1 success check for one pair
 ```
 
 See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which phase.
 
 ## Scaling to more pairs
 
-Drop a new file under `gitops/participant-vclusters/pairs/` following the `pair-01.yaml` shape, commit, and push. ArgoCD's `participant-vclusters` ApplicationSet picks it up within ~2 min. No tasks involved.
+Drop a new file under `gitops/participant-vclusters/pairs/` following the `fancy-lemon.yaml` shape (pick any fancy adjective-noun name — `brave-mango`, `quiet-olive`, …), commit, and push. ArgoCD's `participant-vclusters` ApplicationSet picks it up within ~2 min. No tasks involved.
 
 ## GitOps discipline
 

@@ -4,7 +4,7 @@ version: '3'
 #
 # Phase 1 (local vind):   task local:all
 # Phase 2 (ArubaCloud):   task bootstrap:all && task remote:register-vcluster-cloud
-# Verify a pair:          task verify:pair-01
+# Verify a pair:          task verify:pair PAIR=fancy-lemon
 
 vars:
   CLUSTER_NAME: crossplane-workshop
@@ -87,17 +87,19 @@ tasks:
   # Verify
   # ------------------------------------------------------------------
 
-  verify:pair-01:
-    desc: Programmatic Phase 1 success check against pair-01.
+  verify:pair:
+    desc: 'Programmatic success check for one pair. Usage: task verify:pair PAIR=fancy-lemon'
+    requires:
+      vars: [PAIR]
     cmds:
       - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
       - kubectl -n {{.ARGOCD_NS}} get application root-app
       - kubectl -n {{.ARGOCD_NS}} get applicationset participant-vclusters
-      - kubectl -n {{.ARGOCD_NS}} get application vcluster-pair-01
-      - kubectl get ns participant-pair-01
-      - kubectl -n participant-pair-01 wait --for=condition=Ready pod -l app=vcluster --timeout=300s
-      - vcluster connect pair-01 -n participant-pair-01 -- kubectl get ns
-      - echo "pair-01 OK"
+      - kubectl -n {{.ARGOCD_NS}} get application vcluster-{{.PAIR}}
+      - kubectl get ns participant-{{.PAIR}}
+      - kubectl -n participant-{{.PAIR}} wait --for=condition=Ready pod -l app=vcluster --timeout=300s
+      - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} -- kubectl get ns
+      - echo "{{.PAIR}} OK"
 
   # ------------------------------------------------------------------
   # Phase 2 — ArubaCloud
