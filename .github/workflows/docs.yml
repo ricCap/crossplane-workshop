@@ -19,6 +19,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # QEMU enables linux/arm64 cross-builds on the amd64 runner. The
+      # workshop's local vind cluster runs on Apple-silicon macs, and
+      # ArubaCloud nodes are typically amd64 — we publish both so the
+      # same manifest list works in either environment.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -34,6 +41,7 @@ jobs:
         with:
           context: docs
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/riccap/crossplane-workshop-docs:latest
             ghcr.io/riccap/crossplane-workshop-docs:sha-${{ github.sha }}
