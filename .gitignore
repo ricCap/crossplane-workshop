@@ -5,3 +5,8 @@
 *.bak
 .vscode/
 .idea/
+
+# Build artefacts and transient caches
+docs/node_modules/
+docs/build/
+docs/.docusaurus/

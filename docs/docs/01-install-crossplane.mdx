@@ -1,0 +1,91 @@
+---
+sidebar_position: 2
+title: 1. Install Crossplane
+---
+
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 1 — Install Crossplane in your vcluster
+
+Before you can use Crossplane to provision anything, you need to install it. In this module you
+will connect to your vcluster and install the upstream Crossplane Helm chart.
+
+## 1.1 Connect to your vcluster
+
+From any terminal with `kubectl` and the `vcluster` CLI, connect to your pair's vcluster. Replace
+`<pair-id>` with your actual pair (e.g. `fancy-lemon`).
+
+```bash
+vcluster connect <pair-id> -n participant-<pair-id>
+```
+
+`vcluster connect` updates your current `KUBECONFIG` context so that subsequent `kubectl` /
+`helm` commands land inside your vcluster — **not** the management cluster. You can verify:
+
+```bash
+kubectl config current-context
+# should look like: vcluster_<pair-id>_participant-<pair-id>_...
+kubectl get ns
+```
+
+You should see a clean vcluster with only the standard system namespaces.
+
+:::tip Leaving the vcluster
+Press `Ctrl+C` in the terminal running `vcluster connect` to release the context and return to
+the management cluster. You can re-connect at any time.
+:::
+
+## 1.2 Install the Crossplane Helm chart
+
+Add the upstream Crossplane Helm repository and install the chart into a dedicated namespace:
+
+```bash
+helm repo add crossplane-stable https://charts.crossplane.io/stable
+helm repo update crossplane-stable
+
+helm install crossplane crossplane-stable/crossplane \
+  --namespace crossplane-system \
+  --create-namespace \
+  --wait
+```
+
+The `--wait` flag makes Helm block until the `crossplane` and `crossplane-rbac-manager`
+Deployments are Available. On a workshop-sized vcluster this typically takes 30–60 seconds.
+
+Confirm both pods are Running:
+
+```bash
+kubectl -n crossplane-system get pods
+```
+
+Expected output (roughly):
+
+```
+NAME                                       READY   STATUS    RESTARTS   AGE
+crossplane-7b4d9f8c9d-abcde                1/1     Running   0          45s
+crossplane-rbac-manager-6c8f7d5b4c-fghij   1/1     Running   0          45s
+```
+
+## 1.3 Verify with the workshop checker
+
+Click the button below. The workshop's checker will reach into your vcluster, find the
+`crossplane` Deployment in `crossplane-system`, and confirm it reports condition
+`Available=True`.
+
+<ValidateCheck check="crossplane-installed" />
+
+When the check turns green, you're ready for module 2.
+
+## Troubleshooting
+
+**Check says "crossplane Deployment not found"**
+: Either you ran `helm install` against the management cluster instead of your vcluster, or the
+  release failed. Re-run `vcluster connect <pair-id> -n participant-<pair-id>` and confirm
+  `kubectl config current-context` points at your vcluster before retrying.
+
+**Check says "not yet Available"**
+: Helm finished but the pod is still starting. Wait ~30 seconds and click the check again.
+
+**Check says "could not get secret vc-&lt;pair-id&gt;"**
+: Your pair ID in the URL doesn't match an existing vcluster. Double-check the URL is
+  `/p/<your-pair-id>/...`.
