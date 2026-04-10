@@ -40,7 +40,7 @@ Do not `kubectl apply` against the management cluster outside the documented boo
 
 ## Required tools
 
-`docker`, `helm`, `kubectl`, `task` (go-task), and the `vcluster` CLI (>= 0.31.0). `argocd` CLI is optional.
+`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.31.0), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional.
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 

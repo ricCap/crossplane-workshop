@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ricCap/crossplane-workshop.git
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
     targetRevision: main
     path: gitops
     directory:

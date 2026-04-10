@@ -14,6 +14,12 @@ vars:
   ARGOCD_CHART_VERSION: 9.5.0
   ROOT_APP: bootstrap/root-app.yaml
   ARGOCD_VALUES: bootstrap/argocd-values.yaml
+  # GitHub repo this cluster pulls from. Override these three to reuse the
+  # Taskfile against a fork.
+  GITHUB_REPO: ricCap/crossplane-workshop
+  REPO_SSH_URL: git@github.com:ricCap/crossplane-workshop.git
+  DEPLOY_KEY_TITLE: argocd-crossplane-workshop
+  ARGOCD_REPO_SECRET: repo-crossplane-workshop
 
 tasks:
 
@@ -63,16 +69,68 @@ tasks:
           --values {{.ARGOCD_VALUES}} \
           --wait
 
+  bootstrap:repo-credentials:
+    desc: |
+      Provision a GitHub read-only deploy key for this repo and wire it into
+      ArgoCD as a repo Secret. Idempotent — re-runs rotate the key.
+      Requires `gh` installed and authenticated (`gh auth login`).
+    deps: [bootstrap:argocd]
+    cmds:
+      - |
+        set -euo pipefail
+
+        command -v gh >/dev/null 2>&1 || { echo "gh CLI not found — install with 'brew install gh'"; exit 1; }
+        gh auth status >/dev/null 2>&1 || { echo "gh not authenticated — run 'gh auth login'"; exit 1; }
+
+        # Idempotency: rotate any prior deploy key with the same title.
+        existing=$(gh repo deploy-key list --repo {{.GITHUB_REPO}} --json id,title --jq '.[] | select(.title=="{{.DEPLOY_KEY_TITLE}}") | .id' || true)
+        if [ -n "${existing}" ]; then
+          echo "Removing existing deploy key '{{.DEPLOY_KEY_TITLE}}' (id=${existing})"
+          gh repo deploy-key delete "${existing}" --repo {{.GITHUB_REPO}}
+        fi
+
+        # Fresh ed25519 keypair in a temp dir that we always clean up.
+        TMPDIR=$(mktemp -d -t crossplane-workshop-deploy-XXXXXX)
+        trap 'rm -rf "${TMPDIR}"' EXIT
+        ssh-keygen -t ed25519 -N "" -f "${TMPDIR}/key" -C "{{.DEPLOY_KEY_TITLE}}@{{.GITHUB_REPO}}" -q
+
+        # Register the public half as a read-only deploy key.
+        gh repo deploy-key add "${TMPDIR}/key.pub" --title "{{.DEPLOY_KEY_TITLE}}" --repo {{.GITHUB_REPO}}
+
+        # Build and apply the ArgoCD repo Secret. base64 avoids multi-line
+        # heredoc indentation issues for the private key.
+        KEY_B64=$(base64 < "${TMPDIR}/key" | tr -d '\n')
+        URL_B64=$(printf %s '{{.REPO_SSH_URL}}' | base64 | tr -d '\n')
+        TYPE_B64=$(printf %s 'git' | base64 | tr -d '\n')
+
+        cat <<YAML | kubectl apply -f -
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: {{.ARGOCD_REPO_SECRET}}
+          namespace: {{.ARGOCD_NS}}
+          labels:
+            argocd.argoproj.io/secret-type: repository
+        type: Opaque
+        data:
+          type: ${TYPE_B64}
+          url: ${URL_B64}
+          sshPrivateKey: ${KEY_B64}
+        YAML
+
+        echo "repo credentials provisioned for {{.REPO_SSH_URL}}"
+
   bootstrap:root-app:
     desc: Apply the root app-of-apps Application.
-    deps: [bootstrap:argocd]
+    deps: [bootstrap:argocd, bootstrap:repo-credentials]
     cmds:
       - kubectl apply -f {{.ROOT_APP}}
 
   bootstrap:all:
-    desc: Install ArgoCD and apply the root app-of-apps.
+    desc: Install ArgoCD, wire repo credentials, and apply the root app-of-apps.
     cmds:
       - task: bootstrap:argocd
+      - task: bootstrap:repo-credentials
       - task: bootstrap:root-app
 
   # ------------------------------------------------------------------

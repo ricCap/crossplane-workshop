@@ -15,7 +15,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
-        repoURL: https://github.com/ricCap/crossplane-workshop.git
+        repoURL: git@github.com:ricCap/crossplane-workshop.git
         revision: main
         files:
           - path: gitops/participant-vclusters/pairs/*.yaml

@@ -9,7 +9,7 @@ metadata:
 spec:
   description: Crossplane workshop — participant vclusters and supporting apps.
   sourceRepos:
-    - https://github.com/ricCap/crossplane-workshop.git
+    - git@github.com:ricCap/crossplane-workshop.git
     - https://charts.loft.sh
   destinations:
     - namespace: '*'
