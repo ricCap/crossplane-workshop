@@ -16,6 +16,10 @@ spec:
         app: docs
     spec:
       serviceAccountName: validator
+      # Pull secret is provisioned imperatively by `task bootstrap:ghcr-pull-secret`
+      # (see Taskfile). The images live under a private GHCR package.
+      imagePullSecrets:
+        - name: ghcr-pull
       containers:
         - name: docs
           image: ghcr.io/riccap/crossplane-workshop-docs:latest

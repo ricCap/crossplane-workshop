@@ -20,6 +20,11 @@ vars:
   REPO_SSH_URL: git@github.com:ricCap/crossplane-workshop.git
   DEPLOY_KEY_TITLE: argocd-crossplane-workshop
   ARGOCD_REPO_SECRET: repo-crossplane-workshop
+  # GHCR pull secret for the private docs + validator images. The secret
+  # is created in the `docs` namespace and referenced via imagePullSecrets
+  # in gitops/docs/deployment.yaml.
+  DOCS_NS: docs
+  GHCR_PULL_SECRET: ghcr-pull
 
 tasks:
 
@@ -123,17 +128,58 @@ tasks:
 
         echo "repo credentials provisioned for {{.REPO_SSH_URL}}"
 
+  bootstrap:ghcr-pull-secret:
+    desc: |
+      Provision a dockerconfigjson Secret in the docs namespace so the
+      docs Deployment can pull the private ghcr.io/<owner>/crossplane-
+      workshop-{docs,validator} images. Uses the token from `gh auth
+      token`, so the gh CLI must have the `read:packages` scope:
+
+        gh auth refresh -h github.com -s read:packages
+
+      Idempotent — re-runs overwrite the Secret with the current token.
+    cmds:
+      - |
+        set -euo pipefail
+
+        command -v gh >/dev/null 2>&1 || { echo "gh CLI not found — install with 'brew install gh'"; exit 1; }
+        gh auth status >/dev/null 2>&1 || { echo "gh not authenticated — run 'gh auth login'"; exit 1; }
+
+        # Verify the current gh token carries read:packages; otherwise the
+        # secret we build would fail at image-pull time with a confusing 403.
+        if ! gh auth status 2>&1 | grep -q 'read:packages'; then
+          echo "gh token is missing the 'read:packages' scope." >&2
+          echo "Run: gh auth refresh -h github.com -s read:packages" >&2
+          exit 1
+        fi
+
+        GH_USER=$(gh api user -q '.login')
+        GH_TOKEN=$(gh auth token)
+
+        # Ensure the target namespace exists. ArgoCD will later adopt it
+        # via the docs Application's CreateNamespace=true syncOption.
+        kubectl get ns {{.DOCS_NS}} >/dev/null 2>&1 || kubectl create ns {{.DOCS_NS}}
+
+        kubectl -n {{.DOCS_NS}} create secret docker-registry {{.GHCR_PULL_SECRET}} \
+          --docker-server=ghcr.io \
+          --docker-username="${GH_USER}" \
+          --docker-password="${GH_TOKEN}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        echo "ghcr pull secret provisioned in namespace {{.DOCS_NS}}"
+
   bootstrap:root-app:
     desc: Apply the root app-of-apps Application.
-    deps: [bootstrap:argocd, bootstrap:repo-credentials]
+    deps: [bootstrap:argocd, bootstrap:repo-credentials, bootstrap:ghcr-pull-secret]
     cmds:
       - kubectl apply -f {{.ROOT_APP}}
 
   bootstrap:all:
-    desc: Install ArgoCD, wire repo credentials, and apply the root app-of-apps.
+    desc: Install ArgoCD, wire repo + ghcr credentials, and apply the root app-of-apps.
     cmds:
       - task: bootstrap:argocd
       - task: bootstrap:repo-credentials
+      - task: bootstrap:ghcr-pull-secret
       - task: bootstrap:root-app
 
   # ------------------------------------------------------------------
