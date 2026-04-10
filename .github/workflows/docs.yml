@@ -15,6 +15,9 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # Cap the arm64 cross-build. Docusaurus + webpack under QEMU has hung
+    # for >4h in the past; fail fast instead of burning runner minutes.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
