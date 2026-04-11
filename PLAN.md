@@ -128,7 +128,8 @@ task verify:pair PAIR=fancy-lemon
 
 ## Deferred (not scheduled)
 
-- Workshop content doc (timeline, modules, learning objectives, Crossplane web UI usage, microfrontend gamification).
+- **Crossview for Crossplane visualization** — install [crossplane-contrib/crossview](https://github.com/crossplane-contrib/crossview) (OSS React+Go dashboard, Helm chart available at `helm repo add crossview https://crossplane-contrib.github.io/crossview`) so participants can see their XRDs, Compositions, claims and managed resources in a real UI instead of only `kubectl get`. Auth is optional, so we can run it with OIDC off for the workshop. Install per-vcluster via GitOps alongside the other module-1 plumbing. Add a short "visualize" section to module 3 / 4 once it's wired up.
+- Workshop content doc (timeline, modules, learning objectives, microfrontend gamification).
 - ArubaCloud Crossplane provider generation via `upjet` + Aruba's Terraform provider.
 - Per-pair `ResourceQuota` on the management cluster.
 - Ingress / TLS / DNS / SSO for ArgoCD.
