@@ -34,6 +34,10 @@ See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which p
 
 Drop a new file under `gitops/participant-vclusters/pairs/` following the `fancy-lemon.yaml` shape (pick any fancy adjective-noun name — `brave-mango`, `quiet-olive`, …), commit, and push. ArgoCD's `participant-vclusters` ApplicationSet picks it up within ~2 min. No tasks involved.
 
+## Planning
+
+PLAN.md holds the roadmap. Whenever you agree a new plan with the user, update PLAN.md in the same change — otherwise this file drifts and stops being useful.
+
 ## GitOps discipline
 
 Do not `kubectl apply` against the management cluster outside the documented bootstrap tasks. Once `task bootstrap:all` has run, ArgoCD owns cluster state — out-of-band changes will be reverted by `selfHeal: true`.

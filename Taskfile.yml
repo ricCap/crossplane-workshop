@@ -195,6 +195,14 @@ tasks:
         echo "Password:  $(kubectl -n {{.ARGOCD_NS}} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
         kubectl -n {{.ARGOCD_NS}} port-forward svc/argo-cd-argocd-server 8080:443
 
+  wall:ui:
+    desc: "Port-forward ingress-nginx to http://localhost:8100/ (docs + /wall + every /team/<pair>/ tile)."
+    cmds:
+      - |
+        echo "Docs:  http://localhost:8100/"
+        echo "Wall:  http://localhost:8100/wall"
+        kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8100:80
+
   # ------------------------------------------------------------------
   # Verify
   # ------------------------------------------------------------------

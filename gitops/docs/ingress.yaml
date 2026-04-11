@@ -1,0 +1,28 @@
+# Routes the shared ingress-nginx host root path (`/`) to the docs
+# Service so that the Docusaurus site and its `/wall` aggregator page
+# share the same origin as the per-pair `/team/<pair>/...` routes
+# created by the participant-ingress ApplicationSet. Same-origin is
+# what lets each tile's iframe do a relative `fetch('./api/message')`
+# without CORS.
+#
+# The catch-all `/` prefix must NOT collide with the per-pair
+# `/team/<pair>/...` rules. ingress-nginx matches longest-prefix per
+# host, so `/team/...` wins over `/` — no special ordering needed
+# because the rules live in different namespaces.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docs
+  namespace: docs
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: docs
+                port:
+                  number: 80

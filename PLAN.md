@@ -92,6 +92,40 @@ task verify:pair PAIR=fancy-lemon
 
 **Status**: design only, not started.
 
+## Workshop content — Application XRD + microfrontend wall (in progress)
+
+**Goal**: turn the docs pod from "one module + validator plumbing" into the actual workshop curriculum. Each pair contributes one tile to a collective HTML page (the "wall"); every tile is the output of a Crossplane `Application` claim reconciled by provider-kubernetes inside their own vcluster.
+
+**Decisions** (locked Apr 11, 2026):
+- **Rendering**: iframes in a grid. Each team's frontend runs its own JS inside its iframe, calls its backend via a same-origin relative fetch, renders into its own DOM. No CSS/JS collisions between teams.
+- **Ingress**: `ingress-nginx` on the management cluster, `sync.toHost.services: enabled: true` in the vcluster Helm values, a per-pair Ingress on the management cluster routes `/team/<pair>/*` → synced frontend Service and `/team/<pair>/api/*` → synced backend Service. Participants never touch Ingress objects.
+- **XRD authoring**: participants copy-paste a complete XRD + Composition from the docs in module 3 and apply them in their vcluster. Cannot pre-install via GitOps because Crossplane itself isn't present at vcluster creation time — they install it in module 1.
+- **Images**: backend = `hashicorp/http-echo`, frontend = `nginx:alpine` + ConfigMap-mounted `index.html`. Zero new image pipelines.
+- **RBAC for provider-kubernetes**: bind the provider SA to the existing `cluster-admin` ClusterRole. Intentionally wide so module 4+5 (modify / extend the Composition) don't keep bouncing back to module 2 to widen a narrow role. Called out in the module body.
+
+**Module layout**:
+1. Module 1 — Install Crossplane (exists).
+2. Module 2 — Install provider-kubernetes + cluster-admin binding + ProviderConfig `InjectedIdentity`.
+3. Module 3 — Define `Application` XRD + Composition, create a claim, see the tile light up on `/wall`.
+4. Module 4 — Modify the Composition (HTML/CSS/colors), observe the tile update.
+5. Module 5 (stretch) — Add a field to the XRD, patch through to an env var, bump the claim.
+
+**New validator surface**:
+- `checkProviderKubernetesInstalled` and `checkApplicationReady` in `validator/checks.go`.
+- `GET /api/pairs` in `validator/main.go` — lists namespaces matching `participant-*` on the management cluster, strips the prefix, returns JSON. Existing validator RBAC (namespace list cluster-wide) is sufficient.
+
+**New infra**:
+- `gitops/apps/ingress-nginx.yaml` — ArgoCD Application installing the upstream `ingress-nginx` Helm chart, pinned. `workshop` AppProject `sourceRepos` extended with `https://kubernetes.github.io/ingress-nginx`.
+- `gitops/docs/ingress.yaml` — routes `/` on the shared host to the docs Service.
+- `gitops/apps/participant-ingress.yaml` — a second ApplicationSet reusing the same git-files generator (`gitops/participant-vclusters/pairs/*.yaml`) to create one per-pair Ingress in each `participant-<pair>` namespace with `/team/<pair>/api` and `/team/<pair>/` path rules.
+- `Taskfile.yml :: wall:ui` — port-forwards ingress-nginx controller to `http://localhost:8100/` (supersedes the docs-specific port-forward for everything except raw debug).
+
+**Docs image build time** (unblocked Apr 11, 2026): `.github/workflows/{docs,validator}.yml` restructured from a single-job QEMU multi-arch build into a matrix of native per-platform builds (`ubuntu-latest` + `ubuntu-24.04-arm`) pushed by digest, merged into a manifest list by a follow-up job. Previous docs build: 18m under QEMU. Target: <10m end to end.
+
+**Status**: execution started Apr 11, 2026. Workflow split committed first to unblock iteration.
+
+**Full design** (while in flight): `/Users/riccardocapraro/.claude/plans/compressed-nibbling-coral.md`.
+
 ## Deferred (not scheduled)
 
 - Workshop content doc (timeline, modules, learning objectives, Crossplane web UI usage, microfrontend gamification).

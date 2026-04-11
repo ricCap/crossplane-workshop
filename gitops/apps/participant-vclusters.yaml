@@ -58,8 +58,19 @@ spec:
                     cpu: 500m
                     memory: 1Gi
                     ephemeral-storage: 5Gi
+            # toHost.services sync is what makes the frontend/backend
+            # Services that participants create inside their vcluster
+            # appear on the management cluster as
+            # `<svc>-x-<ns>-x-<release>` in the participant-<pair>
+            # namespace. The workshop's per-pair Ingress
+            # (gitops/apps/participant-ingress.yaml) points at those
+            # synced Services so `/team/<pair>/...` routes reach them.
+            # toHost.ingresses stays OFF — Ingress lives on the
+            # management cluster, not inside the vcluster.
             sync:
               toHost:
+                services:
+                  enabled: true
                 ingresses:
                   enabled: false
             # Secret name defaults to vc-<release>; the validator
