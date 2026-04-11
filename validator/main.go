@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,8 @@ func main() {
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	// POST /api/checks/{pairId}/{checkId}
 	mux.HandleFunc("POST /api/checks/", handleCheck)
+	// GET /api/pairs — used by the docs wall page to discover tiles
+	mux.HandleFunc("GET /api/pairs", handlePairs)
 
 	log.Println("validator listening on :8081")
 	if err := http.ListenAndServe(":8081", mux); err != nil {
@@ -100,6 +103,44 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, checkResponse{Pass: pass, Details: details})
+}
+
+// handlePairs returns the sorted list of registered pair IDs by listing
+// namespaces on the management cluster whose name starts with
+// "participant-" and stripping the prefix. This is what the docs wall
+// page fetches on load to decide which iframes to render.
+//
+// RBAC: the validator SA already has list on namespaces cluster-wide
+// (see gitops/docs/rbac.yaml), so no new permissions are needed.
+func handlePairs(w http.ResponseWriter, r *http.Request) {
+	inCluster, err := rest.InClusterConfig()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "in-cluster config: " + err.Error()})
+		return
+	}
+
+	mgmtClient, err := kubernetes.NewForConfig(inCluster)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "mgmt client: " + err.Error()})
+		return
+	}
+
+	nsList, err := mgmtClient.CoreV1().Namespaces().List(r.Context(), metav1.ListOptions{})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "list namespaces: " + err.Error()})
+		return
+	}
+
+	const prefix = "participant-"
+	pairs := make([]string, 0, len(nsList.Items))
+	for _, ns := range nsList.Items {
+		if strings.HasPrefix(ns.Name, prefix) {
+			pairs = append(pairs, strings.TrimPrefix(ns.Name, prefix))
+		}
+	}
+	sort.Strings(pairs)
+
+	writeJSON(w, http.StatusOK, pairs)
 }
 
 // vclientFromSecret builds a dynamic client for the vcluster whose kubeconfig

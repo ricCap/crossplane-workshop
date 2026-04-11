@@ -9,6 +9,15 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+// providersGVR is the Crossplane package provider resource, used by the
+// provider-* checks. Defined once so adding a new provider check is a
+// three-line delegation to checkProviderHealthy.
+var providersGVR = schema.GroupVersionResource{
+	Group:    "pkg.crossplane.io",
+	Version:  "v1",
+	Resource: "providers",
+}
+
 // Check is a predefined validation that runs against a pair's vcluster.
 // All checks receive a dynamic client already configured to talk to the target vcluster.
 type Check func(ctx context.Context, client dynamic.Interface) (pass bool, details string, err error)
@@ -16,8 +25,10 @@ type Check func(ctx context.Context, client dynamic.Interface) (pass bool, detai
 // checks is the registry of all predefined check IDs.
 // Add new entries here; the HTTP handler looks up by ID automatically.
 var checks = map[string]Check{
-	"crossplane-installed":    checkCrossplaneInstalled,
-	"provider-helm-installed": checkProviderHelmInstalled,
+	"crossplane-installed":          checkCrossplaneInstalled,
+	"provider-helm-installed":       checkProviderHelmInstalled,
+	"provider-kubernetes-installed": checkProviderKubernetesInstalled,
+	"application-ready":             checkApplicationReady,
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -60,26 +71,28 @@ func checkCrossplaneInstalled(ctx context.Context, client dynamic.Interface) (bo
 	return false, "crossplane Deployment exists but no Available condition found in status.conditions", nil
 }
 
-// checkProviderHelmInstalled asserts that a Crossplane Provider named "provider-helm"
-// exists in the vcluster and has a Healthy condition with status "True".
-//
-// It uses the dynamic client so we don't need to vendor the Crossplane API types.
+// checkProviderHelmInstalled asserts that Provider/provider-helm is Healthy.
 func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
-	providersGVR := schema.GroupVersionResource{
-		Group:    "pkg.crossplane.io",
-		Version:  "v1",
-		Resource: "providers",
-	}
+	return checkProviderHealthy(ctx, client, "provider-helm")
+}
 
-	provider, err := client.Resource(providersGVR).Get(ctx, "provider-helm", metav1.GetOptions{})
+// checkProviderKubernetesInstalled asserts that Provider/provider-kubernetes is Healthy.
+func checkProviderKubernetesInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-kubernetes")
+}
+
+// checkProviderHealthy looks up a Crossplane Provider by name and walks its
+// status.conditions for type=Healthy, status=True. Uses the dynamic client
+// so we don't need to vendor Crossplane API types.
+func checkProviderHealthy(ctx context.Context, client dynamic.Interface, name string) (bool, string, error) {
+	provider, err := client.Resource(providersGVR).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return false, fmt.Sprintf("provider-helm not found: %v", err), nil
+		return false, fmt.Sprintf("%s not found: %v", name, err), nil
 	}
 
-	// Walk conditions: .status.conditions[*] looking for type=Healthy, status=True
 	conditions, ok, _ := unstructuredNestedSlice(provider.Object, "status", "conditions")
 	if !ok {
-		return false, "provider-helm exists but has no status.conditions yet", nil
+		return false, fmt.Sprintf("%s exists but has no status.conditions yet", name), nil
 	}
 
 	for _, raw := range conditions {
@@ -90,16 +103,54 @@ func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (
 		if cond["type"] == "Healthy" {
 			if cond["status"] == "True" {
 				msg, _ := cond["message"].(string)
-				return true, fmt.Sprintf("provider-helm is Healthy. %s", msg), nil
+				return true, fmt.Sprintf("%s is Healthy. %s", name, msg), nil
 			}
-			// Found Healthy condition but status != True
 			reason, _ := cond["reason"].(string)
 			msg, _ := cond["message"].(string)
-			return false, fmt.Sprintf("provider-helm not yet Healthy (reason=%s): %s", reason, msg), nil
+			return false, fmt.Sprintf("%s not yet Healthy (reason=%s): %s", name, reason, msg), nil
 		}
 	}
 
-	return false, "provider-helm exists but no Healthy condition found in status.conditions", nil
+	return false, fmt.Sprintf("%s exists but no Healthy condition found in status.conditions", name), nil
+}
+
+// checkApplicationReady looks for at least one Application claim
+// (workshop.example.io/v1alpha1) with condition type=Ready, status=True
+// anywhere in the vcluster. The claim name is returned in the details so
+// the docs tile can show participants what materialized.
+func checkApplicationReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	applicationsGVR := schema.GroupVersionResource{
+		Group:    "workshop.example.io",
+		Version:  "v1alpha1",
+		Resource: "applications",
+	}
+
+	list, err := client.Resource(applicationsGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Application claims: %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Application claims found in the vcluster", nil
+	}
+
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] == "Ready" && cond["status"] == "True" {
+				return true, fmt.Sprintf("Application %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			}
+		}
+	}
+
+	first := list.Items[0]
+	return false, fmt.Sprintf("Application %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // unstructuredNestedSlice is a thin helper to avoid importing k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
