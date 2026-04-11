@@ -1,0 +1,78 @@
+---
+sidebar_position: 5
+title: 4. Modify the Composition
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 4 — Modify the Composition
+
+<PairId />
+
+So far your Composition is static: every `Application` claim produces the same HTML layout,
+the same colors, the same fonts. In this short module you'll edit the Composition and watch
+your tile update **without** re-applying the claim. That's the power of composition: the
+abstraction survives, the implementation changes.
+
+Reconnect to your vcluster:
+
+```bash
+vcluster connect <pair-id> -n participant-<pair-id>
+```
+
+## 4.1 Edit the Composition in place
+
+Open the Composition for editing:
+
+```bash
+kubectl edit composition applications.workshop.example.io
+```
+
+Find the `frontend-configmap` resource (the first one in `spec.resources`) and modify the
+HTML inside `data: index.html: |`. A few easy wins:
+
+- Add a subtitle under the `<div id="tile">`:
+  ```html
+  <div id="subtitle" style="font-size: 1rem; color: #6b7280;">hello from my XRD</div>
+  ```
+- Change the background color:
+  ```css
+  body { background: #fef3c7; ... }
+  ```
+- Add emoji, a border, a big gradient — anything inline CSS can do in a single ConfigMap.
+
+Save and exit the editor. Crossplane immediately reconciles: the `Object` for the ConfigMap
+is patched with the new content, provider-kubernetes applies the change, and nginx picks up
+the new file on the next request.
+
+## 4.2 Force nginx to reload
+
+nginx inside the frontend Pod reads `/usr/share/nginx/html/index.html` on every request, so
+a simple browser refresh is enough to see the new HTML. But the ConfigMap projection inside
+the Pod only updates every ~30 seconds (kubelet's periodic sync). If you're impatient:
+
+```bash
+kubectl rollout restart deployment frontend
+```
+
+This bounces the frontend Pod and gives you the new page immediately.
+
+## 4.3 Verify the tile updates
+
+Open the [wall](/wall) in a new tab. Click **Refresh**. Your tile should show the new HTML /
+CSS / colors you edited. The `application-ready` check is still green — you haven't changed
+any of the conditions it checks:
+
+<ValidateCheck check="application-ready" />
+
+The important thing: the `Application` claim is still `wall-tile`. You didn't re-apply it.
+You didn't even touch it. A Composition edit reshaped the downstream managed resources, and
+the platform reconciled the delta — no kubectl gymnastics, no downtime.
+
+:::tip Stretch: change the XRD
+Want to go further? Add a new field to the XRD (e.g. `subtitle`), patch it through the
+Composition to a second key in the ConfigMap data or a new env var on the backend, and apply
+a fresh claim. That's module 5 — optional, and a good sandbox to break and fix things before
+the workshop wraps up.
+:::

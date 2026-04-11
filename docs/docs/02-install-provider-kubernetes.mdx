@@ -1,0 +1,141 @@
+---
+sidebar_position: 3
+title: 2. Install provider-kubernetes
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 2 — Install provider-kubernetes
+
+<PairId />
+
+Crossplane on its own knows nothing about any particular API. **Providers** extend Crossplane
+with support for a specific set of resources — AWS, GCP, Helm, Kubernetes, and so on. In this
+module you install [`provider-kubernetes`](https://github.com/crossplane-contrib/provider-kubernetes),
+the provider that lets a Crossplane Composition create *any* Kubernetes object (Deployments,
+Services, ConfigMaps, …) as part of its output.
+
+You'll use it in module 3 to let a single `Application` claim produce a complete frontend +
+backend stack.
+
+## 2.1 Make sure you're connected to your vcluster
+
+Every command in this module runs **inside your vcluster**, not the management cluster.
+
+```bash
+vcluster connect <pair-id> -n participant-<pair-id>
+kubectl config current-context
+# should look like: vcluster_<pair-id>_participant-<pair-id>_...
+```
+
+## 2.2 Apply the Provider manifest
+
+A `Provider` is a Crossplane resource that tells the package manager which image to install.
+Apply this manifest:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.2.1
+```
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.2.1
+EOF
+```
+
+Watch the provider come up:
+
+```bash
+kubectl get provider.pkg.crossplane.io
+# NAME                  INSTALLED   HEALTHY   PACKAGE
+# provider-kubernetes   True        True      xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.2.1
+```
+
+It usually takes 30–60 seconds for `HEALTHY` to flip to `True` as Crossplane pulls the package
+image and rolls out the provider pod.
+
+## 2.3 Grant the provider permission to create resources
+
+`provider-kubernetes` runs as its own ServiceAccount inside the `crossplane-system` namespace.
+By default that SA has *no* permissions — it can't create the Deployments, Services and
+ConfigMaps your Compositions will ask for. You need to bind a role to it.
+
+First find the SA name (Crossplane generates it with a hash suffix):
+
+```bash
+kubectl -n crossplane-system get sa | grep provider-kubernetes
+# provider-kubernetes-<hash>   0   2m
+```
+
+Then bind it to the built-in `cluster-admin` ClusterRole:
+
+```bash
+kubectl create clusterrolebinding provider-kubernetes-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=crossplane-system:$(kubectl -n crossplane-system get sa -o name | grep provider-kubernetes | cut -d/ -f2)
+```
+
+:::warning cluster-admin in a workshop vcluster
+We're binding `cluster-admin` on purpose. In modules 4 and 5 you'll extend the Composition to
+create new kinds of resources, and a narrower role would force you to keep coming back here to
+widen permissions — a detour that has nothing to do with what the workshop is teaching. The
+vcluster is throwaway and isolated, so the blast radius is zero.
+
+In a **real** cluster you would scope this down to exactly the API groups and verbs your
+Compositions need. Don't copy this shortcut into production.
+:::
+
+## 2.4 Apply a ProviderConfig
+
+A `ProviderConfig` tells `provider-kubernetes` *which* Kubernetes API to talk to. The simplest
+— and the right choice for a Composition that creates resources in the same cluster — is
+`InjectedIdentity`: the provider uses its own in-cluster ServiceAccount token, which is exactly
+the one you just bound to `cluster-admin`.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: InjectedIdentity
+EOF
+```
+
+The name `default` is important: Crossplane uses the ProviderConfig named `default` when a
+resource doesn't specify one explicitly, and the Composition in module 3 relies on that.
+
+## 2.5 Verify with the workshop checker
+
+<ValidateCheck check="provider-kubernetes-installed" />
+
+The check passes when `Provider/provider-kubernetes` reports `Healthy=True`. When it's green,
+you're ready to define your first Composition.
+
+## Troubleshooting
+
+**Check says "provider-kubernetes not found"**
+: You ran `kubectl apply` against the management cluster, not your vcluster. Re-run
+  `vcluster connect` and confirm the context.
+
+**Check says "not yet Healthy"**
+: The package image is still downloading, or the provider pod failed to start. Check with
+  `kubectl get provider.pkg.crossplane.io` and `kubectl -n crossplane-system get pods | grep
+  provider-kubernetes`. Most transient failures resolve on their own within a minute.
+
+**The provider pod keeps CrashLoopBackOff-ing after the ClusterRoleBinding**
+: The binding is on the wrong SA. `kubectl -n crossplane-system get sa | grep provider-kubernetes`
+  and re-create the binding with the correct name.
