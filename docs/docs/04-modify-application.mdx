@@ -29,8 +29,9 @@ Open the Composition for editing:
 kubectl edit composition applications.workshop.example.io
 ```
 
-Find the `frontend-configmap` resource (the first one in `spec.resources`) and modify the
-HTML inside `data: index.html: |`. A few easy wins:
+Find the `frontend-configmap` resource (the first one under
+`spec.pipeline[0].input.resources`) and modify the HTML inside
+`base.spec.forProvider.manifest.data.index.html`. A few easy wins:
 
 - Add a subtitle under the `<div id="tile">`:
   ```html

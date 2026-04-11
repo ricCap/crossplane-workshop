@@ -80,11 +80,15 @@ exists. Both need to be `True` before you can apply a claim.
 
 ## 3.2 Apply the Composition
 
-The Composition is where the interesting wiring lives. It says "for each `XApplication`,
-create five `Object` resources (the generic managed resource type from provider-kubernetes):
-a ConfigMap with an HTML page, an nginx Deployment, a frontend Service, an http-echo
-Deployment, and a backend Service." The `message` and `color` fields from the claim are
-patched into the http-echo container args at reconcile time.
+The Composition is where the interesting wiring lives. In Crossplane v2, Compositions are a
+**pipeline** of one or more functions. Each function gets the previous function's output plus
+its own `input`, and the last function's output is what Crossplane reconciles into managed
+resources. You installed `function-patch-and-transform` in module 2; this Composition uses it
+as a single-step pipeline that takes a list of resources and patches — the same shape
+Crossplane v1 used inline — and emits the five `Object`s that provider-kubernetes reconciles:
+a ConfigMap with the HTML, a frontend Deployment + Service, and a backend Deployment +
+Service. The `message` and `color` fields from the claim are patched into the http-echo
+container args at reconcile time.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
@@ -95,151 +99,159 @@ spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1
     kind: XApplication
-  resources:
-    - name: frontend-configmap
-      base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          forProvider:
-            manifest:
-              apiVersion: v1
-              kind: ConfigMap
-              metadata:
-                name: frontend
-                namespace: default
-              data:
-                index.html: |
-                  <!DOCTYPE html>
-                  <html><head><meta charset="utf-8"><title>Tile</title>
-                  <style>
-                    body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
-                    #tile { font-size: 2rem; font-weight: 700; }
-                  </style>
-                  </head><body>
-                  <div id="tile">Loading...</div>
-                  <script>
-                    fetch('./api/message')
-                      .then(r => r.text())
-                      .then(txt => {
-                        try {
-                          const d = JSON.parse(txt);
-                          const el = document.getElementById('tile');
-                          el.innerText = d.message || '(no message)';
-                          if (d.color) el.style.color = d.color;
-                        } catch (e) {
-                          document.getElementById('tile').innerText = 'Bad response: ' + txt;
-                        }
-                      })
-                      .catch(e => {
-                        document.getElementById('tile').innerText = 'Error: ' + e.message;
-                      });
-                  </script>
-                  </body></html>
-    - name: frontend-deployment
-      base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          forProvider:
-            manifest:
-              apiVersion: apps/v1
-              kind: Deployment
-              metadata:
-                name: frontend
-                namespace: default
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: frontend-configmap
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
               spec:
-                replicas: 1
-                selector:
-                  matchLabels: { app: frontend }
-                template:
-                  metadata:
-                    labels: { app: frontend }
-                  spec:
-                    containers:
-                      - name: nginx
-                        image: nginx:alpine
-                        ports:
-                          - containerPort: 80
-                        volumeMounts:
-                          - name: html
-                            mountPath: /usr/share/nginx/html
-                    volumes:
-                      - name: html
-                        configMap:
-                          name: frontend
-    - name: frontend-service
-      base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          forProvider:
-            manifest:
-              apiVersion: v1
-              kind: Service
-              metadata:
-                name: frontend
-                namespace: default
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: ConfigMap
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    data:
+                      index.html: |
+                        <!DOCTYPE html>
+                        <html><head><meta charset="utf-8"><title>Tile</title>
+                        <style>
+                          body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+                          #tile { font-size: 2rem; font-weight: 700; }
+                        </style>
+                        </head><body>
+                        <div id="tile">Loading...</div>
+                        <script>
+                          fetch('./api/message')
+                            .then(r => r.text())
+                            .then(txt => {
+                              try {
+                                const d = JSON.parse(txt);
+                                const el = document.getElementById('tile');
+                                el.innerText = d.message || '(no message)';
+                                if (d.color) el.style.color = d.color;
+                              } catch (e) {
+                                document.getElementById('tile').innerText = 'Bad response: ' + txt;
+                              }
+                            })
+                            .catch(e => {
+                              document.getElementById('tile').innerText = 'Error: ' + e.message;
+                            });
+                        </script>
+                        </body></html>
+          - name: frontend-deployment
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
               spec:
-                selector: { app: frontend }
-                ports:
-                  - port: 80
-                    targetPort: 80
-    - name: backend-deployment
-      base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          forProvider:
-            manifest:
-              apiVersion: apps/v1
-              kind: Deployment
-              metadata:
-                name: backend
-                namespace: default
+                forProvider:
+                  manifest:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    spec:
+                      replicas: 1
+                      selector:
+                        matchLabels: { app: frontend }
+                      template:
+                        metadata:
+                          labels: { app: frontend }
+                        spec:
+                          containers:
+                            - name: nginx
+                              image: nginx:alpine
+                              ports:
+                                - containerPort: 80
+                              volumeMounts:
+                                - name: html
+                                  mountPath: /usr/share/nginx/html
+                          volumes:
+                            - name: html
+                              configMap:
+                                name: frontend
+          - name: frontend-service
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
               spec:
-                replicas: 1
-                selector:
-                  matchLabels: { app: backend }
-                template:
-                  metadata:
-                    labels: { app: backend }
-                  spec:
-                    containers:
-                      - name: http-echo
-                        image: hashicorp/http-echo:1.0.0
-                        args:
-                          - '-listen=:5678'
-                          - '-text={"message":"placeholder","color":"#2563eb"}'
-                        ports:
-                          - containerPort: 5678
-      patches:
-        - type: CombineFromComposite
-          combine:
-            variables:
-              - fromFieldPath: spec.message
-              - fromFieldPath: spec.color
-            strategy: string
-            string:
-              fmt: '-text={"message":"%s","color":"%s"}'
-          toFieldPath: spec.forProvider.manifest.spec.template.spec.containers[0].args[1]
-    - name: backend-service
-      base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          forProvider:
-            manifest:
-              apiVersion: v1
-              kind: Service
-              metadata:
-                name: backend
-                namespace: default
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    spec:
+                      selector: { app: frontend }
+                      ports:
+                        - port: 80
+                          targetPort: 80
+          - name: backend-deployment
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
               spec:
-                selector: { app: backend }
-                ports:
-                  - port: 5678
-                    targetPort: 5678
+                forProvider:
+                  manifest:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: backend
+                      namespace: default
+                    spec:
+                      replicas: 1
+                      selector:
+                        matchLabels: { app: backend }
+                      template:
+                        metadata:
+                          labels: { app: backend }
+                        spec:
+                          containers:
+                            - name: http-echo
+                              image: hashicorp/http-echo:1.0.0
+                              args:
+                                - '-listen=:5678'
+                                - '-text={"message":"placeholder","color":"#2563eb"}'
+                              ports:
+                                - containerPort: 5678
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.message
+                    - fromFieldPath: spec.color
+                  strategy: string
+                  string:
+                    fmt: '-text={"message":"%s","color":"%s"}'
+                toFieldPath: spec.forProvider.manifest.spec.template.spec.containers[0].args[1]
+          - name: backend-service
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: backend
+                      namespace: default
+                    spec:
+                      selector: { app: backend }
+                      ports:
+                        - port: 5678
+                          targetPort: 5678
 ```
 
 Save that to a file and apply it:
