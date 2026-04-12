@@ -381,3 +381,11 @@ spec:
                       secretName: loft-user-secret-{{ $pairId }}
                       secretNamespace: vcluster-platform
                       key: password
+
+    # --- Step 3: Auto-ready ---
+    # Marks the XR as Ready when all composed resources are Ready.
+    # Required because function-go-templating resources don't
+    # propagate readiness to the composite by default.
+    - step: auto-ready
+      functionRef:
+        name: function-auto-ready
