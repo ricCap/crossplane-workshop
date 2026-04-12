@@ -346,7 +346,7 @@ spec:
                       access:
                         defaultClusterRole: ""
                         rules:
-                          - users: ["{{ $pairId }}"]
+                          - users: ["{{ $pairId }}", "admin"]
                             clusterRole: cluster-admin
 
     # --- Step 3: Auto-ready ---
