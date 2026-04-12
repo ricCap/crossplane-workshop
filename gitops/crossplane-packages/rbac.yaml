@@ -98,7 +98,7 @@ rules:
     verbs: ["*"]
   - apiGroups: ["storage.loft.sh"]
     resources: ["virtualclusterinstances"]
-    verbs: ["get", "list", "watch", "update", "patch"]
+    verbs: ["*"]
   # Platform User creation requires binding users at the cluster scope
   - apiGroups: [""]
     resources: ["users"]
