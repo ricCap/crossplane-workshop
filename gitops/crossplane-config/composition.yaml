@@ -119,6 +119,7 @@ spec:
                       parentRefs:
                         - name: workshop
                           namespace: envoy-gateway-system
+                          sectionName: https
                       rules:
                         # API route — longest prefix wins over the
                         # catch-all frontend route below.

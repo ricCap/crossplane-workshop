@@ -1,7 +1,6 @@
 # Routes the root path (`/`) to the docs Service via Gateway API.
-# The Docusaurus site, /wall aggregator, and /api/* validator proxy
-# all share this route. Same-origin with per-pair /team/<pair>/ routes
-# lets iframes do relative fetch() without CORS.
+# Attached to the HTTPS listener only — HTTP is redirected by
+# the http-to-https HTTPRoute in the gateway config.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -11,6 +10,7 @@ spec:
   parentRefs:
     - name: workshop
       namespace: envoy-gateway-system
+      sectionName: https
   rules:
     - matches:
         - path:
