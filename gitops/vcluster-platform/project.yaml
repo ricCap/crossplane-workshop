@@ -10,6 +10,8 @@ metadata:
   name: default
   annotations:
     loft.sh/project-namespace: p-default
+    loft.sh/apply: |
+      {"kind":"Project","apiVersion":"storage.loft.sh/v1","metadata":{"name":"default"},"spec":{"displayName":"Default Project","description":"Workshop participant vclusters","quotas":{},"allowedClusters":[{"name":"*"}],"allowedRunners":[{"name":"*"}],"allowedTemplates":[{"kind":"VirtualClusterTemplate","group":"storage.loft.sh","name":"*"},{"kind":"SpaceTemplate","group":"storage.loft.sh","name":"*"}],"requireTemplate":{},"requirePreset":{},"members":[{"kind":"User","group":"storage.loft.sh","name":"admin","clusterRole":"loft-management-project-admin"}]},"status":{}}
 spec:
   displayName: Default Project
   description: Workshop participant vclusters
