@@ -27,6 +27,7 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
+      hostname: "workshop.testdomain-riccap.it"
       tls:
         mode: Terminate
         certificateRefs:
