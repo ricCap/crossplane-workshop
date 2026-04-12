@@ -90,12 +90,19 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["*"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["*"]
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["httproutes"]
     verbs: ["*"]
   - apiGroups: ["management.loft.sh"]
     resources: ["users"]
     verbs: ["*"]
+  # Platform User creation requires binding users at the cluster scope
+  - apiGroups: [""]
+    resources: ["users"]
+    verbs: ["bind", "create", "get", "list", "watch", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
