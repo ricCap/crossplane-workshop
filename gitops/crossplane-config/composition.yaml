@@ -252,3 +252,59 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.quota.pods
                 toFieldPath: spec.forProvider.manifest.spec.hard.pods
+
+    # --- Step 2: Platform user (go-templating) ---
+    # Generates a non-guessable password (SHA256 of pair ID + salt,
+    # truncated to 24 chars) and creates a Platform User + password
+    # Secret so participants can log in and download their kubeconfig.
+    - step: platform-user
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $pairId := .observed.composite.resource.spec.pairId }}
+            {{ $password := printf "%s:crossplane-workshop-2026:platform-access" $pairId | sha256sum | trunc 24 }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              name: platform-password-{{ $pairId }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: platform-password
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: Secret
+                  metadata:
+                    name: loft-user-secret-{{ $pairId }}
+                    namespace: vcluster-platform
+                  type: Opaque
+                  data:
+                    password: {{ $password | b64enc }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              name: platform-user-{{ $pairId }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: platform-user
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: management.loft.sh/v1
+                  kind: User
+                  metadata:
+                    name: {{ $pairId }}
+                  spec:
+                    displayName: {{ $pairId }}
+                    username: {{ $pairId }}
+                    subject: {{ $pairId }}
+                    passwordRef:
+                      secretName: loft-user-secret-{{ $pairId }}
+                      secretNamespace: vcluster-platform
+                      key: password

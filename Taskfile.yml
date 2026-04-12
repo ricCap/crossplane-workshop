@@ -217,6 +217,7 @@ tasks:
           --set "admin.password=${PLATFORM_ADMIN_PASSWORD}" \
           --set ingress.enabled=false \
           --set config.loftHost=platform.testdomain-riccap.it \
+          --set config.monitoring.enabled=false \
           --set replicaCount=1 \
           --set "resources.requests.cpu=200m" \
           --set "resources.requests.memory=512Mi" \
@@ -270,22 +271,26 @@ tasks:
   # ------------------------------------------------------------------
 
   platform:register-vclusters:
-    desc: Register existing Crossplane-managed vclusters with vCluster Platform.
+    desc: |
+      Register all Crossplane-managed vclusters with vCluster Platform.
+      Creates an API access key, then uses `--all` to discover and register
+      every vcluster on the cluster. Idempotent — safe to re-run.
     cmds:
       - |
         set -euo pipefail
+        PLATFORM_HOST=https://platform.testdomain-riccap.it
 
-        echo "Logging in to vCluster Platform..."
-        vcluster platform login https://platform.testdomain-riccap.it --username admin
+        # Log in to Platform (interactive — prompts for password).
+        vcluster platform login "${PLATFORM_HOST}" --username admin
 
-        for pair in $(ls gitops/participant-claims/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//'); do
-          echo "Registering vcluster: ${pair} (namespace participant-${pair})"
-          vcluster platform add vcluster "${pair}" \
-            --namespace "participant-${pair}" \
-            --project default || echo "  (already registered or failed — continuing)"
-        done
+        # Register all vclusters on the cluster into the default project.
+        echo "Registering all vclusters..."
+        vcluster platform add vcluster \
+          --all \
+          --project default \
+          || echo "(some vclusters may already be registered)"
 
-        echo "Done. Check https://platform.testdomain-riccap.it"
+        echo "Done. Check ${PLATFORM_HOST}"
 
   # ------------------------------------------------------------------
   # Verify
