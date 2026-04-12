@@ -319,6 +319,35 @@ spec:
                       secretName: loft-user-secret-{{ $pairId }}
                       secretNamespace: vcluster-platform
                       key: password
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              name: platform-vci-access-{{ $pairId }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: platform-vci-access
+            spec:
+              forProvider:
+                manifest:
+                  apiVersion: storage.loft.sh/v1
+                  kind: VirtualClusterInstance
+                  metadata:
+                    name: {{ $pairId }}
+                    namespace: p-default
+                  spec:
+                    access:
+                      - name: pair-owner
+                        verbs: ["*"]
+                        users: ["{{ $pairId }}"]
+                      - name: admin-access
+                        verbs: ["*"]
+                        users: ["admin"]
+                    template:
+                      access:
+                        defaultClusterRole: ""
+                        rules:
+                          - users: ["{{ $pairId }}"]
+                            clusterRole: cluster-admin
 
     # --- Step 3: Auto-ready ---
     # Marks the XR as Ready when all composed resources are Ready.
