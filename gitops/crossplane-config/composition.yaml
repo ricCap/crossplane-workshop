@@ -8,6 +8,8 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   name: vclusters.workshop.example.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1

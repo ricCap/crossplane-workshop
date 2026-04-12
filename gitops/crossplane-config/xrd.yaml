@@ -10,6 +10,8 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xvclusters.workshop.example.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   group: workshop.example.io
   names:
