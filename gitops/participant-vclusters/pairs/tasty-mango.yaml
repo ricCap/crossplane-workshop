@@ -1,5 +1,0 @@
-# One file per participant pair. Copy this to <another-name>.yaml to scale.
-# Names are fancy adjective-noun combos (e.g. fancy-lemon, brave-mango) so
-# participants have something memorable instead of an opaque index.
-# The `participant-vclusters` ApplicationSet picks new files up within ~2 min.
-pair_id: tasty-mango

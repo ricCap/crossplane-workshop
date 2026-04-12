@@ -1,57 +1,34 @@
-# Phase 3 — the "gotcha moment" swap is DONE.
+# Each file in gitops/participant-claims/ is an XVCluster composite
+# resource. Crossplane's XVCluster Composition reconciles each one into
+# a full participant environment: Namespace, vcluster Helm Release,
+# per-pair Ingress, and ResourceQuota.
 #
-# This ApplicationSet used to render a Helm source pointing directly at
-# the loft-sh/vcluster chart. Now it renders a VCluster *claim* that
-# Crossplane picks up and reconciles via the XVCluster Composition
-# (gitops/crossplane-config/), which uses provider-helm to install the
-# same chart. Participants discover at the end of the workshop that the
-# vcluster they've been using was itself a Crossplane-managed resource.
+# Scale lever: add a new YAML file to gitops/participant-claims/ with
+# just the pair ID. Crossplane does the rest.
 #
-# The git-files generator reads one file per participant pair from
-# gitops/participant-vclusters/pairs/ — that directory is the scale lever.
+# This replaces the old ApplicationSet + two Helm charts approach.
+# The "gotcha moment" reveal: participants discover that the vcluster
+# they used the whole workshop was itself a Crossplane-managed resource.
 apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
+kind: Application
 metadata:
   name: participant-vclusters
   namespace: argocd
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
-  generators:
-    - git:
-        repoURL: git@github.com:ricCap/crossplane-workshop.git
-        revision: main
-        files:
-          - path: gitops/participant-vclusters/pairs/*.yaml
-  template:
-    metadata:
-      name: 'vcluster-{{ .pair_id }}'
-    spec:
-      project: workshop
-      # -----------------------------------------------------------------
-      # Phase 3: renders a VCluster claim. Crossplane's XVCluster
-      # Composition (gitops/crossplane-config/) reconciles it into a
-      # provider-helm Release that installs the same loft-sh/vcluster
-      # chart with the same values the old direct-Helm source used.
-      # -----------------------------------------------------------------
-      source:
-        repoURL: git@github.com:ricCap/crossplane-workshop.git
-        targetRevision: main
-        path: gitops/participant-xvcluster
-        helm:
-          releaseName: 'xvcluster-{{ .pair_id }}'
-          valuesObject:
-            pairId: '{{ .pair_id }}'
-      # -----------------------------------------------------------------
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: 'participant-{{ .pair_id }}'
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
-      # No ignoreDifferences needed — the Application now renders a tiny
-      # VCluster claim, not the full vcluster Helm chart. StatefulSet
-      # drift is Crossplane's problem, not ArgoCD's.
+  project: workshop
+  source:
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
+    targetRevision: main
+    path: gitops/participant-claims
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

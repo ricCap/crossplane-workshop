@@ -214,10 +214,10 @@ tasks:
     cmds:
       - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
       - kubectl -n {{.ARGOCD_NS}} get application root-app
-      - kubectl -n {{.ARGOCD_NS}} get applicationset participant-vclusters
-      - kubectl -n {{.ARGOCD_NS}} get application vcluster-{{.PAIR}}
+      - kubectl -n {{.ARGOCD_NS}} get application participant-vclusters
+      - kubectl get xvclusters.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
-      - kubectl -n participant-{{.PAIR}} wait --for=condition=Ready pod -l app=vcluster --timeout=300s
+      - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} -- kubectl get ns
       - echo "{{.PAIR}} OK"
 
@@ -225,7 +225,7 @@ tasks:
     desc: |
       End-to-end Phase 1 green check. Asserts ArgoCD is installed, the
       app-of-apps hierarchy is Synced+Healthy, and every vcluster generated
-      from gitops/participant-vclusters/pairs/ has a Ready pod in its
+      from gitops/participant-claims/ has a Ready pod in its
       participant-* namespace. Runs verify:pair for each discovered pair.
     cmds:
       - |
@@ -248,31 +248,28 @@ tasks:
         kubectl -n {{.ARGOCD_NS}} get appproject workshop >/dev/null || fail "workshop AppProject missing"
         ok "workshop AppProject present"
 
-        echo "==> ApplicationSet"
-        kubectl -n {{.ARGOCD_NS}} get applicationset participant-vclusters >/dev/null || fail "participant-vclusters ApplicationSet missing"
-        ok "participant-vclusters ApplicationSet present"
+        echo "==> Participant vclusters Application"
+        kubectl get application participant-vclusters -n {{.ARGOCD_NS}} >/dev/null || fail "participant-vclusters Application missing"
+        ok "participant-vclusters Application present"
 
         echo "==> Docs Application"
-        kubectl -n {{.ARGOCD_NS}} get application docs >/dev/null 2>&1 && ok "docs Application present" || echo "  (docs Application not yet applied — skipping)"
+        kubectl get application docs -n {{.ARGOCD_NS}} >/dev/null 2>&1 && ok "docs Application present" || echo "  (docs Application not yet applied — skipping)"
 
         echo "==> Per-pair verification"
-        pairs=$(ls gitops/participant-vclusters/pairs/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
-        [ -n "$pairs" ] || fail "no pair files under gitops/participant-vclusters/pairs/"
+        pairs=$(ls gitops/participant-claims/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
+        [ -n "$pairs" ] || fail "no pair files under gitops/participant-claims/"
         for pair in $pairs; do
           echo "  --> $pair"
-          app="vcluster-$pair"
-          kubectl -n {{.ARGOCD_NS}} get application "$app" >/dev/null || fail "$app Application missing"
-          sync=$(kubectl -n {{.ARGOCD_NS}} get application "$app" -o jsonpath='{.status.sync.status}')
-          health=$(kubectl -n {{.ARGOCD_NS}} get application "$app" -o jsonpath='{.status.health.status}')
-          [ "$sync" = "Synced" ] || fail "$app: sync=$sync (expected Synced)"
-          [ "$health" = "Healthy" ] || fail "$app: health=$health (expected Healthy)"
+          kubectl get xvclusters.workshop.example.io "$pair" >/dev/null || fail "XVCluster $pair missing"
+          synced=$(kubectl get xvclusters.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}')
+          [ "$synced" = "True" ] || fail "$pair: Synced=$synced (expected True)"
           kubectl get ns "participant-$pair" >/dev/null || fail "namespace participant-$pair missing"
-          kubectl -n "participant-$pair" wait --for=condition=Ready pod -l app=vcluster --timeout=300s >/dev/null || fail "$pair vcluster pod not Ready"
-          ok "$pair Synced+Healthy, pod Ready"
+          kubectl wait --for=condition=Ready pod -l app=vcluster -n "participant-$pair" --timeout=300s >/dev/null || fail "$pair vcluster pod not Ready"
+          ok "$pair XVCluster Synced, pod Ready"
         done
 
         echo
-        echo "Phase 1 verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s))"
+        echo "Verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s))"
 
   # ------------------------------------------------------------------
   # Phase 2 — ArubaCloud

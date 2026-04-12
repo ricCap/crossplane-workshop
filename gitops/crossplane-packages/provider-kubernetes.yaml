@@ -1,0 +1,10 @@
+# provider-kubernetes on the management cluster — used by the XVCluster
+# Composition to create Ingress and ResourceQuota objects per pair.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.2.1
+  runtimeConfigRef:
+    name: provider-kubernetes-runtime

@@ -11,10 +11,12 @@ GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central man
 - `bootstrap/` — one-time install inputs: ArgoCD Helm values and the root app-of-apps Application.
 - `gitops/projects/` — ArgoCD `AppProject` definitions.
 - `gitops/apps/` — top-level ArgoCD Applications and ApplicationSets reconciled by the root app.
-- `gitops/participant-vclusters/pairs/` — **one file per participant pair**. This is the scale lever.
+- `gitops/participant-claims/` — **one XVCluster file per participant pair**. This is the scale lever.
+- `gitops/crossplane-config/` — XVCluster XRD + Composition, ProviderConfigs.
+- `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
 - `Taskfile.yml` — every command lives here.
 
-The **Phase 3 swap seam** (where the workshop's "gotcha moment" Crossplane Composition will later plug in) is the `template` block of `gitops/apps/participant-vclusters.yaml`. See PLAN.md §Phase 3.
+The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (XVCluster → provider-helm Release + provider-kubernetes Objects for Ingress/ResourceQuota).
 
 ## How to run anything
 
@@ -32,7 +34,7 @@ See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which p
 
 ## Scaling to more pairs
 
-Drop a new file under `gitops/participant-vclusters/pairs/` following the `fancy-lemon.yaml` shape (pick any fancy adjective-noun name — `brave-mango`, `quiet-olive`, …), commit, and push. ArgoCD's `participant-vclusters` ApplicationSet picks it up within ~2 min. No tasks involved.
+Drop a new file under `gitops/participant-claims/` following the `fancy-lemon.yaml` shape (an XVCluster resource with the pair ID), commit, and push. ArgoCD syncs the claims directory, Crossplane reconciles each XVCluster into a full participant environment (Namespace, vcluster, Ingress, ResourceQuota) within ~2 min. No tasks involved.
 
 ## Planning
 

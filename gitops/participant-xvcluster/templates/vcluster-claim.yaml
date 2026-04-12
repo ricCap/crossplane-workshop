@@ -1,8 +1,0 @@
-{{- $pair := required "pairId is required" .Values.pairId -}}
-apiVersion: workshop.example.io/v1alpha1
-kind: VCluster
-metadata:
-  name: {{ $pair }}
-  namespace: participant-{{ $pair }}
-spec:
-  pairId: {{ $pair }}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -48,6 +49,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// safeID matches pair IDs and check IDs: lowercase alphanum + hyphens.
+var safeID = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+
 func handleCheck(w http.ResponseWriter, r *http.Request) {
 	// Path: /api/checks/{pairId}/{checkId}
 	trimmed := strings.TrimPrefix(r.URL.Path, "/api/checks/")
@@ -58,6 +62,11 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	pairId := parts[0]
 	checkId := parts[1]
+
+	if !safeID.MatchString(pairId) || !safeID.MatchString(checkId) {
+		http.Error(w, "invalid pairId or checkId", http.StatusBadRequest)
+		return
+	}
 
 	checkFn, ok := checks[checkId]
 	if !ok {
@@ -135,7 +144,10 @@ func handlePairs(w http.ResponseWriter, r *http.Request) {
 	pairs := make([]string, 0, len(nsList.Items))
 	for _, ns := range nsList.Items {
 		if strings.HasPrefix(ns.Name, prefix) {
-			pairs = append(pairs, strings.TrimPrefix(ns.Name, prefix))
+			id := strings.TrimPrefix(ns.Name, prefix)
+			if safeID.MatchString(id) {
+				pairs = append(pairs, id)
+			}
 		}
 	}
 	sort.Strings(pairs)

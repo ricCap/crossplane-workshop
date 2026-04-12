@@ -1,9 +1,10 @@
-# Composition that turns a VCluster claim into a provider-helm Release
-# installing the loft-sh/vcluster chart. The Helm values mirror exactly
-# what the participant-vclusters ApplicationSet used to render inline —
-# same chart version, same OSS image, same sync and exportKubeConfig
-# settings. The only difference is the provisioning layer: Crossplane
-# instead of ArgoCD-managed Helm.
+# Composition that turns a VCluster claim into a complete participant
+# environment: namespace, vcluster Helm release, per-pair Ingress for
+# /team/<pair>/ routing, and a ResourceQuota.
+#
+# Previously the Ingress and ResourceQuota were managed by a separate
+# ArgoCD ApplicationSet + Helm chart. Now everything lives in one
+# Composition — no Helm templates needed.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -21,6 +22,29 @@ spec:
         apiVersion: pt.fn.crossplane.io/v1beta1
         kind: Resources
         resources:
+          # --- 1. Namespace ---
+          - name: namespace
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Namespace
+                    metadata:
+                      name: placeholder
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.name
+
+          # --- 2. vcluster Helm Release ---
           - name: vcluster-release
             base:
               apiVersion: helm.crossplane.io/v1beta1
@@ -56,11 +80,9 @@ spec:
                     exportKubeConfig:
                       server: placeholder
             patches:
-              # Release name = pairId (so the vcluster is named after the pair)
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.pairId
                 toFieldPath: metadata.name
-              # Install into participant-<pairId> namespace
               - type: CombineFromComposite
                 combine:
                   variables:
@@ -69,8 +91,6 @@ spec:
                   string:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.namespace
-              # exportKubeConfig server URL — must match the vcluster chart's
-              # auto-generated TLS cert SAN: <release>.<namespace>:443
               - type: CombineFromComposite
                 combine:
                   variables:
@@ -80,3 +100,128 @@ spec:
                   string:
                     fmt: "https://%s.participant-%s:443"
                 toFieldPath: spec.forProvider.values.exportKubeConfig.server
+
+          # --- 3. Per-pair Ingress ---
+          # Routes /team/<pair>/api/* to the backend synced Service and
+          # /team/<pair>/* to the frontend synced Service. Uses regex
+          # capture groups + rewrite-target to strip the /team/<pair>
+          # prefix so upstream Services see clean paths.
+          - name: ingress
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: Ingress
+                    metadata:
+                      name: placeholder
+                      namespace: placeholder
+                      annotations:
+                        nginx.ingress.kubernetes.io/use-regex: "true"
+                        nginx.ingress.kubernetes.io/rewrite-target: /$2
+                    spec:
+                      ingressClassName: nginx
+                      rules:
+                        - http:
+                            paths:
+                              - path: /team/PAIR/api(/|$)(.*)
+                                pathType: ImplementationSpecific
+                                backend:
+                                  service:
+                                    name: backend-x-default-x-PAIR
+                                    port:
+                                      number: 5678
+                              - path: /team/PAIR(/|$)(.*)
+                                pathType: ImplementationSpecific
+                                backend:
+                                  service:
+                                    name: frontend-x-default-x-PAIR
+                                    port:
+                                      number: 80
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "team-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.name
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+              # Patch the path rules and service names with the pair ID.
+              # Each path/service reference containing "PAIR" is patched.
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "/team/%s/api(/|$)(.*)"
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[0].path
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "backend-x-default-x-%s"
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[0].backend.service.name
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "/team/%s(/|$)(.*)"
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[1].path
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "frontend-x-default-x-%s"
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[1].backend.service.name
+
+          # --- 4. ResourceQuota ---
+          - name: resource-quota
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: ResourceQuota
+                    metadata:
+                      name: pair-quota
+                      namespace: placeholder
+                    spec:
+                      hard:
+                        requests.cpu: "2"
+                        requests.memory: 4Gi
+                        limits.cpu: "4"
+                        limits.memory: 8Gi
+                        pods: "30"
+                        services: "20"
+                        configmaps: "30"
+                        secrets: "50"
+                        persistentvolumeclaims: "5"
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace

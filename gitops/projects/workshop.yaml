@@ -10,6 +10,7 @@ spec:
   description: Crossplane workshop — participant vclusters and supporting apps.
   sourceRepos:
     - git@github.com:ricCap/crossplane-workshop.git
+    # Still needed: provider-helm fetches the vcluster chart from here
     - https://charts.loft.sh
     - https://kubernetes.github.io/ingress-nginx
     - https://charts.crossplane.io/stable

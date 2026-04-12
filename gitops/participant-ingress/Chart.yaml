@@ -1,5 +1,0 @@
-apiVersion: v2
-name: participant-ingress
-description: Per-pair Ingress routing /team/<pair>/... to the pair's synced Services.
-type: application
-version: 0.1.0

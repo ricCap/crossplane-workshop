@@ -1,4 +1,0 @@
-# pairId is injected per-pair by the participant-ingress ApplicationSet
-# (gitops/apps/participant-ingress.yaml). Left empty here so a naive
-# `helm template` fails loudly instead of rendering a broken Ingress.
-pairId: ""
