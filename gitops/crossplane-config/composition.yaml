@@ -1,10 +1,6 @@
 # Composition that turns a VCluster claim into a complete participant
-# environment: namespace, vcluster Helm release, per-pair Ingress for
-# /team/<pair>/ routing, and a ResourceQuota.
-#
-# Previously the Ingress and ResourceQuota were managed by a separate
-# ArgoCD ApplicationSet + Helm chart. Now everything lives in one
-# Composition — no Helm templates needed.
+# environment: namespace, vcluster Helm release, per-pair HTTPRoute
+# for /team/<pair>/ routing via Gateway API, and a ResourceQuota.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -101,45 +97,58 @@ spec:
                     fmt: "https://%s.participant-%s:443"
                 toFieldPath: spec.forProvider.values.exportKubeConfig.server
 
-          # --- 3. Per-pair Ingress ---
+          # --- 3. Per-pair HTTPRoute ---
           # Routes /team/<pair>/api/* to the backend synced Service and
-          # /team/<pair>/* to the frontend synced Service. Uses regex
-          # capture groups + rewrite-target to strip the /team/<pair>
-          # prefix so upstream Services see clean paths.
-          - name: ingress
+          # /team/<pair>/* to the frontend synced Service. Uses Gateway
+          # API URLRewrite with ReplacePrefixMatch to strip the
+          # /team/<pair> prefix so upstream Services see clean paths.
+          # Longest prefix match ensures /api wins over /.
+          - name: httproute
             base:
               apiVersion: kubernetes.crossplane.io/v1alpha2
               kind: Object
               spec:
                 forProvider:
                   manifest:
-                    apiVersion: networking.k8s.io/v1
-                    kind: Ingress
+                    apiVersion: gateway.networking.k8s.io/v1
+                    kind: HTTPRoute
                     metadata:
                       name: placeholder
                       namespace: placeholder
-                      annotations:
-                        nginx.ingress.kubernetes.io/use-regex: "true"
-                        nginx.ingress.kubernetes.io/rewrite-target: /$2
                     spec:
-                      ingressClassName: nginx
+                      parentRefs:
+                        - name: workshop
+                          namespace: envoy-gateway-system
                       rules:
-                        - http:
-                            paths:
-                              - path: /team/PAIR/api(/|$)(.*)
-                                pathType: ImplementationSpecific
-                                backend:
-                                  service:
-                                    name: backend-x-default-x-PAIR
-                                    port:
-                                      number: 5678
-                              - path: /team/PAIR(/|$)(.*)
-                                pathType: ImplementationSpecific
-                                backend:
-                                  service:
-                                    name: frontend-x-default-x-PAIR
-                                    port:
-                                      number: 80
+                        # API route — longest prefix wins over the
+                        # catch-all frontend route below.
+                        - matches:
+                            - path:
+                                type: PathPrefix
+                                value: /team/PAIR/api
+                          filters:
+                            - type: URLRewrite
+                              urlRewrite:
+                                path:
+                                  type: ReplacePrefixMatch
+                                  replacePrefixMatch: /
+                          backendRefs:
+                            - name: backend-x-default-x-PAIR
+                              port: 5678
+                        # Frontend catch-all route.
+                        - matches:
+                            - path:
+                                type: PathPrefix
+                                value: /team/PAIR
+                          filters:
+                            - type: URLRewrite
+                              urlRewrite:
+                                path:
+                                  type: ReplacePrefixMatch
+                                  replacePrefixMatch: /
+                          backendRefs:
+                            - name: frontend-x-default-x-PAIR
+                              port: 80
             patches:
               - type: CombineFromComposite
                 combine:
@@ -157,16 +166,15 @@ spec:
                   string:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
-              # Patch the path rules and service names with the pair ID.
-              # Each path/service reference containing "PAIR" is patched.
+              # Patch path prefixes and service names with the pair ID.
               - type: CombineFromComposite
                 combine:
                   variables:
                     - fromFieldPath: spec.pairId
                   strategy: string
                   string:
-                    fmt: "/team/%s/api(/|$)(.*)"
-                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[0].path
+                    fmt: "/team/%s/api"
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].matches[0].path.value
               - type: CombineFromComposite
                 combine:
                   variables:
@@ -174,15 +182,15 @@ spec:
                   strategy: string
                   string:
                     fmt: "backend-x-default-x-%s"
-                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[0].backend.service.name
+                toFieldPath: spec.forProvider.manifest.spec.rules[0].backendRefs[0].name
               - type: CombineFromComposite
                 combine:
                   variables:
                     - fromFieldPath: spec.pairId
                   strategy: string
                   string:
-                    fmt: "/team/%s(/|$)(.*)"
-                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[1].path
+                    fmt: "/team/%s"
+                toFieldPath: spec.forProvider.manifest.spec.rules[1].matches[0].path.value
               - type: CombineFromComposite
                 combine:
                   variables:
@@ -190,7 +198,7 @@ spec:
                   strategy: string
                   string:
                     fmt: "frontend-x-default-x-%s"
-                toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[1].backend.service.name
+                toFieldPath: spec.forProvider.manifest.spec.rules[1].backendRefs[0].name
 
           # --- 4. ResourceQuota ---
           # Values are patched from spec.quota.* on the XVCluster claim.

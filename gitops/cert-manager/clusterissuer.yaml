@@ -1,0 +1,19 @@
+# Let's Encrypt production issuer using HTTP-01 challenges.
+# cert-manager creates temporary HTTPRoute resources to solve
+# ACME challenges via the workshop Gateway.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: riccardo.capraro@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: workshop
+                namespace: envoy-gateway-system

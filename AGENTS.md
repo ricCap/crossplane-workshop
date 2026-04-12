@@ -16,7 +16,7 @@ GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central man
 - `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
 - `Taskfile.yml` — every command lives here.
 
-The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (XVCluster → provider-helm Release + provider-kubernetes Objects for Ingress/ResourceQuota).
+The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (XVCluster → provider-helm Release + provider-kubernetes Objects for HTTPRoute/ResourceQuota). Routing uses Gateway API (Envoy Gateway) instead of Ingress.
 
 ## How to run anything
 

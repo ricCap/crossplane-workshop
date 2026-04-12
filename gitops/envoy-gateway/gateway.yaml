@@ -1,0 +1,37 @@
+# Central Gateway for the workshop. Handles TLS termination via
+# cert-manager and exposes HTTP + HTTPS listeners.
+#
+# All HTTPRoutes in the cluster reference this Gateway via parentRefs.
+# The Gateway lives in envoy-gateway-system but accepts routes from
+# all namespaces.
+#
+# Local: port-forward the gateway service on HTTP (port 80).
+# ArubaCloud: cert-manager issues a TLS cert for the HTTPS listener.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: workshop
+  namespace: envoy-gateway-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  gatewayClassName: eg
+  listeners:
+    # Plain HTTP — used locally and as redirect target on ArubaCloud.
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    # HTTPS with TLS termination — cert-manager populates the secret.
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: workshop-tls
+      allowedRoutes:
+        namespaces:
+          from: All

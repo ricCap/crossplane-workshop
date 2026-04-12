@@ -1,0 +1,35 @@
+# cert-manager for automated Let's Encrypt TLS certificates.
+# Uses the HTTP-01 challenge solver via Envoy Gateway.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.17.2
+    helm:
+      releaseName: cert-manager
+      values: |
+        crds:
+          enabled: true
+        replicaCount: 1
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,25 @@
+# ClusterIssuer and other cert-manager configuration.
+# Depends on cert-manager CRDs being installed first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
+    targetRevision: main
+    path: gitops/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

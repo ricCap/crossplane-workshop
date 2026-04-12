@@ -1,0 +1,25 @@
+# Gateway resource and related config for Envoy Gateway.
+# Depends on envoy-gateway CRDs being installed first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-gateway-config
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
+    targetRevision: main
+    path: gitops/envoy-gateway
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

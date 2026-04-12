@@ -196,12 +196,14 @@ tasks:
         kubectl -n {{.ARGOCD_NS}} port-forward svc/argo-cd-argocd-server 8080:443
 
   wall:ui:
-    desc: "Port-forward ingress-nginx to http://localhost:8100/ (docs + /wall + every /team/<pair>/ tile)."
+    desc: "Port-forward the Envoy Gateway to http://localhost:8100/ (docs + /wall + every /team/<pair>/ tile)."
     cmds:
       - |
         echo "Docs:  http://localhost:8100/"
         echo "Wall:  http://localhost:8100/wall"
-        kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8100:80
+        SVC=$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=workshop -o jsonpath='{.items[0].metadata.name}')
+        echo "Forwarding via service: $SVC"
+        kubectl -n envoy-gateway-system port-forward "svc/$SVC" 8100:80
 
   # ------------------------------------------------------------------
   # Verify
