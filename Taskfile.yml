@@ -20,6 +20,12 @@ vars:
   REPO_SSH_URL: git@github.com:ricCap/crossplane-workshop.git
   DEPLOY_KEY_TITLE: argocd-crossplane-workshop
   ARGOCD_REPO_SECRET: repo-crossplane-workshop
+  # Envoy Gateway — Gateway API-native controller. Installed via OCI
+  # Helm chart (not ArgoCD-managed — Docker Hub rate limits block
+  # unauthenticated OCI pulls from cluster IPs).
+  # https://gateway.envoyproxy.io/docs/install/install-helm/
+  ENVOY_GATEWAY_VERSION: v1.4.0
+  ENVOY_GATEWAY_NS: envoy-gateway-system
   # GHCR pull secret for the private docs + validator images. The secret
   # is created in the `docs` namespace and referenced via imagePullSecrets
   # in gitops/docs/deployment.yaml.
@@ -168,6 +174,16 @@ tasks:
 
         echo "ghcr pull secret provisioned in namespace {{.DOCS_NS}}"
 
+  bootstrap:envoy-gateway:
+    desc: Install Envoy Gateway (Gateway API controller) via OCI Helm chart.
+    run: once
+    cmds:
+      - |
+        helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm \
+          --version {{.ENVOY_GATEWAY_VERSION}} \
+          --namespace {{.ENVOY_GATEWAY_NS}} --create-namespace \
+          --wait
+
   bootstrap:root-app:
     desc: Apply the root app-of-apps Application.
     deps: [bootstrap:argocd, bootstrap:repo-credentials, bootstrap:ghcr-pull-secret]
@@ -175,11 +191,12 @@ tasks:
       - kubectl apply -f {{.ROOT_APP}}
 
   bootstrap:all:
-    desc: Install ArgoCD, wire repo + ghcr credentials, and apply the root app-of-apps.
+    desc: Install ArgoCD, wire repo + ghcr credentials, Envoy Gateway, and apply the root app-of-apps.
     cmds:
       - task: bootstrap:argocd
       - task: bootstrap:repo-credentials
       - task: bootstrap:ghcr-pull-secret
+      - task: bootstrap:envoy-gateway
       - task: bootstrap:root-app
 
   # ------------------------------------------------------------------

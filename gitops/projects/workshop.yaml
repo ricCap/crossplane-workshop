@@ -14,7 +14,6 @@ spec:
     - https://charts.loft.sh
     - https://charts.crossplane.io/stable
     - https://charts.jetstack.io
-    - oci://docker.io/envoyproxy/gateway-helm
   destinations:
     - namespace: '*'
       server: https://kubernetes.default.svc
