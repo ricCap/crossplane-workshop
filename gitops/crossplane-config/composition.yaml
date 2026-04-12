@@ -193,6 +193,9 @@ spec:
                 toFieldPath: spec.forProvider.manifest.spec.rules[0].http.paths[1].backend.service.name
 
           # --- 4. ResourceQuota ---
+          # Values are patched from spec.quota.* on the XVCluster claim.
+          # The XRD defines defaults so claims without explicit quota
+          # still get sensible limits.
           - name: resource-quota
             base:
               apiVersion: kubernetes.crossplane.io/v1alpha2
@@ -225,3 +228,18 @@ spec:
                   string:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.quota.cpu
+                toFieldPath: spec.forProvider.manifest.spec.hard[requests.cpu]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.quota.memory
+                toFieldPath: spec.forProvider.manifest.spec.hard[requests.memory]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.quota.limitsCpu
+                toFieldPath: spec.forProvider.manifest.spec.hard[limits.cpu]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.quota.limitsMemory
+                toFieldPath: spec.forProvider.manifest.spec.hard[limits.memory]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.quota.pods
+                toFieldPath: spec.forProvider.manifest.spec.hard.pods

@@ -32,5 +32,24 @@ spec:
                 pairId:
                   type: string
                   description: "Participant pair identifier (e.g. fancy-lemon)."
+                quota:
+                  type: object
+                  description: "ResourceQuota limits for the participant namespace."
+                  properties:
+                    cpu:
+                      type: string
+                      default: "2"
+                    memory:
+                      type: string
+                      default: "4Gi"
+                    limitsCpu:
+                      type: string
+                      default: "4"
+                    limitsMemory:
+                      type: string
+                      default: "8Gi"
+                    pods:
+                      type: string
+                      default: "30"
               required:
                 - pairId
