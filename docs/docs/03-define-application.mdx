@@ -311,8 +311,9 @@ When the check turns green, open the [workshop wall](/wall) and click **Refresh*
 :::tip One origin, no CORS
 Notice the frontend's HTML does `fetch('./api/message')` with a relative URL. Inside the
 iframe at `/team/<pair>/`, that resolves to `/team/<pair>/api/message` — the same host the
-iframe itself is loaded from, so no CORS dance. The management cluster's Ingress routes
-`/team/<pair>/api/*` to your backend Service and `/team/<pair>/*` to your frontend Service.
+iframe itself is loaded from, so no CORS dance. The management cluster's HTTPRoute
+(Gateway API, served by Envoy Gateway) routes `/team/<pair>/api/*` to your backend
+Service and `/team/<pair>/*` to your frontend Service.
 :::
 
 ## Troubleshooting

@@ -15,8 +15,18 @@ will connect to your vcluster and install the upstream Crossplane Helm chart.
 
 ## 1.1 Connect to your vcluster
 
-From any terminal with `kubectl` and the `vcluster` CLI, connect to your pair's vcluster. Replace
-`<pair-id>` with your actual pair (e.g. `fancy-lemon`).
+The easiest path is to download a kubeconfig from the
+[vCluster Platform UI](https://platform.testdomain-riccap.it) (log in with your pair ID
+and the password from your instructor, open your vcluster, click **Access** → download
+kubeconfig) and point your shell at it:
+
+```bash
+export KUBECONFIG=~/Downloads/<pair-id>-kubeconfig.yaml
+kubectl config current-context
+```
+
+If you prefer the CLI and have access to the management cluster, the `vcluster` CLI works
+too. Replace `<pair-id>` with your actual pair (e.g. `fancy-lemon`).
 
 ```bash
 vcluster connect <pair-id> -n participant-<pair-id>

@@ -50,6 +50,23 @@ Do not `kubectl apply` against the management cluster outside the documented boo
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
+## Known broken / deferred
+
+- **`task platform:register-vclusters`** — currently broken. It calls
+  `vcluster platform login --username admin`, but the CLI has never
+  supported `--username`/`--password` flags; it only accepts
+  `--access-key` (or interactive browser login). The task also targets
+  `https://platform.testdomain-riccap.it`, which doesn't resolve
+  locally. Fixing it requires accepting `PLATFORM_HOST` and
+  `PLATFORM_ACCESS_KEY` as inputs and installing the resulting
+  `vcluster-platform-api-key` Secret in each `participant-*` namespace.
+  Until then, Platform registration is an out-of-band manual step on
+  ArubaCloud, and the `VirtualClusterInstance` composed by the
+  Composition stays in `phase: Pending` with
+  `Condition SpaceSynced is missing` — including locally, which makes
+  XVClusters report `Ready=False` in a local vind test even when
+  everything else reconciles cleanly.
+
 ## Out of scope
 
 See [PLAN.md](PLAN.md) §Deferred.
