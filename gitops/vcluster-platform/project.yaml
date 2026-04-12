@@ -11,7 +11,7 @@ metadata:
   annotations:
     loft.sh/project-namespace: p-default
     loft.sh/apply: |
-      {"kind":"Project","apiVersion":"storage.loft.sh/v1","metadata":{"name":"default"},"spec":{"displayName":"Default Project","description":"Workshop participant vclusters","quotas":{},"allowedClusters":[{"name":"*"}],"allowedRunners":[{"name":"*"}],"allowedTemplates":[{"kind":"VirtualClusterTemplate","group":"storage.loft.sh","name":"*"},{"kind":"SpaceTemplate","group":"storage.loft.sh","name":"*"}],"requireTemplate":{},"requirePreset":{},"members":[{"kind":"User","group":"storage.loft.sh","name":"admin","clusterRole":"loft-management-project-admin"}]},"status":{}}
+      {"kind":"Project","apiVersion":"storage.loft.sh/v1","metadata":{"name":"default"},"spec":{"displayName":"Default Project","description":"Workshop participant vclusters","quotas":{},"allowedClusters":[{"name":"*"}],"allowedRunners":[{"name":"*"}],"allowedTemplates":[{"kind":"VirtualClusterTemplate","group":"storage.loft.sh","name":"*"},{"kind":"SpaceTemplate","group":"storage.loft.sh","name":"*"}],"requireTemplate":{},"requirePreset":{},"members":[{"kind":"User","group":"storage.loft.sh","name":"admin","clusterRole":"loft-management-project-admin"},{"kind":"User","group":"storage.loft.sh","name":"*","clusterRole":"loft-management-project-user"}]},"status":{}}
 spec:
   displayName: Default Project
   description: Workshop participant vclusters
@@ -34,7 +34,20 @@ spec:
       group: storage.loft.sh
       name: admin
       clusterRole: loft-management-project-admin
+    - kind: User
+      group: storage.loft.sh
+      name: "*"
+      clusterRole: loft-management-project-user
   access:
     - name: loft-admin-access
       verbs: ["*"]
       users: ["admin"]
+    - name: loft-user-access
+      verbs: ["get"]
+      users: ["*"]
+      subresources:
+        - members
+        - clusters
+        - templates
+        - chartinfo
+        - charts
