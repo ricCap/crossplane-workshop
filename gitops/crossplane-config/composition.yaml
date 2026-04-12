@@ -58,16 +58,6 @@ spec:
                         image:
                           registry: ghcr.io
                           repository: loft-sh/vcluster-oss
-                        persistence:
-                          addVolumes:
-                            - name: platform-api-key
-                              secret:
-                                secretName: vcluster-platform-api-key
-                                optional: true
-                          addVolumeMounts:
-                            - name: platform-api-key
-                              mountPath: /var/vcluster/platform
-                              readOnly: true
                         resources:
                           requests:
                             cpu: 100m
@@ -83,6 +73,10 @@ spec:
                           enabled: true
                         ingresses:
                           enabled: false
+                    external:
+                      platform:
+                        apiKey:
+                          secretName: vcluster-platform-api-key
                     exportKubeConfig:
                       server: placeholder
             patches:
