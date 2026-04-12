@@ -1,7 +1,11 @@
-# The Phase 3 swap seam lives in the `template.spec.source` block below.
-# See PLAN.md §Phase 3: the eventual "gotcha moment" is that this block
-# is replaced with one that renders an XVCluster XR backed by a Crossplane
-# Composition using provider-helm — same chart, same values, different layer.
+# Phase 3 — the "gotcha moment" swap is DONE.
+#
+# This ApplicationSet used to render a Helm source pointing directly at
+# the loft-sh/vcluster chart. Now it renders a VCluster *claim* that
+# Crossplane picks up and reconciles via the XVCluster Composition
+# (gitops/crossplane-config/), which uses provider-helm to install the
+# same chart. Participants discover at the end of the workshop that the
+# vcluster they've been using was itself a Crossplane-managed resource.
 #
 # The git-files generator reads one file per participant pair from
 # gitops/participant-vclusters/pairs/ — that directory is the scale lever.
@@ -25,68 +29,19 @@ spec:
     spec:
       project: workshop
       # -----------------------------------------------------------------
-      # PHASE 3 SWAP SEAM — everything inside `source` is what Phase 3
-      # replaces with a Crossplane XR. Keep the shape outside this block
-      # stable so the swap is a minimal diff.
+      # Phase 3: renders a VCluster claim. Crossplane's XVCluster
+      # Composition (gitops/crossplane-config/) reconciles it into a
+      # provider-helm Release that installs the same loft-sh/vcluster
+      # chart with the same values the old direct-Helm source used.
       # -----------------------------------------------------------------
       source:
-        repoURL: https://charts.loft.sh
-        chart: vcluster
-        # Current stable on https://charts.loft.sh as of the commit that
-        # introduced this pin. Chart schema is the v0.20+ `sync.toHost.*`
-        # shape; the v0.19 flat schema would not work here.
-        targetRevision: 0.33.1
+        repoURL: git@github.com:ricCap/crossplane-workshop.git
+        targetRevision: main
+        path: gitops/participant-xvcluster
         helm:
-          releaseName: '{{ .pair_id }}'
-          values: |
-            # OSS build — no loft-sh/vcluster-pro image, no telemetry
-            # surprises during a public workshop.
-            controlPlane:
-              statefulSet:
-                image:
-                  registry: ghcr.io
-                  repository: loft-sh/vcluster-oss
-                # Workshop-sized: enough to run crossplane + a couple of
-                # managed resources per pair, small enough that ~15 pairs
-                # fit on one modest management cluster.
-                resources:
-                  requests:
-                    cpu: 100m
-                    memory: 256Mi
-                    ephemeral-storage: 500Mi
-                  limits:
-                    cpu: 500m
-                    memory: 1Gi
-                    ephemeral-storage: 5Gi
-            # toHost.services sync is what makes the frontend/backend
-            # Services that participants create inside their vcluster
-            # appear on the management cluster as
-            # `<svc>-x-<ns>-x-<release>` in the participant-<pair>
-            # namespace. The workshop's per-pair Ingress
-            # (gitops/apps/participant-ingress.yaml) points at those
-            # synced Services so `/team/<pair>/...` routes reach them.
-            # toHost.ingresses stays OFF — Ingress lives on the
-            # management cluster, not inside the vcluster.
-            sync:
-              toHost:
-                services:
-                  enabled: true
-                ingresses:
-                  enabled: false
-            # Secret name defaults to vc-<release>; the validator
-            # (gitops/docs/) relies on that default. The server URL in
-            # that kubeconfig must be reachable from the docs pod on
-            # the management cluster, so point it at the in-cluster
-            # Service instead of the chart's default localhost:8443
-            # (which is only valid inside the vcluster control-plane
-            # container). The chart regenerates the TLS certs to
-            # cover this hostname.
-            exportKubeConfig:
-              # The chart's auto-generated server cert covers
-              # `<release>.<namespace>` (no trailing `.svc`), so we
-              # match that form here. With the trailing `.svc` the
-              # validator would hit an x509 hostname mismatch.
-              server: 'https://{{ .pair_id }}.participant-{{ .pair_id }}:443'
+          releaseName: 'xvcluster-{{ .pair_id }}'
+          valuesObject:
+            pairId: '{{ .pair_id }}'
       # -----------------------------------------------------------------
       destination:
         server: https://kubernetes.default.svc
@@ -97,21 +52,6 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
-      # The vcluster 0.33.1 chart renders some StatefulSet fields that Kubernetes
-      # then defaults (podSpec restartPolicy/dnsPolicy/schedulerName, PVC
-      # volumeMode, persistentVolumeClaimRetentionPolicy.whenScaled, etc.) and
-      # also emits a literal `imagePullPolicy: null` that SSA keeps trying to
-      # unset. Client-side apply (the default, i.e. without ServerSideApply=true)
-      # three-way-merges around all of these. Ignore the noisy subtrees
-      # explicitly so the diff stays quiet even if a future chart bump
-      # reintroduces drift.
-      ignoreDifferences:
-        - group: apps
-          kind: StatefulSet
-          jqPathExpressions:
-            - .spec.volumeClaimTemplates[].apiVersion
-            - .spec.volumeClaimTemplates[].kind
-            - .spec.volumeClaimTemplates[].spec.volumeMode
-            - .spec.volumeClaimTemplates[].status
-            - .spec.persistentVolumeClaimRetentionPolicy.whenScaled
-            - .spec.template.spec.containers[].imagePullPolicy
+      # No ignoreDifferences needed — the Application now renders a tiny
+      # VCluster claim, not the full vcluster Helm chart. StatefulSet
+      # drift is Crossplane's problem, not ArgoCD's.

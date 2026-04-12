@@ -1,0 +1,35 @@
+# Crossplane on the management cluster — the engine behind Phase 3's
+# "gotcha moment". Participants discover at the end that the vclusters
+# they've been using were themselves produced by a Crossplane Composition
+# running on this cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: https://charts.crossplane.io/stable
+    chart: crossplane
+    targetRevision: 1.19.0
+    helm:
+      releaseName: crossplane
+      values: |
+        # Workshop-sized — one provider-helm plus a handful of XRs.
+        resourcesCrossplane:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

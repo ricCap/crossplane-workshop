@@ -1,0 +1,30 @@
+# Crossplane configuration on the management cluster: provider-helm,
+# function-patch-and-transform, ProviderConfig, and the XVCluster
+# XRD + Composition that provisions participant vclusters.
+#
+# Depends on Crossplane being installed (gitops/apps/crossplane.yaml).
+# ArgoCD will retry until the CRDs exist, so no explicit ordering
+# is needed — just a brief delay on first sync.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane-config
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
+    targetRevision: main
+    path: gitops/crossplane-config
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

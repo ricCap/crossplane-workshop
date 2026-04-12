@@ -1,0 +1,82 @@
+# Composition that turns a VCluster claim into a provider-helm Release
+# installing the loft-sh/vcluster chart. The Helm values mirror exactly
+# what the participant-vclusters ApplicationSet used to render inline —
+# same chart version, same OSS image, same sync and exportKubeConfig
+# settings. The only difference is the provisioning layer: Crossplane
+# instead of ArgoCD-managed Helm.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: vclusters.workshop.example.io
+spec:
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: XVCluster
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: vcluster-release
+            base:
+              apiVersion: helm.crossplane.io/v1beta1
+              kind: Release
+              spec:
+                forProvider:
+                  chart:
+                    name: vcluster
+                    repository: https://charts.loft.sh
+                    version: "0.33.1"
+                  namespace: placeholder
+                  values:
+                    controlPlane:
+                      statefulSet:
+                        image:
+                          registry: ghcr.io
+                          repository: loft-sh/vcluster-oss
+                        resources:
+                          requests:
+                            cpu: 100m
+                            memory: 256Mi
+                            ephemeral-storage: 500Mi
+                          limits:
+                            cpu: 500m
+                            memory: 1Gi
+                            ephemeral-storage: 5Gi
+                    sync:
+                      toHost:
+                        services:
+                          enabled: true
+                        ingresses:
+                          enabled: false
+                    exportKubeConfig:
+                      server: placeholder
+            patches:
+              # Release name = pairId (so the vcluster is named after the pair)
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.pairId
+                toFieldPath: metadata.name
+              # Install into participant-<pairId> namespace
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.namespace
+              # exportKubeConfig server URL — must match the vcluster chart's
+              # auto-generated TLS cert SAN: <release>.<namespace>:443
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "https://%s.participant-%s:443"
+                toFieldPath: spec.forProvider.values.exportKubeConfig.server

@@ -12,6 +12,7 @@ spec:
     - git@github.com:ricCap/crossplane-workshop.git
     - https://charts.loft.sh
     - https://kubernetes.github.io/ingress-nginx
+    - https://charts.crossplane.io/stable
   destinations:
     - namespace: '*'
       server: https://kubernetes.default.svc

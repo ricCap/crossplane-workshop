@@ -1,0 +1,36 @@
+# XVCluster — the management-cluster API that provisions participant
+# vclusters. Each VCluster claim produces a Helm release of the
+# loft-sh/vcluster chart via provider-helm.
+#
+# This is the "gotcha moment" reveal: participants discover that the
+# vcluster they've been using the whole workshop was itself produced
+# by a Crossplane Composition — the same pattern they learned to use
+# for their Application XRD inside the vcluster.
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xvclusters.workshop.example.io
+spec:
+  group: workshop.example.io
+  names:
+    kind: XVCluster
+    plural: xvclusters
+  claimNames:
+    kind: VCluster
+    plural: vclusters
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                pairId:
+                  type: string
+                  description: "Participant pair identifier (e.g. fancy-lemon)."
+              required:
+                - pairId

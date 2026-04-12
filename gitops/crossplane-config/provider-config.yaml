@@ -1,0 +1,9 @@
+# In-cluster identity — provider-helm uses its own SA token to talk to
+# the Kubernetes API and install Helm releases on this cluster.
+apiVersion: helm.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: InjectedIdentity
