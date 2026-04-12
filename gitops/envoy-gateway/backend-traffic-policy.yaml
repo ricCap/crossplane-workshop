@@ -1,0 +1,23 @@
+# Per-source-IP rate limiting on all Gateway listeners.
+# Mitigates brute-force on the Platform login and general abuse.
+# Uses Local rate limiting (no Redis needed — single Envoy replica).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: workshop-rate-limit
+  namespace: envoy-gateway-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: workshop
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        - clientSelectors:
+            - sourceCIDR:
+                type: Distinct
+          limit:
+            requests: 20
+            unit: Second

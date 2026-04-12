@@ -35,3 +35,16 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # HTTPS listener for vCluster Platform UI + API.
+    # cert-manager issues a separate Let's Encrypt cert for this hostname.
+    - name: https-platform
+      protocol: HTTPS
+      port: 443
+      hostname: "platform.testdomain-riccap.it"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: platform-tls
+      allowedRoutes:
+        namespaces:
+          from: All

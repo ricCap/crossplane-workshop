@@ -1,0 +1,27 @@
+# vCluster Platform routing config (HTTPRoute).
+# The Platform itself is installed via `task bootstrap:vcluster-platform`
+# to keep the admin password out of git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vcluster-platform-config
+  namespace: argocd
+spec:
+  project: workshop
+  source:
+    repoURL: git@github.com:ricCap/crossplane-workshop.git
+    targetRevision: main
+    path: gitops/vcluster-platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vcluster-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

@@ -26,6 +26,11 @@ vars:
   # https://gateway.envoyproxy.io/docs/install/install-helm/
   ENVOY_GATEWAY_VERSION: v1.4.0
   ENVOY_GATEWAY_NS: envoy-gateway-system
+  # vCluster Platform — web UI for participant vcluster access.
+  # Installed via `task bootstrap:vcluster-platform` (not ArgoCD)
+  # to keep admin credentials out of git.
+  VCLUSTER_PLATFORM_VERSION: 4.8.0
+  VCLUSTER_PLATFORM_NS: vcluster-platform
   # GHCR pull secret for the private docs + validator images. The secret
   # is created in the `docs` namespace and referenced via imagePullSecrets
   # in gitops/docs/deployment.yaml.
@@ -184,6 +189,43 @@ tasks:
           --namespace {{.ENVOY_GATEWAY_NS}} --create-namespace \
           --wait
 
+  bootstrap:vcluster-platform:
+    desc: |
+      Install vCluster Platform via Helm. Keeps admin password out of git.
+      Set PLATFORM_ADMIN_PASSWORD env var or be prompted interactively.
+    run: once
+    cmds:
+      - |
+        set -euo pipefail
+
+        if [ -z "${PLATFORM_ADMIN_PASSWORD:-}" ]; then
+          echo "Set PLATFORM_ADMIN_PASSWORD or enter it now:"
+          read -s -p "Admin password: " PLATFORM_ADMIN_PASSWORD
+          echo
+        fi
+
+        [ -n "${PLATFORM_ADMIN_PASSWORD}" ] || { echo "Password cannot be empty"; exit 1; }
+
+        helm repo add loft https://charts.loft.sh 2>/dev/null || true
+        helm repo update loft
+
+        helm upgrade --install vcluster-platform loft/vcluster-platform \
+          --version {{.VCLUSTER_PLATFORM_VERSION}} \
+          --namespace {{.VCLUSTER_PLATFORM_NS}} --create-namespace \
+          --set admin.create=true \
+          --set admin.username=admin \
+          --set "admin.password=${PLATFORM_ADMIN_PASSWORD}" \
+          --set ingress.enabled=false \
+          --set config.loftHost=platform.testdomain-riccap.it \
+          --set replicaCount=1 \
+          --set "resources.requests.cpu=200m" \
+          --set "resources.requests.memory=512Mi" \
+          --set "resources.limits.cpu=1" \
+          --set "resources.limits.memory=2Gi" \
+          --wait --timeout 5m
+
+        echo "vCluster Platform installed. UI: https://platform.testdomain-riccap.it"
+
   bootstrap:root-app:
     desc: Apply the root app-of-apps Application.
     deps: [bootstrap:argocd, bootstrap:repo-credentials, bootstrap:ghcr-pull-secret]
@@ -191,12 +233,13 @@ tasks:
       - kubectl apply -f {{.ROOT_APP}}
 
   bootstrap:all:
-    desc: Install ArgoCD, wire repo + ghcr credentials, Envoy Gateway, and apply the root app-of-apps.
+    desc: Install ArgoCD, wire repo + ghcr credentials, Envoy Gateway, vCluster Platform, and apply the root app-of-apps.
     cmds:
       - task: bootstrap:argocd
       - task: bootstrap:repo-credentials
       - task: bootstrap:ghcr-pull-secret
       - task: bootstrap:envoy-gateway
+      - task: bootstrap:vcluster-platform
       - task: bootstrap:root-app
 
   # ------------------------------------------------------------------
@@ -221,6 +264,28 @@ tasks:
         echo "Wall:  https://localhost:8443/wall"
         echo "Forwarding via service: $SVC"
         kubectl -n envoy-gateway-system port-forward "svc/$SVC" 8443:443
+
+  # ------------------------------------------------------------------
+  # vCluster Platform
+  # ------------------------------------------------------------------
+
+  platform:register-vclusters:
+    desc: Register existing Crossplane-managed vclusters with vCluster Platform.
+    cmds:
+      - |
+        set -euo pipefail
+
+        echo "Logging in to vCluster Platform..."
+        vcluster platform login https://platform.testdomain-riccap.it --username admin
+
+        for pair in $(ls gitops/participant-claims/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//'); do
+          echo "Registering vcluster: ${pair} (namespace participant-${pair})"
+          vcluster platform add vcluster "${pair}" \
+            --namespace "participant-${pair}" \
+            --project default || echo "  (already registered or failed — continuing)"
+        done
+
+        echo "Done. Check https://platform.testdomain-riccap.it"
 
   # ------------------------------------------------------------------
   # Verify

@@ -1,16 +1,18 @@
-# Routes the root path (`/`) to the docs Service via Gateway API.
-# Attached to the HTTPS listener only — HTTP is redirected by
-# the http-to-https HTTPRoute in the gateway config.
+# Routes traffic for platform.testdomain-riccap.it to vCluster Platform.
+# Platform is installed via `task bootstrap:vcluster-platform` (not ArgoCD)
+# to keep the admin password out of git.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: docs
-  namespace: docs
+  name: vcluster-platform
+  namespace: vcluster-platform
 spec:
   parentRefs:
     - name: workshop
       namespace: envoy-gateway-system
-      sectionName: https
+      sectionName: https-platform
+  hostnames:
+    - "platform.testdomain-riccap.it"
   rules:
     - matches:
         - path:
@@ -25,5 +27,5 @@ spec:
               - name: X-Content-Type-Options
                 value: "nosniff"
       backendRefs:
-        - name: docs
+        - name: loft
           port: 80
