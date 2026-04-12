@@ -361,6 +361,78 @@ tasks:
         echo "Verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s))"
 
   # ------------------------------------------------------------------
+  # Kubeconfig generation
+  # ------------------------------------------------------------------
+
+  kubeconfig:pair:
+    desc: |
+      Generate a kubeconfig for a participant pair's vcluster, authenticated
+      as the Platform user. Output: kubeconfigs/<pair>.yaml
+      Usage: task kubeconfig:pair PAIR=fancy-lemon
+    requires:
+      vars: [PAIR]
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p kubeconfigs
+
+        PLATFORM_HOST=https://platform.testdomain-riccap.it
+
+        # Derive the password (same SHA256 logic as the Composition)
+        PASSWORD=$(printf '%s:crossplane-workshop-2026:platform-access' '{{.PAIR}}' | shasum -a 256 | head -c 24)
+
+        # Log in as the pair user to get an access key
+        echo "Logging in as {{.PAIR}}..."
+        vcluster platform login "${PLATFORM_HOST}" \
+          --username '{{.PAIR}}' \
+          --password "${PASSWORD}"
+
+        # Generate kubeconfig for the pair's vcluster
+        echo "Generating kubeconfig for {{.PAIR}}..."
+        vcluster platform connect vcluster {{.PAIR}} \
+          --project default \
+          --print > "kubeconfigs/{{.PAIR}}.yaml"
+
+        echo "Kubeconfig written to kubeconfigs/{{.PAIR}}.yaml"
+
+        # Log back in as admin
+        vcluster platform login "${PLATFORM_HOST}" --username admin
+
+  kubeconfig:all:
+    desc: |
+      Generate kubeconfigs for all participant pairs. Each file is written
+      to kubeconfigs/<pair>.yaml, authenticated as the pair's Platform user.
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p kubeconfigs
+
+        PLATFORM_HOST=https://platform.testdomain-riccap.it
+        pairs=$(ls gitops/participant-claims/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
+        [ -n "$pairs" ] || { echo "No pair files under gitops/participant-claims/"; exit 1; }
+
+        for pair in $pairs; do
+          echo "==> $pair"
+          PASSWORD=$(printf '%s:crossplane-workshop-2026:platform-access' "$pair" | shasum -a 256 | head -c 24)
+
+          vcluster platform login "${PLATFORM_HOST}" \
+            --username "$pair" \
+            --password "${PASSWORD}" 2>/dev/null
+
+          vcluster platform connect vcluster "$pair" \
+            --project default \
+            --print > "kubeconfigs/${pair}.yaml"
+
+          echo "    kubeconfigs/${pair}.yaml"
+        done
+
+        # Log back in as admin
+        vcluster platform login "${PLATFORM_HOST}" --username admin
+
+        echo
+        echo "Generated $(echo $pairs | wc -w | tr -d ' ') kubeconfig(s) in kubeconfigs/"
+
+  # ------------------------------------------------------------------
   # Phase 2 — ArubaCloud
   # ------------------------------------------------------------------
 

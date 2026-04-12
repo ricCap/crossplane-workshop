@@ -12,3 +12,6 @@ docs/build/
 docs/.docusaurus/
 
 .playwright-mcp
+
+# Generated kubeconfigs (contain credentials)
+kubeconfigs/
