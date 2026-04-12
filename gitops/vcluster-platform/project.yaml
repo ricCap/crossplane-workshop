@@ -1,0 +1,38 @@
+# Restrict the default Platform project so only admin is a member.
+# Per-user access is granted via VirtualClusterInstance access rules
+# set by the Composition (each pair user can only see their own vcluster).
+#
+# The loft.sh/apply annotation is deliberately omitted so Platform
+# does not re-apply the original wildcard membership.
+apiVersion: storage.loft.sh/v1
+kind: Project
+metadata:
+  name: default
+  annotations:
+    loft.sh/project-namespace: p-default
+spec:
+  displayName: Default Project
+  description: Workshop participant vclusters
+  quotas: {}
+  allowedClusters:
+    - name: "*"
+  allowedRunners:
+    - name: "*"
+  allowedTemplates:
+    - kind: VirtualClusterTemplate
+      group: storage.loft.sh
+      name: "*"
+    - kind: SpaceTemplate
+      group: storage.loft.sh
+      name: "*"
+  requireTemplate: {}
+  requirePreset: {}
+  members:
+    - kind: User
+      group: storage.loft.sh
+      name: admin
+      clusterRole: loft-management-project-admin
+  access:
+    - name: loft-admin-access
+      verbs: ["*"]
+      users: ["admin"]
