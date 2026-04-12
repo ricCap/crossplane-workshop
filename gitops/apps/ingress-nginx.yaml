@@ -23,11 +23,8 @@ spec:
       releaseName: ingress-nginx
       values: |
         controller:
-          # ClusterIP is enough for Phase 1 (local vind, reached via
-          # `task wall:ui` port-forward). Phase 2 on ArubaCloud will
-          # switch this to LoadBalancer.
           service:
-            type: ClusterIP
+            type: LoadBalancer
           # Turn off the default admission webhook TLS validation step —
           # in Phase 1 the validator is overkill and adds a failure mode
           # if cert-manager isn't installed.
