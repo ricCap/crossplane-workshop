@@ -16,6 +16,7 @@ spec:
       values: |
         crds:
           enabled: true
+        featureGates: ExperimentalGatewayAPISupport=true
         replicaCount: 1
         resources:
           requests:
