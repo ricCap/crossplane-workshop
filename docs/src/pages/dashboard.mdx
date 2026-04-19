@@ -1,0 +1,21 @@
+---
+title: Workshop dashboard
+description: At-a-glance view of every participant pair's progress through the workshop.
+---
+
+import Dashboard from '@site/src/components/Dashboard';
+
+# Workshop dashboard
+
+This page is for the person running the workshop. Each **column** is a
+participant pair; each **row** is one of the numbered workshop steps that
+the validator checks against that pair's vcluster. The mini progress bar
+under each pair's name shows how many contiguous steps from the start of
+the list currently pass — a fast signal for who's still on step 1 vs. who's
+already finishing the last one.
+
+The page polls `/api/dashboard` every 5 seconds. Use **Pause** to freeze
+the table while you're projecting it, and click a step's row to expand the
+full `details` text for every pair on that step.
+
+<Dashboard />

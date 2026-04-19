@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -18,6 +19,28 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// participantNSPrefix is the common prefix of every participant namespace
+// on the management cluster. Stripping it from a namespace name yields
+// the pair ID.
+const participantNSPrefix = "participant-"
+
+// localPairID is the synthetic pair name reported by /api/pairs and
+// /api/dashboard when the validator runs in local mode. Keeps the
+// frontend's "one pair" assumption intact without a real participant-*
+// namespace chain.
+const localPairID = "local"
+
+// localMode reports whether the validator is running against the current
+// kubeconfig instead of against a management cluster with participant-*
+// namespaces. Enabled by setting VALIDATOR_LOCAL=1 (any non-empty value
+// is treated as truthy so operators can write =1/=true/=yes without
+// surprises). Opt-in on purpose: without the env var, behavior is
+// unchanged, so running the image in-cluster can never accidentally
+// spoof a "local" pair.
+func localMode() bool {
+	return os.Getenv("VALIDATOR_LOCAL") != ""
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -26,7 +49,12 @@ func main() {
 	mux.HandleFunc("POST /api/checks/", handleCheck)
 	// GET /api/pairs — used by the docs wall page to discover tiles
 	mux.HandleFunc("GET /api/pairs", handlePairs)
+	// GET /api/dashboard — aggregated pair × check matrix for the facilitator
+	mux.HandleFunc("GET /api/dashboard", handleDashboard)
 
+	if localMode() {
+		log.Println("validator: VALIDATOR_LOCAL set; using KUBECONFIG and the synthetic 'local' pair")
+	}
 	log.Println("validator listening on :8081")
 	if err := http.ListenAndServe(":8081", mux); err != nil {
 		log.Fatalf("server error: %v", err)
@@ -74,38 +102,19 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build an in-cluster client to reach the management cluster.
-	inCluster, err := rest.InClusterConfig()
+	mgmtClient, err := newMgmtClient()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: "in-cluster config: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: err.Error()})
 		return
 	}
 
-	mgmtClient, err := kubernetes.NewForConfig(inCluster)
+	vcClient, err := vclientForPair(r.Context(), mgmtClient, pairId)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: "mgmt client: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: err.Error()})
 		return
 	}
 
-	// Load the vcluster kubeconfig from secret vc-<pairId> in namespace participant-<pairId>.
-	secretName := "vc-" + pairId
-	ns := "participant-" + pairId
-
-	secret, err := mgmtClient.CoreV1().Secrets(ns).Get(r.Context(), secretName, metav1.GetOptions{})
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, checkResponse{
-			Details: fmt.Sprintf("could not get secret %s/%s: %v", ns, secretName, err),
-		})
-		return
-	}
-
-	vcClient, err := vclientFromSecret(secret)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: "vcluster client: " + err.Error()})
-		return
-	}
-
-	pass, details, err := checkFn(context.Background(), vcClient)
+	pass, details, err := checkFn(r.Context(), vcClient)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, checkResponse{Details: "check error: " + err.Error()})
 		return
@@ -122,37 +131,121 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 // RBAC: the validator SA already has list on namespaces cluster-wide
 // (see gitops/docs/rbac.yaml), so no new permissions are needed.
 func handlePairs(w http.ResponseWriter, r *http.Request) {
-	inCluster, err := rest.InClusterConfig()
+	mgmtClient, err := newMgmtClient()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "in-cluster config: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	mgmtClient, err := kubernetes.NewForConfig(inCluster)
+	pairs, err := listPairIDs(r.Context(), mgmtClient)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "mgmt client: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	nsList, err := mgmtClient.CoreV1().Namespaces().List(r.Context(), metav1.ListOptions{})
+	writeJSON(w, http.StatusOK, pairs)
+}
+
+// newMgmtClient builds a Kubernetes client for the management cluster.
+// In-cluster config is preferred; when VALIDATOR_LOCAL is set the
+// current KUBECONFIG is used instead so the binary can run against a
+// smoketest cluster with `go run`. Shared by every handler that needs
+// to read pair secrets / list participant namespaces.
+func newMgmtClient() (*kubernetes.Clientset, error) {
+	cfg, err := mgmtRESTConfig()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "list namespaces: " + err.Error()})
-		return
+		return nil, err
+	}
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("mgmt client: %w", err)
+	}
+	return client, nil
+}
+
+// mgmtRESTConfig returns the *rest.Config the validator should use to
+// reach "the management cluster". In local mode this is also the
+// cluster the synthetic "local" pair's checks run against.
+func mgmtRESTConfig() (*rest.Config, error) {
+	if localMode() {
+		// clientcmd loader honors KUBECONFIG env var and falls back to
+		// ~/.kube/config, matching how `kubectl` resolves its config.
+		loader := clientcmd.NewDefaultClientConfigLoadingRules()
+		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loader, &clientcmd.ConfigOverrides{}).ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("local kubeconfig: %w", err)
+		}
+		return cfg, nil
+	}
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("in-cluster config: %w", err)
+	}
+	return cfg, nil
+}
+
+// listPairIDs returns the sorted pair IDs derived from participant-*
+// namespaces on the management cluster. Only IDs matching safeID are
+// returned so a typo in a namespace name can't smuggle an invalid ID
+// into downstream calls. In local mode the namespace scan is skipped
+// and a single synthetic pair is returned.
+func listPairIDs(ctx context.Context, mgmtClient *kubernetes.Clientset) ([]string, error) {
+	if localMode() {
+		return []string{localPairID}, nil
 	}
 
-	const prefix = "participant-"
+	nsList, err := mgmtClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list namespaces: %w", err)
+	}
+
 	pairs := make([]string, 0, len(nsList.Items))
 	for _, ns := range nsList.Items {
-		if strings.HasPrefix(ns.Name, prefix) {
-			id := strings.TrimPrefix(ns.Name, prefix)
+		if strings.HasPrefix(ns.Name, participantNSPrefix) {
+			id := strings.TrimPrefix(ns.Name, participantNSPrefix)
 			if safeID.MatchString(id) {
 				pairs = append(pairs, id)
 			}
 		}
 	}
 	sort.Strings(pairs)
+	return pairs, nil
+}
 
-	writeJSON(w, http.StatusOK, pairs)
+// vclientForPair loads the kubeconfig secret for a pair from the
+// management cluster and builds a dynamic client to that pair's vcluster.
+// The secret name / namespace convention matches what the XVCluster
+// Composition writes: secret `vc-<pair>` in namespace `participant-<pair>`.
+//
+// In local mode, pairs don't have per-pair vclusters — the synthetic
+// "local" pair reuses the management cluster's kubeconfig as its target
+// so the checks run directly against the current cluster.
+func vclientForPair(ctx context.Context, mgmtClient *kubernetes.Clientset, pairID string) (dynamic.Interface, error) {
+	if localMode() {
+		cfg, err := mgmtRESTConfig()
+		if err != nil {
+			return nil, err
+		}
+		client, err := dynamic.NewForConfig(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("local dynamic client: %w", err)
+		}
+		return client, nil
+	}
+
+	secretName := "vc-" + pairID
+	ns := participantNSPrefix + pairID
+
+	secret, err := mgmtClient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("could not get secret %s/%s: %w", ns, secretName, err)
+	}
+
+	client, err := vclientFromSecret(secret)
+	if err != nil {
+		return nil, fmt.Errorf("vcluster client: %w", err)
+	}
+	return client, nil
 }
 
 // vclientFromSecret builds a dynamic client for the vcluster whose kubeconfig
