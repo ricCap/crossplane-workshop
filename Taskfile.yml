@@ -70,6 +70,31 @@ tasks:
       - task: bootstrap:all
 
   # ------------------------------------------------------------------
+  # Dev — run the docs + validator locally against the current
+  # KUBECONFIG. No participant-* namespaces needed; the validator
+  # reports a single synthetic "local" pair and runs every check
+  # against the active cluster. Run in two separate shells:
+  #     task dev:validator   # :8081, VALIDATOR_LOCAL=1
+  #     task dev:docs        # :3000, proxies /api/* to :8081
+  # Then open http://localhost:3000/dashboard.
+  # ------------------------------------------------------------------
+
+  dev:validator:
+    desc: "Run the validator against the current KUBECONFIG on :8081 (local mode)."
+    dir: validator
+    env:
+      VALIDATOR_LOCAL: '1'
+    cmds:
+      - go run .
+
+  dev:docs:
+    desc: "Run the Docusaurus dev server on :3000 with /api/* proxied to the local validator."
+    dir: docs
+    cmds:
+      - '[ -d node_modules ] || npm ci'
+      - npm run start
+
+  # ------------------------------------------------------------------
   # Bootstrap (shared by Phase 1 and Phase 2)
   # ------------------------------------------------------------------
 

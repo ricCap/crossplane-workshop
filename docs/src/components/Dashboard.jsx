@@ -51,7 +51,7 @@ const buttonSecondary = {
 const tableWrap = {
   border: '1px solid #e5e7eb',
   borderRadius: '8px',
-  overflow: 'hidden',
+  overflow: 'auto',
   background: '#fff',
 };
 
@@ -61,8 +61,7 @@ const table = {
   fontSize: '0.92rem',
 };
 
-const th = {
-  textAlign: 'left',
+const thBase = {
   padding: '10px 12px',
   borderBottom: '1px solid #e5e7eb',
   background: '#f9fafb',
@@ -70,24 +69,61 @@ const th = {
   whiteSpace: 'nowrap',
 };
 
-const td = {
+const thStepCol = {
+  ...thBase,
+  textAlign: 'left',
+  position: 'sticky',
+  left: 0,
+  zIndex: 2,
+  background: '#f9fafb',
+  minWidth: '260px',
+};
+
+const thPair = {
+  ...thBase,
+  textAlign: 'center',
+  minWidth: '96px',
+};
+
+const tdBase = {
   padding: '10px 12px',
   borderBottom: '1px solid #f3f4f6',
   verticalAlign: 'middle',
 };
 
-const pairCell = {
-  ...td,
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontWeight: 600,
+const stepCell = {
+  ...tdBase,
+  textAlign: 'left',
+  position: 'sticky',
+  left: 0,
+  background: '#fff',
+  fontWeight: 500,
+  whiteSpace: 'nowrap',
 };
 
-const rowClickable = {
-  cursor: 'pointer',
+const stepCellActive = {
+  ...stepCell,
+  background: '#eff6ff',
 };
 
-const rowExpanded = {
-  background: '#f9fafb',
+const stepNumber = {
+  display: 'inline-block',
+  width: '26px',
+  height: '26px',
+  lineHeight: '26px',
+  textAlign: 'center',
+  borderRadius: '999px',
+  background: '#2563eb',
+  color: 'white',
+  fontWeight: 700,
+  fontSize: '0.8rem',
+  marginRight: '10px',
+  verticalAlign: 'middle',
+};
+
+const cellBase = {
+  ...tdBase,
+  textAlign: 'center',
 };
 
 const chipBase = {
@@ -99,34 +135,48 @@ const chipBase = {
   color: 'white',
   minWidth: '48px',
   textAlign: 'center',
+  cursor: 'help',
 };
 
 const chipPass = { ...chipBase, background: '#16a34a' };
 const chipFail = { ...chipBase, background: '#dc2626' };
 const chipUnknown = { ...chipBase, background: '#9ca3af' };
 
-const stageCell = {
-  ...td,
-  whiteSpace: 'nowrap',
-  minWidth: '120px',
+const pairHeader = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '4px',
+};
+
+const pairName = {
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontWeight: 700,
+  fontSize: '0.92rem',
 };
 
 const progressTrack = {
-  display: 'inline-block',
   width: '72px',
   height: '6px',
   borderRadius: '3px',
   background: '#e5e7eb',
-  marginLeft: '8px',
-  verticalAlign: 'middle',
+  position: 'relative',
+  overflow: 'hidden',
 };
 
-const progressFill = (pct) => ({
+const progressFill = (pct, done) => ({
   width: `${pct}%`,
   height: '100%',
-  background: '#16a34a',
+  background: done ? '#16a34a' : '#2563eb',
   borderRadius: '3px',
+  transition: 'width 300ms ease',
 });
+
+const stageLabel = {
+  fontSize: '0.75rem',
+  color: '#6b7280',
+  fontWeight: 600,
+};
 
 const detailsPanel = {
   padding: '12px 16px',
@@ -146,6 +196,7 @@ const detailsList = {
 
 const detailsLabel = {
   fontWeight: 600,
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   color: '#374151',
 };
 
@@ -191,7 +242,7 @@ export default function Dashboard() {
   const [err, setErr] = useState(null);
   const [paused, setPaused] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
-  const [expandedPair, setExpandedPair] = useState(null);
+  const [expandedStep, setExpandedStep] = useState(null);
   const inFlight = useRef(false);
 
   const load = useCallback(async () => {
@@ -223,6 +274,13 @@ export default function Dashboard() {
   const pairs = data?.pairs ?? [];
   const stageTotal = checks.length;
 
+  // Index each pair's results by check id so we can look them up while
+  // walking rows (check-major) instead of columns (pair-major).
+  const resultsByPair = pairs.map((p) => ({
+    pair: p,
+    byID: Object.fromEntries(p.results.map((r) => [r.id, r])),
+  }));
+
   return (
     <main style={page}>
       <div style={header}>
@@ -250,7 +308,7 @@ export default function Dashboard() {
 
       {data !== null && pairs.length === 0 && !err && (
         <div style={empty}>
-          No pairs registered yet. Once someone's vcluster is up, their row
+          No pairs registered yet. Once someone's vcluster is up, a column
           will appear here automatically.
         </div>
       )}
@@ -260,31 +318,41 @@ export default function Dashboard() {
           <table style={table}>
             <thead>
               <tr>
-                <th style={th}>Pair</th>
-                {checks.map((c) => (
-                  <th key={c.id} style={th} title={c.id}>{c.label}</th>
-                ))}
-                <th style={th}>Stage</th>
+                <th style={thStepCol}>Step</th>
+                {pairs.map((pair) => {
+                  const pct = stageTotal === 0 ? 0 : Math.round((pair.stageReached / stageTotal) * 100);
+                  const done = pair.stageReached === stageTotal && stageTotal > 0;
+                  return (
+                    <th key={pair.id} style={thPair}>
+                      <div style={pairHeader}>
+                        <span style={pairName}>{pair.id}</span>
+                        <div style={progressTrack}>
+                          <div style={progressFill(pct, done)} />
+                        </div>
+                        <span style={stageLabel}>{pair.stageReached}/{stageTotal}</span>
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {pairs.map((pair) => {
-                const resultsByID = Object.fromEntries(
-                  pair.results.map((r) => [r.id, r]),
-                );
-                const isExpanded = expandedPair === pair.id;
-                const pct = stageTotal === 0 ? 0 : Math.round((pair.stageReached / stageTotal) * 100);
+              {checks.map((check, idx) => {
+                const isExpanded = expandedStep === check.id;
                 return (
-                  <React.Fragment key={pair.id}>
+                  <React.Fragment key={check.id}>
                     <tr
-                      style={{ ...rowClickable, ...(isExpanded ? rowExpanded : null) }}
-                      onClick={() => setExpandedPair(isExpanded ? null : pair.id)}
+                      onClick={() => setExpandedStep(isExpanded ? null : check.id)}
+                      style={{ cursor: 'pointer' }}
                     >
-                      <td style={pairCell}>{pair.id}</td>
-                      {checks.map((c) => {
-                        const r = resultsByID[c.id];
+                      <td style={isExpanded ? stepCellActive : stepCell} title={check.id}>
+                        <span style={stepNumber}>{idx + 1}</span>
+                        {check.label}
+                      </td>
+                      {resultsByPair.map(({ pair, byID }) => {
+                        const r = byID[check.id];
                         return (
-                          <td key={c.id} style={td}>
+                          <td key={pair.id} style={cellBase}>
                             <span
                               style={chipStyle(r)}
                               title={r?.details ?? 'no result'}
@@ -294,22 +362,16 @@ export default function Dashboard() {
                           </td>
                         );
                       })}
-                      <td style={stageCell}>
-                        {pair.stageReached}/{stageTotal}
-                        <span style={progressTrack}>
-                          <span style={progressFill(pct)} />
-                        </span>
-                      </td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td style={detailsPanel} colSpan={checks.length + 2}>
+                        <td style={detailsPanel} colSpan={pairs.length + 1}>
                           <ul style={detailsList}>
-                            {checks.map((c) => {
-                              const r = resultsByID[c.id];
+                            {resultsByPair.map(({ pair, byID }) => {
+                              const r = byID[check.id];
                               return (
-                                <React.Fragment key={c.id}>
-                                  <li style={detailsLabel}>{c.label}</li>
+                                <React.Fragment key={pair.id}>
+                                  <li style={detailsLabel}>{pair.id}</li>
                                   <li style={detailsText}>
                                     {r?.details ?? 'no result'}
                                   </li>

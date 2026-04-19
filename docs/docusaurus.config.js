@@ -35,6 +35,34 @@ const config = {
     ],
   ],
 
+  // Dev-only inline plugin: forward `/api/*` from the Docusaurus dev
+  // server to the locally-running validator (default :8081). Pair with
+  // `VALIDATOR_LOCAL=1 go run ./validator` in the `validator/` directory
+  // — then `npm run start` in `docs/` + open http://localhost:3000/dashboard.
+  // Override the target with VALIDATOR_DEV_URL if you port-forwarded
+  // from a cluster instead.
+  plugins: [
+    function devApiProxyPlugin() {
+      return {
+        name: 'dev-api-proxy',
+        configureWebpack(_config, isServer) {
+          if (isServer) return {};
+          return {
+            devServer: {
+              proxy: [
+                {
+                  context: ['/api'],
+                  target: process.env.VALIDATOR_DEV_URL || 'http://localhost:8081',
+                  changeOrigin: true,
+                },
+              ],
+            },
+          };
+        },
+      };
+    },
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
