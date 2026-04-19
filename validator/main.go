@@ -41,6 +41,22 @@ func localMode() bool {
 	return os.Getenv("VALIDATOR_LOCAL") != ""
 }
 
+// soloMode is the in-cluster counterpart of localMode: a single synthetic
+// "local" pair, but the REST config comes from rest.InClusterConfig()
+// instead of KUBECONFIG. Used by the solo-local k3d Deployment where the
+// validator runs as a Pod with no kubeconfig file, against a cluster that
+// has no participant-* namespaces (modules run directly in `default`).
+func soloMode() bool {
+	return os.Getenv("VALIDATOR_SOLO") != ""
+}
+
+// syntheticPairMode is true when either local or solo mode is active —
+// i.e. /api/pairs should return the single synthetic "local" pair and
+// checks should run against whatever cluster this process can reach.
+func syntheticPairMode() bool {
+	return localMode() || soloMode()
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -54,6 +70,9 @@ func main() {
 
 	if localMode() {
 		log.Println("validator: VALIDATOR_LOCAL set; using KUBECONFIG and the synthetic 'local' pair")
+	}
+	if soloMode() {
+		log.Println("validator: VALIDATOR_SOLO set; using in-cluster config and the synthetic 'local' pair")
 	}
 	log.Println("validator listening on :8081")
 	if err := http.ListenAndServe(":8081", mux); err != nil {
@@ -165,7 +184,8 @@ func newMgmtClient() (*kubernetes.Clientset, error) {
 
 // mgmtRESTConfig returns the *rest.Config the validator should use to
 // reach "the management cluster". In local mode this is also the
-// cluster the synthetic "local" pair's checks run against.
+// cluster the synthetic "local" pair's checks run against; in solo mode
+// it is the cluster this pod itself runs on.
 func mgmtRESTConfig() (*rest.Config, error) {
 	if localMode() {
 		// clientcmd loader honors KUBECONFIG env var and falls back to
@@ -190,7 +210,7 @@ func mgmtRESTConfig() (*rest.Config, error) {
 // into downstream calls. In local mode the namespace scan is skipped
 // and a single synthetic pair is returned.
 func listPairIDs(ctx context.Context, mgmtClient *kubernetes.Clientset) ([]string, error) {
-	if localMode() {
+	if syntheticPairMode() {
 		return []string{localPairID}, nil
 	}
 
@@ -221,7 +241,7 @@ func listPairIDs(ctx context.Context, mgmtClient *kubernetes.Clientset) ([]strin
 // "local" pair reuses the management cluster's kubeconfig as its target
 // so the checks run directly against the current cluster.
 func vclientForPair(ctx context.Context, mgmtClient *kubernetes.Clientset, pairID string) (dynamic.Interface, error) {
-	if localMode() {
+	if syntheticPairMode() {
 		cfg, err := mgmtRESTConfig()
 		if err != nil {
 			return nil, err

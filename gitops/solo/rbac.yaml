@@ -1,0 +1,33 @@
+# Broad read access for the solo validator. The pod runs the same checks
+# as in the workshop-day setup, but against its own cluster instead of a
+# pair's vcluster. Scoping to specific CRDs isn't worth the drift risk
+# for a laptop-local dev path — if the participant installs new
+# Crossplane resources in module 3, the check should read them without
+# an RBAC roundtrip.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: validator
+  namespace: docs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: validator-solo
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: validator-solo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: validator-solo
+subjects:
+  - kind: ServiceAccount
+    name: validator
+    namespace: docs

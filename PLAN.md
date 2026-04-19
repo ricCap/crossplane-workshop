@@ -33,6 +33,25 @@ task verify:pair PAIR=fancy-lemon        # programmatic success check for one pa
 5. `vcluster connect fancy-lemon -n participant-fancy-lemon` succeeds; `kubectl get ns` against the returned kubeconfig shows an isolated namespace list — **not** the host cluster's namespaces.
 6. **Scale test**: adding `gitops/participant-vclusters/pairs/brave-mango.yaml` → committing → pushing → within ~2 min `vcluster-brave-mango` exists, with no other manual step.
 
+## Solo local (k3d) — laptop walkthroughs
+
+**Goal**: a self-contained path for a single developer to run modules 1–4 on their own machine without vCluster, without ArgoCD, and without cloning this repo. Participants follow the published docs at `https://workshop.testdomain-riccap.it/solo-local-setup`, which walks them through `k3d cluster create`, `helm install eg`, and a single `kubectl apply -f https://.../gitops/solo/all.yaml`. Images are pulled from the public `ghcr.io/riccap/crossplane-workshop-{docs,validator}` tags.
+
+**Source of truth**: `gitops/solo/` kustomize overlay. `gitops/solo/all.yaml` is the committed pre-rendered bundle, regenerated via `task solo:render`.
+
+**Routing**: Envoy Gateway + Gateway API (same controller as Phase 2), plain HTTP on localhost:8080 — no cert-manager / Let's Encrypt / vCluster Platform. A single `HTTPRoute` routes `/` → docs, `/team/local/api` → `default/backend`, `/team/local` → `default/frontend` (both created by the participant's module 3 `Application` claim).
+
+**Validator**: a new `VALIDATOR_SOLO=1` env var (see `validator/main.go :: soloMode`) flips the validator into an in-cluster synthetic-pair mode that reports a single pair called `local` and runs the same checks against its own cluster.
+
+**Run** (maintainer):
+```
+task solo:all
+task solo:verify
+task solo:down
+```
+
+**Status**: committed alongside Phase 2.
+
 ## Phase 2 — ArubaCloud
 
 **Goal**: the same manifests running against an ArubaCloud-hosted managed k8s cluster, with the cluster registered to vcluster.cloud for the SaaS UI.

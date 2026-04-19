@@ -1,0 +1,24 @@
+# GatewayClass + Gateway for the solo local path. Plain HTTP on :80 —
+# TLS/cert-manager is intentionally out of scope for laptop dev (see the
+# docs "Solo local setup" page). k3d port-maps host 8080 → Gateway 80.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: workshop
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All

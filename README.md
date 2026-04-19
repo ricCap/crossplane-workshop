@@ -83,6 +83,21 @@ After bootstrap, ArgoCD reconciles everything under `gitops/` automatically. Do 
 
 For local development, use `task local:all` which creates a vind cluster first, then runs the full bootstrap.
 
+### Solo local setup (k3d)
+
+If you just want to walk through modules 1–4 on your own laptop — no vCluster, no ArgoCD,
+no shared cluster — use the solo path:
+
+```
+task solo:all       # k3d up + Envoy Gateway + docs + HTTPRoute
+# open http://localhost:8080/
+task solo:down      # when you're done
+```
+
+Participants who haven't cloned this repo can follow the same steps from the published
+docs at https://workshop.testdomain-riccap.it/solo-local-setup (plain `kubectl apply -f`
+against the raw `gitops/solo/all.yaml`, public GHCR images, nothing else).
+
 ## Adding participants
 
 1. Create a YAML file in `gitops/participant-claims/`:
@@ -129,6 +144,12 @@ To register new vclusters with the Platform UI, run `task platform:register-vclu
 | `task local:up` | Create local vind cluster (Docker driver) |
 | `task local:down` | Delete local vind cluster |
 | `task local:all` | Phase 1 one-shot: local cluster + full bootstrap |
+| `task solo:up` | Create the solo k3d cluster (no vcluster, no ArgoCD) |
+| `task solo:down` | Delete the solo k3d cluster |
+| `task solo:platform` | Install Envoy Gateway + `gitops/solo` on the current context |
+| `task solo:all` | Solo one-shot: k3d + Envoy Gateway + docs |
+| `task solo:render` | Regenerate `gitops/solo/all.yaml` from the kustomize overlay |
+| `task solo:verify` | Smoke check the solo stack |
 | `task bootstrap:all` | Full bootstrap (ArgoCD + credentials + Envoy Gateway + Platform + root app) |
 | `task bootstrap:argocd` | Install ArgoCD via Helm |
 | `task bootstrap:repo-credentials` | Provision GitHub deploy key for ArgoCD |

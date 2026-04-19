@@ -1,0 +1,27 @@
+# Guard that the pre-rendered gitops/solo/all.yaml stays in sync with
+# the kustomize overlay it's generated from. The solo docs page links
+# users directly at the raw all.yaml on main, so drift would silently
+# ship broken instructions.
+name: solo render drift
+
+on:
+  pull_request:
+    paths:
+      - "gitops/solo/**"
+      - ".github/workflows/solo-render-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "gitops/solo/**"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v5
+      - name: Re-render all.yaml and diff
+        run: |
+          kubectl kustomize gitops/solo > /tmp/all.yaml
+          diff -u gitops/solo/all.yaml /tmp/all.yaml
