@@ -31,6 +31,29 @@ var checks = map[string]Check{
 	"application-ready":             checkApplicationReady,
 }
 
+// orderedCheckIDs lists the checks in the order participants are expected
+// to satisfy them during the workshop. The dashboard uses this order both
+// for column layout and for deriving a "stage reached" metric (count of
+// contiguous passing checks from the start). When adding a new check,
+// update BOTH the `checks` map (for dispatch) AND this slice (for stage
+// ordering) — a check that is missing from this slice will not appear on
+// the dashboard.
+var orderedCheckIDs = []string{
+	"crossplane-installed",
+	"provider-helm-installed",
+	"provider-kubernetes-installed",
+	"application-ready",
+}
+
+// checkLabels maps a check ID to a human-readable column label used by
+// the dashboard. Missing entries fall back to the ID itself.
+var checkLabels = map[string]string{
+	"crossplane-installed":          "Crossplane installed",
+	"provider-helm-installed":       "provider-helm healthy",
+	"provider-kubernetes-installed": "provider-kubernetes healthy",
+	"application-ready":             "Application Ready",
+}
+
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
 // `crossplane-system` namespace exists and reports condition Available=True.
 // This is the canonical signal that `helm install crossplane crossplane-stable/crossplane`

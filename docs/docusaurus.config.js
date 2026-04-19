@@ -40,7 +40,10 @@ const config = {
     ({
       navbar: {
         title: 'Crossplane Workshop',
-        items: [],
+        items: [
+          { to: '/dashboard', label: 'Dashboard', position: 'left' },
+          { to: '/wall', label: 'Wall', position: 'left' },
+        ],
       },
       footer: {
         style: 'dark',
