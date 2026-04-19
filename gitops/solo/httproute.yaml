@@ -1,0 +1,66 @@
+# Routing for the solo local path. Three rules, longest-prefix-wins:
+#   /team/local/api  → default/backend:5678   (http-echo)
+#   /team/local      → default/frontend:80    (nginx + ConfigMap HTML)
+#   /                → docs/docs:80           (Docusaurus + embedded validator)
+# URLRewrite strips the /team/local prefix so upstream Services see "/".
+# The frontend/backend Services are created by the participant during
+# module 3 (the Application claim materializes them in the default ns).
+# They don't exist at apply time — that's fine, the Gateway resolves
+# backends lazily and the /team/local/* routes will start working the
+# moment the claim goes Ready.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: team-local
+  namespace: default
+spec:
+  parentRefs:
+    - name: workshop
+      namespace: envoy-gateway-system
+      sectionName: http
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /team/local/api
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: backend
+          port: 5678
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /team/local
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: frontend
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs
+  namespace: docs
+spec:
+  parentRefs:
+    - name: workshop
+      namespace: envoy-gateway-system
+      sectionName: http
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: docs
+          port: 80

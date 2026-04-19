@@ -26,9 +26,17 @@ Every command goes through `task <name>`. Never copy-paste raw `helm`/`kubectl` 
 task                      # list available tasks
 task local:all            # Phase 1 one-shot (local vind)
 task bootstrap:all        # Phase 2 bootstrap (against whatever KUBECONFIG points at)
+task solo:all             # Solo local (k3d) — no vcluster, no ArgoCD; for laptop walkthroughs
 task argocd:ui                           # port-forward the ArgoCD UI to https://localhost:8080
 task verify:pair PAIR=fancy-lemon        # programmatic Phase 1 success check for one pair
 ```
+
+The **solo** path is for single-developer laptop runs of modules 1–4. It targets k3d,
+applies `gitops/solo/` directly (no ArgoCD), exposes the docs site + wall on
+`http://localhost:8080/`, and reports a single synthetic pair called `local`. Pick it
+when you want to exercise the workshop content without the per-pair infrastructure;
+pick `local:all` when you're validating anything that touches vcluster, ArgoCD, or the
+XVCluster Composition.
 
 See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which phase.
 

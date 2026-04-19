@@ -8,6 +8,9 @@ version: '3'
 
 vars:
   CLUSTER_NAME: crossplane-workshop
+  # Solo local (k3d) — separate name so it can coexist with a vind
+  # cluster on the same Docker daemon.
+  SOLO_CLUSTER_NAME: crossplane-workshop-solo
   ARGOCD_NS: argocd
   # argo/argo-cd — ArgoCD 3.3.6 app version. Bump deliberately.
   # https://github.com/argoproj/argo-helm/releases/tag/argo-cd-9.5.0
@@ -68,6 +71,54 @@ tasks:
     cmds:
       - task: local:up
       - task: bootstrap:all
+
+  # ------------------------------------------------------------------
+  # Solo local (k3d) — a laptop-only path that reuses the docs image
+  # and Envoy Gateway but skips ArgoCD, vcluster, and the per-pair
+  # scaffolding. `gitops/solo/` is the source of truth; all.yaml is
+  # the pre-rendered bundle that the public docs page links to.
+  # See docs/docs/05-solo-local-setup.mdx.
+  # ------------------------------------------------------------------
+
+  solo:up:
+    desc: "Create the solo k3d cluster with host port 8080 mapped to the load balancer."
+    cmds:
+      - k3d cluster create {{.SOLO_CLUSTER_NAME}} -p "8080:80@loadbalancer"
+      - kubectl cluster-info
+
+  solo:down:
+    desc: "Delete the solo k3d cluster."
+    cmds:
+      - k3d cluster delete {{.SOLO_CLUSTER_NAME}}
+
+  solo:platform:
+    desc: "Install Envoy Gateway and apply gitops/solo against the current kube context."
+    cmds:
+      - |
+        helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm \
+          --version {{.ENVOY_GATEWAY_VERSION}} \
+          --namespace {{.ENVOY_GATEWAY_NS}} --create-namespace \
+          --wait
+      - kubectl apply -k gitops/solo
+
+  solo:render:
+    desc: "Regenerate gitops/solo/all.yaml from the kustomize overlay."
+    cmds:
+      - kubectl kustomize gitops/solo > gitops/solo/all.yaml
+
+  solo:all:
+    desc: "Solo one-shot: create the k3d cluster and install Envoy Gateway + docs + gateway."
+    cmds:
+      - task: solo:up
+      - task: solo:platform
+
+  solo:verify:
+    desc: "Smoke check the solo stack: Envoy Gateway ready, docs pod ready, / and /api/pairs respond."
+    cmds:
+      - kubectl -n {{.ENVOY_GATEWAY_NS}} wait --for=condition=Available deploy -l app.kubernetes.io/name=gateway-helm --timeout=180s
+      - kubectl -n {{.DOCS_NS}} wait --for=condition=Available deploy/docs --timeout=180s
+      - 'curl -sf http://localhost:8080/ -o /dev/null && echo "  / ok"'
+      - 'curl -sf http://localhost:8080/api/pairs | grep -q ''"local"'' && echo "  /api/pairs returns [local]"'
 
   # ------------------------------------------------------------------
   # Dev — run the docs + validator locally against the current

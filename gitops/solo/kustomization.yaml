@@ -1,0 +1,20 @@
+# Solo local (k3d) overlay — no ArgoCD, no vcluster, no participant-claims.
+# Installs a single docs+validator Deployment, an Envoy Gateway `Gateway`,
+# and one HTTPRoute that exposes the docs site on / and the synthetic
+# "local" pair's frontend/backend at /team/local/.
+#
+# Apply with either of:
+#   kubectl apply -k gitops/solo
+#   kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/main/gitops/solo/all.yaml
+#
+# The bundled all.yaml is regenerated via `task solo:render`; CI checks
+# the two are in sync.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - gateway.yaml
+  - httproute.yaml
+  - rbac.yaml
+  - docs.yaml

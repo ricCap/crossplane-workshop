@@ -10,6 +10,13 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 <PairId />
 
+:::note Running solo locally?
+Skip the `vcluster connect` call — "your vcluster" means your k3d cluster, and the
+`Application` claim's downstream resources land in the `default` namespace where the
+solo `HTTPRoute` already expects them. Your tile shows up at
+[/team/local/](/team/local/). See [Solo local setup (k3d)](./05-solo-local-setup).
+:::
+
 This is the module where the whole workshop clicks together. You'll define:
 
 - A **Composite Resource Definition (XRD)** that declares a new API called `Application`,

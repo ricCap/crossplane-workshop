@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: validator
+  namespace: docs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: validator-solo
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: validator-solo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: validator-solo
+subjects:
+- kind: ServiceAccount
+  name: validator
+  namespace: docs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docs
+  namespace: docs
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app: docs
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: docs
+  name: docs
+  namespace: docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docs
+  template:
+    metadata:
+      labels:
+        app: docs
+    spec:
+      containers:
+      - image: ghcr.io/riccap/crossplane-workshop-docs:latest
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        name: docs
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      - env:
+        - name: VALIDATOR_SOLO
+          value: "1"
+        image: ghcr.io/riccap/crossplane-workshop-validator:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http-validator
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        name: validator
+        ports:
+        - containerPort: 8081
+          name: http-validator
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http-validator
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+      serviceAccountName: validator
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: workshop
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: eg
+  listeners:
+  - allowedRoutes:
+      namespaces:
+        from: All
+    name: http
+    port: 80
+    protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: team-local
+  namespace: default
+spec:
+  parentRefs:
+  - name: workshop
+    namespace: envoy-gateway-system
+    sectionName: http
+  rules:
+  - backendRefs:
+    - name: backend
+      port: 5678
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replacePrefixMatch: /
+          type: ReplacePrefixMatch
+    matches:
+    - path:
+        type: PathPrefix
+        value: /team/local/api
+  - backendRefs:
+    - name: frontend
+      port: 80
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replacePrefixMatch: /
+          type: ReplacePrefixMatch
+    matches:
+    - path:
+        type: PathPrefix
+        value: /team/local
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs
+  namespace: docs
+spec:
+  parentRefs:
+  - name: workshop
+    namespace: envoy-gateway-system
+    sectionName: http
+  rules:
+  - backendRefs:
+    - name: docs
+      port: 80
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
