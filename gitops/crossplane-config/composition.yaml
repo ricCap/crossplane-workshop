@@ -350,6 +350,14 @@ spec:
                       cluster: loft-cluster
                       namespace: participant-{{ $pairId }}
                       virtualCluster: {{ $pairId }}
+                    # Loft validation requires `template` OR
+                    # `templateRef` even on external VCIs, and the
+                    # `syncNodeEnvironments` reconciler dereferences
+                    # `spec.template` without a nil-check — omitting
+                    # it panics the controller at
+                    # `node_environments.go:51` and the VCI sticks in
+                    # Pending. An empty object satisfies both.
+                    template: {}
                     access:
                       - name: pair-owner
                         verbs: ["*"]
