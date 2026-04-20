@@ -147,7 +147,7 @@ task verify:pair PAIR=fancy-lemon
 
 ## Deferred (not scheduled)
 
-- **Crossview for Crossplane visualization** — install [crossplane-contrib/crossview](https://github.com/crossplane-contrib/crossview) (OSS React+Go dashboard, Helm chart available at `helm repo add crossview https://crossplane-contrib.github.io/crossview`) so participants can see their XRDs, Compositions, claims and managed resources in a real UI instead of only `kubectl get`. Auth is optional, so we can run it with OIDC off for the workshop. Install per-vcluster via GitOps alongside the other module-1 plumbing. Add a short "visualize" section to module 3 / 4 once it's wired up.
+- **Crossview as a multi-cluster operator dashboard** — [crossplane-contrib/crossview](https://github.com/crossplane-contrib/crossview) (React+Go, requires PostgreSQL, OIDC/SAML). Considered Apr 2026 against the UXP v2 bundled Web UI; UXP Web UI won for workshop use (zero install, no Postgres, read-only is fine). Crossview remains a candidate **only** if we later want a single dashboard that views all participant vclusters at once from the management cluster.
 - Workshop content doc (timeline, modules, learning objectives, microfrontend gamification).
 - ArubaCloud Crossplane provider generation via `upjet` + Aruba's Terraform provider.
 - Per-pair `ResourceQuota` on the management cluster.
@@ -164,6 +164,9 @@ task verify:pair PAIR=fancy-lemon
 
 ### Recently closed
 
+- ~~Crossplane → UXP v2 upgrade~~ — `gitops/apps/crossplane.yaml` now installs `charts.upbound.io/stable/crossplane@2.2.0-up.5` (UXP v2). Brings namespaced XRs / projects / configurations support and a bundled read-only Web UI. Bundled Prometheus disabled to save resources (Web UI metrics dashboards unavailable; resource inspection still works). Existing `apiextensions.crossplane.io/v1` XRD with claimNames stays as-is — Crossplane v2 keeps backward compatibility.
+- ~~Crossplane visualization dashboard~~ — UXP Web UI (bundled, port-forwarded via `task crossplane:ui` → `http://localhost:8200`) chosen over crossview. See Deferred for the multi-cluster crossview alternative.
+  - **Known wart**: enabling `webui` also pulls in the `apollo` subchart, which hardcodes a `cluster-admin` ClusterRoleBinding for SA `apollo` in `crossplane-system`. The subchart exposes no RBAC knob. Verified Apr 2026 by inspecting `oci://xpkg.upbound.io/upbound/uxp-apollo:0.4.7` directly — `roleRef.name: cluster-admin` is a literal in `templates/clusterrolebinding.yaml`. Workarounds (override via separate ArgoCD app, multi-source Kustomize patch) all fight Helm/`selfHeal` and break on chart upgrade. Acceptable for the ephemeral workshop cluster; file an upstream issue for a future `webui.rbac.minimal` flag.
 - ~~ApplicationSet git-files generator syntax~~ — verified: `goTemplate: true` + `{{ .pair_id }}` is the standard ArgoCD v3.x shape, compatible with the pinned chart `9.5.0` (ArgoCD app version `v3.3.6`).
 - ~~`loft-sh/vcluster` chart version~~ — pinned to `0.33.1` (current stable on https://charts.loft.sh as of commit `6d21665`).
 - ~~`vind` CLI invocation~~ — turned out "vind" is *not* a separate binary; it is `loft-sh/vind` mode = `vcluster create` with the Docker driver. `Taskfile.yml` now calls `vcluster use driver docker && vcluster create <name>`. No `sudo` needed.

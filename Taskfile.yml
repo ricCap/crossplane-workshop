@@ -332,6 +332,13 @@ tasks:
         echo "Password:  $(kubectl -n {{.ARGOCD_NS}} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
         kubectl -n {{.ARGOCD_NS}} port-forward svc/argo-cd-argocd-server 8080:443
 
+  crossplane:ui:
+    desc: "Port-forward the UXP Web UI to http://localhost:8200/ (read-only Crossplane dashboard)."
+    cmds:
+      - |
+        echo "UXP Web UI: http://localhost:8200"
+        kubectl -n crossplane-system port-forward svc/webui 8200:80
+
   wall:ui:
     desc: "Port-forward the Envoy Gateway to https://localhost:8443/ (docs + /wall + every /team/<pair>/ tile)."
     cmds:
@@ -390,7 +397,7 @@ tasks:
     desc: |
       End-to-end Phase 1 green check. Asserts ArgoCD is installed, the
       app-of-apps hierarchy is Synced+Healthy, and every vcluster generated
-      from gitops/participant-claims/ has a Ready pod in its
+      from gitops/participant-xrs/ has a Ready pod in its
       participant-* namespace. Runs verify:pair for each discovered pair.
     cmds:
       - |
@@ -421,8 +428,8 @@ tasks:
         kubectl get application docs -n {{.ARGOCD_NS}} >/dev/null 2>&1 && ok "docs Application present" || echo "  (docs Application not yet applied — skipping)"
 
         echo "==> Per-pair verification"
-        pairs=$(ls gitops/participant-claims/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
-        [ -n "$pairs" ] || fail "no pair files under gitops/participant-claims/"
+        pairs=$(ls gitops/participant-xrs/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
+        [ -n "$pairs" ] || fail "no pair files under gitops/participant-xrs/"
         for pair in $pairs; do
           echo "  --> $pair"
           kubectl get xvclusters.workshop.example.io "$pair" >/dev/null || fail "XVCluster $pair missing"

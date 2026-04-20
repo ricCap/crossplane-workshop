@@ -11,7 +11,7 @@ GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central man
 - `bootstrap/` — one-time install inputs: ArgoCD Helm values and the root app-of-apps Application.
 - `gitops/projects/` — ArgoCD `AppProject` definitions.
 - `gitops/apps/` — top-level ArgoCD Applications and ApplicationSets reconciled by the root app.
-- `gitops/participant-claims/` — **one XVCluster file per participant pair**. This is the scale lever.
+- `gitops/participant-xrs/` — **one XVCluster XR file per participant pair**. This is the scale lever. (Crossplane v2 XRs, no claim layer.)
 - `gitops/crossplane-config/` — XVCluster XRD + Composition, ProviderConfigs.
 - `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
 - `Taskfile.yml` — every command lives here.
@@ -28,6 +28,7 @@ task local:all            # Phase 1 one-shot (local vind)
 task bootstrap:all        # Phase 2 bootstrap (against whatever KUBECONFIG points at)
 task solo:all             # Solo local (k3d) — no vcluster, no ArgoCD; for laptop walkthroughs
 task argocd:ui                           # port-forward the ArgoCD UI to https://localhost:8080
+task crossplane:ui                       # port-forward the UXP Web UI to http://localhost:8200
 task verify:pair PAIR=fancy-lemon        # programmatic Phase 1 success check for one pair
 ```
 
@@ -42,7 +43,7 @@ See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which p
 
 ## Scaling to more pairs
 
-Drop a new file under `gitops/participant-claims/` following the `fancy-lemon.yaml` shape (an XVCluster resource with the pair ID), commit, and push. ArgoCD syncs the claims directory, Crossplane reconciles each XVCluster into a full participant environment (Namespace, vcluster, Ingress, ResourceQuota) within ~2 min. No tasks involved.
+Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml` shape (an XVCluster XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each XVCluster into a full participant environment (Namespace, vcluster, HTTPRoute, ResourceQuota) within ~2 min. No tasks involved.
 
 ## Planning
 
