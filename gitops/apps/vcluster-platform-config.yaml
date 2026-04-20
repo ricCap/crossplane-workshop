@@ -15,6 +15,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: vcluster-platform
+  # The Loft Platform admission controller mutates Project specs
+  # after apply — it injects an additional `loft-access` rule and
+  # reorders `spec.access` entries. That drift is intrinsic to the
+  # Loft webhook, not something we can fix in git, so ignore the
+  # whole `spec.access` field on Projects to keep the app Synced.
+  ignoreDifferences:
+    - group: management.loft.sh
+      kind: Project
+      jsonPointers:
+        - /spec/access
   syncPolicy:
     automated:
       prune: true
