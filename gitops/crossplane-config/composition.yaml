@@ -336,6 +336,20 @@ spec:
                     name: {{ $pairId }}
                     namespace: p-default
                   spec:
+                    # The vcluster itself is owned by Crossplane (the
+                    # Helm Release composed above). Setting
+                    # `external: true` + `clusterRef` tells the Loft
+                    # Platform to register the existing vcluster
+                    # instead of trying to deploy its own. Without it
+                    # the platform reconciler races Crossplane to
+                    # install a second Helm release for the same pair
+                    # and fails with
+                    # `HelmDeployFailed: virtual cluster version is required`.
+                    external: true
+                    clusterRef:
+                      cluster: loft-cluster
+                      namespace: participant-{{ $pairId }}
+                      virtualCluster: {{ $pairId }}
                     access:
                       - name: pair-owner
                         verbs: ["*"]
@@ -343,12 +357,6 @@ spec:
                       - name: admin-access
                         verbs: ["*"]
                         users: ["admin"]
-                    template:
-                      access:
-                        defaultClusterRole: ""
-                        rules:
-                          - users: ["{{ $pairId }}", "admin"]
-                            clusterRole: cluster-admin
 
     # --- Step 3: Auto-ready ---
     # Marks the XR as Ready when all composed resources are Ready.
