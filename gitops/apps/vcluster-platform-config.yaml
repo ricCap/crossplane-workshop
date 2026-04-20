@@ -21,7 +21,12 @@ spec:
   # Loft webhook, not something we can fix in git, so ignore the
   # whole `spec.access` field on Projects to keep the app Synced.
   ignoreDifferences:
-    - group: management.loft.sh
+    # The Project manifest in `gitops/vcluster-platform/project.yaml`
+    # is `apiVersion: storage.loft.sh/v1` — that's the group ArgoCD
+    # uses when matching ignoreDifferences against the desired state
+    # (the live object surfaces under both `storage.loft.sh` and
+    # `management.loft.sh`, but the rule has to match git).
+    - group: storage.loft.sh
       kind: Project
       jsonPointers:
         - /spec/access
