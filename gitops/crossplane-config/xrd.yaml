@@ -1,23 +1,27 @@
 # XVCluster — the management-cluster API that provisions participant
-# vclusters. Each VCluster claim produces a Helm release of the
+# vclusters. Each XVCluster XR produces a Helm release of the
 # loft-sh/vcluster chart via provider-helm.
+#
+# Crossplane v2 XRD, no claim layer — participants and tooling apply
+# `XVCluster` resources directly. Scope is `Cluster` because the
+# Composition emits cluster-scoped MRs (provider-helm `Release`,
+# provider-kubernetes `Object`); v2 forbids a namespaced XR from
+# composing cluster-scoped resources. Revisit once provider-helm and
+# provider-kubernetes ship namespaced MR variants.
 #
 # This is the "gotcha moment" reveal: participants discover that the
 # vcluster they've been using the whole workshop was itself produced
-# by a Crossplane Composition — the same pattern they learned to use
-# for their Application XRD inside the vcluster.
-apiVersion: apiextensions.crossplane.io/v1
+# by a Crossplane Composition.
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xvclusters.workshop.example.io
 spec:
+  scope: Cluster
   group: workshop.example.io
   names:
     kind: XVCluster
     plural: xvclusters
-  claimNames:
-    kind: VCluster
-    plural: vclusters
   versions:
     - name: v1alpha1
       served: true

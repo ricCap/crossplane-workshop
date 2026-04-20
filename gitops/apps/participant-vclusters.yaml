@@ -1,12 +1,11 @@
-# Each file in gitops/participant-claims/ is an XVCluster composite
-# resource. Crossplane's XVCluster Composition reconciles each one into
-# a full participant environment: Namespace, vcluster Helm Release,
-# per-pair Ingress, and ResourceQuota.
+# Each file in gitops/participant-xrs/ is a cluster-scoped XVCluster XR
+# (Crossplane v2, no claim layer). The XVCluster Composition reconciles
+# each one into a full participant environment: Namespace, vcluster
+# Helm Release, per-pair HTTPRoute, and ResourceQuota.
 #
-# Scale lever: add a new YAML file to gitops/participant-claims/ with
+# Scale lever: add a new YAML file to gitops/participant-xrs/ with
 # just the pair ID. Crossplane does the rest.
 #
-# This replaces the old ApplicationSet + two Helm charts approach.
 # The "gotcha moment" reveal: participants discover that the vcluster
 # they used the whole workshop was itself a Crossplane-managed resource.
 apiVersion: argoproj.io/v1alpha1
@@ -19,9 +18,10 @@ spec:
   source:
     repoURL: git@github.com:ricCap/crossplane-workshop.git
     targetRevision: main
-    path: gitops/participant-claims
+    path: gitops/participant-xrs
   destination:
     server: https://kubernetes.default.svc
+    namespace: default
   syncPolicy:
     automated:
       prune: true

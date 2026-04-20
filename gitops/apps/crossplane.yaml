@@ -1,7 +1,13 @@
-# Crossplane on the management cluster — the engine behind Phase 3's
-# "gotcha moment". Participants discover at the end that the vclusters
-# they've been using were themselves produced by a Crossplane Composition
-# running on this cluster.
+# Upbound Universal Crossplane (UXP) v2 on the management cluster — the
+# engine behind Phase 3's "gotcha moment". Participants discover at the
+# end that the vclusters they've been using were themselves produced by
+# a Crossplane Composition running on this cluster.
+#
+# Why UXP v2 (not upstream Crossplane):
+# - Crossplane v2 features (namespaced XRs, projects, configurations).
+# - Bundled read-only Web UI for the workshop visualization step.
+# Chart name is `crossplane` (Upbound's chart, not upstream's). The repo
+# differs (charts.upbound.io vs charts.crossplane.io).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -10,9 +16,9 @@ metadata:
 spec:
   project: workshop
   source:
-    repoURL: https://charts.crossplane.io/stable
+    repoURL: https://charts.upbound.io/stable
     chart: crossplane
-    targetRevision: 1.19.0
+    targetRevision: 2.2.0-up.5
     helm:
       releaseName: crossplane
       values: |
@@ -24,6 +30,18 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
+        # Web UI — bundled with UXP v2, read-only. Used in the
+        # workshop visualization step to inspect XRDs, Compositions,
+        # XRs and managed resources without kubectl.
+        webui:
+          enabled: true
+        # Disable bundled Prometheus to save resources. The Web UI
+        # still works for resource inspection; only the metrics
+        # dashboards are unavailable.
+        upbound:
+          manager:
+            prometheus:
+              disabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: crossplane-system
