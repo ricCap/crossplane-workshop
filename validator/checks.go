@@ -158,41 +158,62 @@ func checkHelloPod(ctx context.Context, client dynamic.Interface) (bool, string,
 // understand how an MR reconciles without needing the XRD/Composition
 // machinery that comes in module 05.
 //
+// Provider-kubernetes registers two Object kinds: the legacy cluster-
+// scoped `kubernetes.crossplane.io/v1alpha2` and the v2-native
+// namespaced `kubernetes.m.crossplane.io/v1alpha1`. The workshop
+// teaches the namespaced variant because v2 namespaced XRs cannot
+// compose cluster-scoped resources — but we search both so a
+// participant who follows an older tutorial, or experiments with the
+// legacy kind, still sees the tile turn green.
+//
 // The check deliberately accepts any Object in any namespace so
 // participants can name their MR whatever they like.
 func checkFirstMRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
-	objectsGVR := schema.GroupVersionResource{
-		Group:    "kubernetes.crossplane.io",
-		Version:  "v1alpha2",
-		Resource: "objects",
+	gvrs := []schema.GroupVersionResource{
+		{Group: "kubernetes.m.crossplane.io", Version: "v1alpha1", Resource: "objects"},
+		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"},
 	}
 
-	list, err := client.Resource(objectsGVR).Namespace("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return false, fmt.Sprintf("could not list provider-kubernetes Object resources: %v", err), nil
+	var firstNotReady *struct {
+		namespace, name string
 	}
-	if len(list.Items) == 0 {
-		return false, "no provider-kubernetes Object managed resources found in the cluster", nil
-	}
+	var anyListed bool
 
-	for _, item := range list.Items {
-		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
-		if !ok {
+	for _, gvr := range gvrs {
+		list, err := client.Resource(gvr).Namespace("").List(ctx, metav1.ListOptions{})
+		if err != nil {
+			// The GVR may simply not be installed (legacy variant removed, etc.).
+			// Skip and try the next one rather than failing.
 			continue
 		}
-		for _, raw := range conditions {
-			cond, ok := raw.(map[string]interface{})
+		anyListed = true
+		for _, item := range list.Items {
+			conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
 			if !ok {
 				continue
 			}
-			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return true, fmt.Sprintf("Object %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			for _, raw := range conditions {
+				cond, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if cond["type"] == "Ready" && cond["status"] == "True" {
+					return true, fmt.Sprintf("Object %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+				}
+			}
+			if firstNotReady == nil {
+				firstNotReady = &struct{ namespace, name string }{item.GetNamespace(), item.GetName()}
 			}
 		}
 	}
 
-	first := list.Items[0]
-	return false, fmt.Sprintf("Object %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+	if !anyListed {
+		return false, "could not list provider-kubernetes Object resources (is the provider installed?)", nil
+	}
+	if firstNotReady == nil {
+		return false, "no provider-kubernetes Object managed resources found in the cluster", nil
+	}
+	return false, fmt.Sprintf("Object %s/%s exists but is not yet Ready", firstNotReady.namespace, firstNotReady.name), nil
 }
 
 // checkProviderHelmInstalled asserts that Provider/provider-helm is Healthy.
