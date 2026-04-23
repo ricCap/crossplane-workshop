@@ -23,10 +23,12 @@ That's it. Crossplane is not a prerequisite — installing it is module 03.
 ## 1. Create the cluster
 
 ```bash
-k3d cluster create crossplane-workshop-solo -p "8080:80@loadbalancer"
+k3d cluster create crossplane-workshop-solo \
+  -p "8080:80@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:0"
 ```
 
-The `-p "8080:80@loadbalancer"` flag forwards your host's port 8080 to the cluster's ServiceLB, which is where Envoy Gateway terminates traffic. When it's up, `kubectl cluster-info` should show a `k3d-crossplane-workshop-solo` context.
+Two flags worth explaining. `-p "8080:80@loadbalancer"` forwards your host's port 8080 to the cluster's ServiceLB, which is where Envoy Gateway terminates traffic. `--k3s-arg "--disable=traefik@server:0"` turns off k3s's bundled traefik ingress controller — the workshop routes through Envoy Gateway (Gateway API), and two controllers fighting over port 80 ends with curl getting traefik's 404 page instead of the docs. When the cluster is up, `kubectl cluster-info` should show a `k3d-crossplane-workshop-solo` context.
 
 ## 2. Install Envoy Gateway
 

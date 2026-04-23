@@ -106,11 +106,11 @@ kubectl get xrd applications.workshop.example.io
 Expected output:
 
 ```
-NAME                                ESTABLISHED   OFFERED   AGE
-applications.workshop.example.io    True          True      5s
+NAME                               ESTABLISHED   OFFERED   AGE
+applications.workshop.example.io   True                    5s
 ```
 
-`ESTABLISHED=True` means the `Application` CRD is registered; you can now apply XRs.
+`ESTABLISHED=True` means the `Application` CRD is registered; you can now apply XRs. The `OFFERED` column stays empty because v2 does not generate a claim kind — in v1 it would show `True` if the XRD declared `claimNames`, but v2 lets you apply the XR directly so there's nothing to offer.
 
 ### 3. Apply the Composition
 
@@ -119,7 +119,7 @@ The Composition is the recipe. It creates five managed resources when an `Applic
 Save this to `composition.yaml` and apply it with `kubectl apply -f composition.yaml`:
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v2
+apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   name: applications.workshop.example.io
@@ -138,9 +138,12 @@ spec:
         resources:
           - name: frontend-configmap
             base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
               kind: Object
               spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
                 forProvider:
                   manifest:
                     apiVersion: v1
@@ -178,9 +181,12 @@ spec:
                         </body></html>
           - name: frontend-deployment
             base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
               kind: Object
               spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
                 forProvider:
                   manifest:
                     apiVersion: apps/v1
@@ -210,9 +216,12 @@ spec:
                                 name: frontend
           - name: frontend-service
             base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
               kind: Object
               spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
                 forProvider:
                   manifest:
                     apiVersion: v1
@@ -227,9 +236,12 @@ spec:
                           targetPort: 80
           - name: backend-deployment
             base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
               kind: Object
               spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
                 forProvider:
                   manifest:
                     apiVersion: apps/v1
@@ -265,9 +277,12 @@ spec:
                 toFieldPath: spec.forProvider.manifest.spec.template.spec.containers[0].args[1]
           - name: backend-service
             base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
               kind: Object
               spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
                 forProvider:
                   manifest:
                     apiVersion: v1
@@ -282,7 +297,13 @@ spec:
                           targetPort: 5678
 ```
 
-Note the `CombineFromComposite` patch on `backend-deployment` — that's the plumbing that injects the XR's `spec.message` and `spec.color` into the http-echo container's `-text` argument at reconcile time.
+Three v2 details worth pointing out before you read the YAML:
+
+- The `CompositeResourceDefinition` above is `apiextensions.crossplane.io/v2`, but the `Composition` here is still `apiextensions.crossplane.io/v1`. That is **not a typo** — in Crossplane v2 the XRD API group bumped to `/v2` to express namespaced XRs, but `Composition` stays on `/v1`. Mixing them is expected.
+- Every composed resource is an `Object.kubernetes.m.crossplane.io/v1alpha1` — the **namespaced** Object kind (note the `.m.` in the group). Crossplane v2 requires that a namespaced XR (our `Application`) only compose resources that are themselves namespaced, and this `.m.` variant is provider-kubernetes' namespaced Object type.
+- Each composed Object sets `spec.providerConfigRef.kind: ClusterProviderConfig` to reach the `default` `ClusterProviderConfig` you applied in module 4. Without the explicit `kind`, provider-kubernetes would look for a namespaced `ProviderConfig` in the resource's own namespace — which doesn't exist here.
+
+The `CombineFromComposite` patch on `backend-deployment` is what injects the XR's `spec.message` and `spec.color` into the http-echo container's `-text` argument at reconcile time.
 
 ### 4. Apply your Application XR
 
@@ -304,15 +325,15 @@ EOF
 Watch everything materialize:
 
 ```bash
-kubectl get application wall-tile
+kubectl get application wall-tile -n default
 kubectl get deploy,svc,cm -n default
 ```
 
 Expected output (abridged):
 
 ```
-NAME         SYNCED   READY   COMPOSITION                         AGE
-wall-tile    True     True    applications.workshop.example.io    30s
+NAME        SYNCED   READY   COMPOSITION                         AGE
+wall-tile   True     True    applications.workshop.example.io    30s
 
 NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/backend    1/1     1            1           25s

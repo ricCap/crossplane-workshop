@@ -67,14 +67,14 @@ kubectl create clusterrolebinding provider-kubernetes-admin \
 You're binding `cluster-admin` on purpose. In modules 5 and 6 you'll create new kinds of resources, and a narrower role would force you to keep widening permissions — a detour that isn't what this workshop teaches. Your cluster is throwaway and isolated, so the blast radius is zero. **In a real cluster, scope this down.**
 :::
 
-### 3. Apply a `ProviderConfig`
+### 3. Apply a `ClusterProviderConfig`
 
 A [ProviderConfig](./cheatsheet#core-objects) tells `provider-kubernetes` which Kubernetes API to talk to. The simplest — and the right choice for acting on the same cluster — is `InjectedIdentity`: the provider uses its own in-cluster ServiceAccount token.
 
 ```bash
 kubectl apply -f - <<'EOF'
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: ProviderConfig
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
 metadata:
   name: default
 spec:
@@ -83,7 +83,9 @@ spec:
 EOF
 ```
 
-The name `default` matters: Crossplane uses a ProviderConfig named `default` when an MR doesn't specify one, and the XRs in modules 5 and 6 rely on that.
+Crossplane v2 splits `ProviderConfig` into two kinds: a **namespaced** `ProviderConfig` (used by managed resources inside the same namespace) and a **cluster-scoped** `ClusterProviderConfig` (shared across namespaces). The module 5 Composition composes namespaced Objects in `default`, but we want one config both modules can share — `ClusterProviderConfig` is the v2-native way to express that.
+
+The name `default` matters for module 5: the Composition's resources reference it explicitly.
 
 <ValidateCheck check="provider-kubernetes-installed" />
 
@@ -93,7 +95,7 @@ When the tile turns green, the provider is installed, permissioned, and configur
 
 ### 1. What you're about to create
 
-You're going to create one `Object` — provider-kubernetes' managed resource. Each `Object` wraps one Kubernetes resource the provider will create in the target cluster. In this case the target is this same cluster (thanks to the `default` ProviderConfig), and the wrapped resource is a `ConfigMap`.
+You're going to create one `Object` — provider-kubernetes' managed resource. Each `Object` wraps one Kubernetes resource the provider will create in the target cluster. In this case the target is this same cluster (thanks to the `default` `ClusterProviderConfig`), and the wrapped resource is a `ConfigMap`.
 
 When you apply the `Object`, the provider reads your spec, creates the `ConfigMap`, and reports `Ready=True`. That loop — spec in, condition out — is the shape of every Crossplane managed resource, for every provider.
 
@@ -101,10 +103,11 @@ When you apply the `Object`, the provider reads your spec, creates the `ConfigMa
 
 ```bash
 kubectl apply -f - <<'EOF'
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   name: hello-configmap
+  namespace: default
 spec:
   forProvider:
     manifest:
@@ -116,14 +119,17 @@ spec:
       data:
         message: "This ConfigMap was created by a Crossplane Object MR."
   providerConfigRef:
+    kind: ClusterProviderConfig
     name: default
 EOF
 ```
 
+Two v2 details to notice. The API group is `kubernetes.m.crossplane.io` (the `.m.` marks the namespaced variant), and the `Object` itself lives in a namespace — `default` here. The `providerConfigRef` spells out `kind: ClusterProviderConfig` because a namespaced MR can point at either a namespaced `ProviderConfig` (same namespace) or a cluster-scoped `ClusterProviderConfig`; we chose the latter in step 3.
+
 ### 3. Watch it reconcile
 
 ```bash
-kubectl get object.kubernetes.crossplane.io
+kubectl get object.kubernetes.m.crossplane.io -n default
 ```
 
 Expected output:

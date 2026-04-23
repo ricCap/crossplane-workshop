@@ -57,13 +57,25 @@ kubectl get pods -n crossplane-system
 Expected output:
 
 ```
-NAME                                         READY   STATUS    RESTARTS   AGE
-crossplane-7b4d9f8c9d-abcde                  1/1     Running   0          45s
-crossplane-rbac-manager-6c8f7d5b4c-fghij     1/1     Running   0          45s
-webui-xxxxxxxxxx-yyyyy                       1/1     Running   0          45s
+NAME                                      READY   STATUS    RESTARTS   AGE
+crossplane-58ff757f44-5vjxz               1/1     Running   0          45s
+crossplane-apollo-7d475f549f-bbd6s        3/3     Running   1          45s
+crossplane-rbac-manager-75f69f7d64-7xttd  1/1     Running   0          45s
+upbound-controller-manager-85cd77fb9-xxx  1/1     Running   0          45s
+webui-5c65cc8bdf-xxxxx                    1/1     Running   0          45s
 ```
 
-Two Deployments are core Crossplane (`crossplane`, `crossplane-rbac-manager`). `webui` is the bundled dashboard.
+Five pods come up for a UXP v2 install:
+
+- **`crossplane`** — the core Crossplane controller you'd get from any Crossplane install; runs the reconcilers for Providers, Compositions, and XRs.
+- **`crossplane-rbac-manager`** — generates ClusterRoles for each XRD so that end-users can `get`/`list` the XR kinds you define.
+- **`crossplane-apollo`** — UXP-specific control-plane component that backs Upbound's managed offering. Benign when you're running UXP locally; it has nothing to do in a standalone install but is still scheduled.
+- **`upbound-controller-manager`** — UXP's control-plane orchestrator (sibling to `apollo`). Same story: extra in local use, required for the Upbound cloud integration you won't exercise here.
+- **`webui`** — the read-only dashboard enabled by `webui.enabled=true`.
+
+If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplane-rbac-manager` would appear. The three extra pods are what "UXP" bundles on top; see the [Cheatsheet §1.3 comparison](./cheatsheet#crossplane-vs-uxp).
+
+A transient restart or two on `crossplane-apollo` during install is normal — it waits on CRDs the core controller is still registering.
 
 <ValidateCheck check="crossplane-installed" />
 
