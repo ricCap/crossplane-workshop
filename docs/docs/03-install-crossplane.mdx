@@ -1,0 +1,100 @@
+---
+sidebar_position: 4
+title: 3. Install Crossplane
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 3 — Install Crossplane ⏱️ 15 min
+
+<PairId />
+
+:::note Running solo locally?
+Same cluster, same commands — nothing changes in this module for the solo path. See [Solo local setup (k3d)](./solo-local-setup) for background.
+:::
+
+## 3.1 Before you start ⏱️ 3 min
+
+[Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes controller that manages external APIs — cloud providers, other Kubernetes clusters, SaaS products — through Kubernetes resources you apply with `kubectl`. After this module Crossplane itself will be running in your cluster, ready for a provider.
+
+You'll install **UXP v2** (Upbound's distribution of Crossplane) via its Helm chart. UXP is Crossplane with a bundled read-only [Web UI](https://docs.upbound.io) — everything you learn transfers one-for-one to upstream Crossplane. See the [Cheatsheet §1.3](./cheatsheet#crossplane-vs-uxp) for the full comparison.
+
+:::info Why `--devel`?
+UXP v2 releases are tagged like `2.2.0-up.5`, which Helm treats as pre-release. The `--devel` flag is what tells Helm "install pre-release versions too". It's not actually pre-release code — it's the stable UXP v2 line.
+:::
+
+You're about to: add a Helm repo, install the chart, and verify the `crossplane` Deployment is Available.
+
+## 3.2 Install the Helm chart ⏱️ 7 min
+
+### 1. Add the Upbound Helm repo
+
+```bash
+helm repo add upbound-stable https://charts.upbound.io/stable
+helm repo update upbound-stable
+```
+
+### 2. Install UXP into `crossplane-system`
+
+```bash
+helm install crossplane upbound-stable/crossplane \
+  --namespace crossplane-system \
+  --create-namespace \
+  --devel \
+  --wait \
+  --set webui.enabled=true
+```
+
+`--wait` makes Helm block until the Crossplane Deployments are Available. On a workshop-sized cluster this usually takes 30–60 seconds. `webui.enabled=true` turns on the read-only Web UI you'll use in the optional step below.
+
+### 3. Verify the pods
+
+```bash
+kubectl get pods -n crossplane-system
+```
+
+Expected output:
+
+```
+NAME                                         READY   STATUS    RESTARTS   AGE
+crossplane-7b4d9f8c9d-abcde                  1/1     Running   0          45s
+crossplane-rbac-manager-6c8f7d5b4c-fghij     1/1     Running   0          45s
+webui-xxxxxxxxxx-yyyyy                       1/1     Running   0          45s
+```
+
+Two Deployments are core Crossplane (`crossplane`, `crossplane-rbac-manager`). `webui` is the bundled dashboard.
+
+<ValidateCheck check="crossplane-installed" />
+
+When the tile turns green, Crossplane is running and you're ready for module 4.
+
+## 3.3 (Optional) Open the Web UI ⏱️ 5 min
+
+The Web UI shows every Crossplane object in your cluster — Providers, XRDs, Compositions, XRs, and managed resources — in a tree you can click through. It's handy while you're learning; it's not required.
+
+### 1. Port-forward the service
+
+Run this in a second terminal (it stays open while you browse):
+
+```bash
+kubectl port-forward svc/webui -n crossplane-system 8200:80
+```
+
+Leave it running and open [http://localhost:8200](http://localhost:8200) in your browser. You'll see a mostly-empty dashboard — there's nothing to compose yet. After modules 4, 5, and 6 you'll come back here to see what you built.
+
+Press `Ctrl+C` in that terminal when you're done to stop the port-forward.
+
+### 2. Keep it open for later
+
+If you want to leave it running through the rest of the workshop: good. Switch to it after each module and watch the tree populate as you install a provider, define an XRD, and apply an XR.
+
+## 3.4 What just happened
+
+You installed a Kubernetes controller (Crossplane) that watches for a family of resources (Providers, XRDs, Compositions, MRs, XRs) and reconciles them. Right now it's watching nothing — the next module teaches it what to do.
+
+### Go deeper
+
+- [Installing Crossplane (upstream docs)](https://docs.crossplane.io/latest/software/install/) — alternatives to Helm, CLI flags.
+- [UXP release notes](https://docs.upbound.io/release-notes/) — what's different from upstream in each UXP release.
+- [Crossplane architecture](https://docs.crossplane.io/latest/concepts/crossplane/) — how the core controller and RBAC manager cooperate.

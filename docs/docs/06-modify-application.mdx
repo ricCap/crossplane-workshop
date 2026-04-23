@@ -1,0 +1,85 @@
+---
+sidebar_position: 7
+title: 6. Modify your Application
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 6 — Modify your Application ⏱️ 20 min
+
+<PairId />
+
+:::note Running solo locally?
+Same commands. Your tile is at `/team/local/`. See [Solo local setup (k3d)](./solo-local-setup).
+:::
+
+## 6.1 Before you start ⏱️ 3 min
+
+So far your Composition is static: every `Application` produces the same HTML layout, the same fonts, the same page structure. In this module you'll edit the Composition and watch your tile update **without** re-applying the XR.
+
+That's the point of composition: the abstraction (`Application`) survives, the implementation (the resources behind it) changes. Platform teams do this all the time — adding sidecar containers, swapping base images, tightening security defaults — and consumers never notice.
+
+You're about to: edit the Composition in place, see the downstream ConfigMap update, refresh the tile.
+
+## 6.2 Reshape the frontend ⏱️ 15 min
+
+### 1. Open the Composition for editing
+
+```bash
+kubectl edit composition applications.workshop.example.io
+```
+
+Find the `frontend-configmap` resource (the first one under `spec.pipeline[0].input.resources`) and modify the HTML inside `base.spec.forProvider.manifest.data.index.html`.
+
+### 2. Pick at least one change
+
+Any of these work, pick the one you like:
+
+- **Add a subtitle** under the `<div id="tile">`:
+  ```html
+  <div id="subtitle" style="font-size: 1rem; color: #6b7280;">hello from my XRD</div>
+  ```
+- **Change the background color:**
+  ```css
+  body { background: #fef3c7; font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+  ```
+- **Add emoji, a border, a gradient** — anything inline CSS can do inside one ConfigMap.
+
+Save and exit the editor.
+
+### 3. Watch Crossplane reconcile
+
+Crossplane reconciles immediately: the `Object` wrapping the ConfigMap is patched with the new content, and provider-kubernetes applies the change. Confirm:
+
+```bash
+kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | head -20
+```
+
+You should see your edit in the output.
+
+### 4. Make nginx pick up the change
+
+nginx reads `/usr/share/nginx/html/index.html` on every request, but the ConfigMap projection inside the Pod only refreshes every ~30 seconds (kubelet's periodic sync). Bounce the frontend Pod to see your change immediately:
+
+```bash
+kubectl rollout restart deployment frontend
+```
+
+### 5. Refresh the tile
+
+Open the [workshop wall](/wall) in a new tab and click **Refresh**. Your tile should show the new HTML / CSS you edited. Your `Application` XR is still `wall-tile`, untouched — the change came from reshaping the Composition.
+
+<ValidateCheck check="application-ready" />
+
+The check is still green because none of the conditions it watches have changed — the Application is still Ready. That's the point.
+
+## 6.3 What just happened
+
+You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five managed resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
+
+### Go deeper
+
+- **Stretch: add a field.** Add `subtitle` to the XRD (with a default), patch it through the Composition into a new ConfigMap key or a backend env var, and apply a fresh XR that sets it. Good sandbox for the last ten minutes.
+- [Composition revisions](https://docs.crossplane.io/latest/concepts/composition-revisions/) — how Crossplane keeps old Compositions around so existing XRs stay stable while new ones pick up the new recipe.
+- [Composition functions catalogue](https://github.com/crossplane-contrib) — `function-kcl`, `function-go-templating`, `function-auto-ready` — patterns for moving beyond patch-and-transform once you need more logic.
