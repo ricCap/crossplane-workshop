@@ -232,7 +232,15 @@ spec:
                       hard:
                         requests.cpu: "2"
                         requests.memory: 4Gi
-                        limits.cpu: "4"
+                        # Matches the XRD default raised in #40.
+                        # The Composition's base manifest is what
+                        # gets emitted when an XR omits spec.quota
+                        # entirely, because OpenAPI schema defaulting
+                        # only fills children when the parent object
+                        # is present — and our participant XRs ship
+                        # without a spec.quota block, so the XRD
+                        # default for limitsCpu never fires.
+                        limits.cpu: "6"
                         limits.memory: 8Gi
                         pods: "30"
                         services: "20"
