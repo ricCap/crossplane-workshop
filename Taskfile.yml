@@ -3,8 +3,9 @@ version: '3'
 # Every workshop operation lives here. See AGENTS.md and PLAN.md.
 #
 # Phase 1 (local vind):   task local:all
+#                         task verify:pair PAIR=fancy-lemon            # operator path
 # Phase 2 (ArubaCloud):   task bootstrap:all && task remote:register-vcluster-cloud
-# Verify a pair:          task verify:pair PAIR=fancy-lemon
+#                         task verify:pair:platform PAIR=fancy-lemon   # participant path
 
 vars:
   CLUSTER_NAME: crossplane-workshop
@@ -384,7 +385,25 @@ tasks:
   # ------------------------------------------------------------------
 
   verify:pair:
-    desc: 'Programmatic success check for one pair. Usage: task verify:pair PAIR=fancy-lemon'
+    desc: |
+      LOCAL verify for one pair — run after `task local:all`. Smoke-tests
+      the inner vcluster from the operator's laptop via `kubectl
+      port-forward` + the in-cluster kubeconfig Secret the vcluster
+      Helm chart writes into Secret/vc-<pair>.
+
+      This is the OPERATOR path, NOT the participant path. Participants
+      never port-forward — they connect through vCluster Platform at
+      https://platform.testdomain-riccap.it which proxies the
+      authenticated request to the in-cluster vcluster API. To verify
+      that path (and require Platform to actually be reachable), use
+      `verify:pair:platform`.
+
+      Why we don't reuse `vcluster connect` here: the participant
+      vcluster is a Helm release inside the management cluster, not a
+      sibling Docker-driver vcluster on the host, so `vcluster connect`
+      would look for a non-existent `vcluster.cp.<pair>` container.
+
+      Usage: task verify:pair PAIR=fancy-lemon
     requires:
       vars: [PAIR]
     cmds:
@@ -394,15 +413,12 @@ tasks:
       - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
-      # Smoke-test the inner vcluster: pull its kubeconfig (written by
-      # the vcluster Helm chart into Secret/vc-<pair>) and run
-      # `kubectl get ns` against it. We can't use `vcluster connect`
-      # here because the participant vcluster is a Helm release inside
-      # the management cluster, not a sibling Docker-driver vcluster
-      # on the host — `vcluster connect` would look for a non-existent
-      # `vcluster.cp.<pair>` container. Port-forward to the Service
-      # instead and bypass TLS hostname verification (the kubeconfig's
-      # server URL is the in-cluster DNS name, not localhost).
+      # Operator-side inner-vcluster smoke test. Pull the kubeconfig
+      # written by the vcluster Helm chart into Secret/vc-<pair>,
+      # rewrite its in-cluster server URL to a local port-forward, and
+      # run `kubectl get ns` against the rewritten kubeconfig with
+      # `--insecure-skip-tls-verify` (the cert SANs are the in-cluster
+      # DNS names, not localhost).
       - |
         set -euo pipefail
         PAIR="{{.PAIR}}"
@@ -419,7 +435,63 @@ tasks:
           sleep 0.5
         done
         kubectl --kubeconfig "${KCFG}" --insecure-skip-tls-verify get ns
-      - echo "{{.PAIR}} OK"
+      - echo "{{.PAIR}} OK (local path)"
+
+  verify:pair:platform:
+    desc: |
+      REMOTE verify for one pair via vCluster Platform — the SAME path
+      participants take from their browser/laptop. Uses
+      `vcluster platform connect vcluster <pair>` to obtain a
+      Platform-proxied kubeconfig and runs `kubectl get ns` against it.
+      Use this on the Aruba cluster (or any environment where Platform
+      is reachable) — it actually exercises the public Envoy Gateway
+      hostname, the Loft auth proxy, the per-pair access policy, and
+      the upstream vcluster API in one go.
+
+      Prereqs:
+        1. vCluster Platform is exposed at PLATFORM_HOST (defaults to
+           https://platform.testdomain-riccap.it).
+        2. The pair's VirtualClusterInstance is registered in project
+           `default` (the XDeveloperEnvironment Composition creates it,
+           but Platform-side registration is currently a manual step
+           on Aruba — see AGENTS.md "Known broken / deferred").
+        3. You are logged in with the Platform CLI:
+              vcluster platform login "${PLATFORM_HOST}" --access-key <key>
+           (or the interactive browser flow). Login is cached in
+           ~/.config/vcluster.
+
+      Local vind doesn't expose Platform on a real DNS name, so use
+      `verify:pair` (without `:platform`) there.
+
+      Usage: task verify:pair:platform PAIR=fancy-lemon
+    vars:
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform.testdomain-riccap.it"}}'
+      PROJECT: '{{.PROJECT | default "default"}}'
+    requires:
+      vars: [PAIR]
+    cmds:
+      - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
+      - kubectl -n {{.ARGOCD_NS}} get application root-app
+      - kubectl -n {{.ARGOCD_NS}} get application participant-vclusters
+      - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
+      - kubectl get ns participant-{{.PAIR}}
+      - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
+      # Same path participants take. `vcluster platform connect
+      # vcluster` writes a kubeconfig pointing at the Platform proxy
+      # URL (https://<platform-host>/kubernetes/project/<project>/virtualcluster/<pair>),
+      # which terminates auth and forwards to the in-cluster vcluster
+      # API. If this returns a clean namespace list, the entire public
+      # ingress + Platform auth + access-policy + apiserver chain is
+      # working — the same chain a participant traverses.
+      - |
+        set -euo pipefail
+        if ! vcluster platform list vclusters >/dev/null 2>&1; then
+          echo "Not logged in to vCluster Platform at {{.PLATFORM_HOST}}." >&2
+          echo "Run: vcluster platform login {{.PLATFORM_HOST}} --access-key <key>" >&2
+          exit 1
+        fi
+        vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- kubectl get ns
+      - echo "{{.PAIR}} OK (platform path)"
 
   verify:all:
     desc: |
