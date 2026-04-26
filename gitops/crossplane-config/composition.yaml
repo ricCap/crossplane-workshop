@@ -279,9 +279,15 @@ spec:
           #
           # LimitRange admission runs before ResourceQuota, so missing
           # fields get defaulted in time for the quota gate. Defaults
-          # are deliberately conservative — small enough that the
-          # ~30-pod hard cap still fits comfortably under the per-pair
-          # 2 CPU / 4Gi requests budget.
+          # are tuned for sidecar-shaped containers (apollo-syncer,
+          # postgres, init containers) — the apollo pod has three
+          # containers and only one specifies its own resources, so
+          # the other two pick up these defaults twice. With 200m
+          # default cpu the apollo pod's total limits.cpu is
+          # 1 (uxp-apollo) + 0.2 + 0.2 = 1.4, leaving headroom under
+          # the per-pair 4 CPU limits.cpu cap once the vcluster
+          # syncer, coredns, crossplane core, and webui are also
+          # accounted for.
           - name: limit-range
             base:
               apiVersion: kubernetes.crossplane.io/v1alpha2
@@ -298,11 +304,11 @@ spec:
                       limits:
                         - type: Container
                           defaultRequest:
-                            cpu: 50m
-                            memory: 64Mi
+                            cpu: 25m
+                            memory: 32Mi
                           default:
-                            cpu: 500m
-                            memory: 256Mi
+                            cpu: 200m
+                            memory: 192Mi
             patches:
               - type: CombineFromComposite
                 combine:
