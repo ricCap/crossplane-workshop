@@ -14,5 +14,9 @@
 docs/node_modules/
 docs/build/
 docs/.docusaurus/
+# `go build ./...` from validator/ drops a binary at validator/validator.
+# Image builds use the Dockerfile and don't go through this path, so
+# the binary is only ever a local artefact.
+/validator/validator
 
 .playwright-mcp
