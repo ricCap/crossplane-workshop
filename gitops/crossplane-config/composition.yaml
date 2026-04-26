@@ -264,6 +264,55 @@ spec:
                 fromFieldPath: spec.quota.pods
                 toFieldPath: spec.forProvider.manifest.spec.hard.pods
 
+          # --- 5. LimitRange ---
+          # Auto-fills container requests/limits for pods that ship
+          # without them. Required because the per-pair ResourceQuota
+          # above declares the four request/limit keys in spec.hard,
+          # which flips on Kubernetes' "every container must declare
+          # all four resource fields" admission rule. Upstream charts
+          # used by the workshop (e.g. UXP's apollo sidecars and the
+          # upbound-controller-manager initialize-crds initContainer)
+          # ship containers without complete resource specs and would
+          # otherwise be rejected by the host syncer's admission, which
+          # makes module 3's `helm install crossplane … --wait` time
+          # out silently.
+          #
+          # LimitRange admission runs before ResourceQuota, so missing
+          # fields get defaulted in time for the quota gate. Defaults
+          # are deliberately conservative — small enough that the
+          # ~30-pod hard cap still fits comfortably under the per-pair
+          # 2 CPU / 4Gi requests budget.
+          - name: limit-range
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: LimitRange
+                    metadata:
+                      name: pair-defaults
+                      namespace: placeholder
+                    spec:
+                      limits:
+                        - type: Container
+                          defaultRequest:
+                            cpu: 50m
+                            memory: 64Mi
+                          default:
+                            cpu: 500m
+                            memory: 256Mi
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
 
     # --- Step 2: Platform user (go-templating) ---
     # Generates a non-guessable password (SHA256 of pair ID + salt,
