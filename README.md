@@ -8,44 +8,37 @@ A 3-hour workshop where participant pairs each get an isolated vCluster sandbox 
 
 ```mermaid
 graph TB
-    subgraph ArubaCloud["ArubaCloud Managed K8s (single node)"]
-        ArgoCD["ArgoCD<br/>app-of-apps"]
+    Participant["Participant browser"]:::user
 
-        subgraph Crossplane["Crossplane"]
-            XDevEnv["XDeveloperEnvironment Composition"]
-        end
+    subgraph ArubaCloud["ArubaCloud Managed Kubernetes"]
+        direction TB
+        ArgoCD["ArgoCD<br/>app-of-apps"]:::ctrl
+        XDevEnv["Crossplane<br/>XDeveloperEnvironment"]:::ctrl
+        Gateway["Envoy Gateway<br/>TLS · rate limiting"]:::edge
+        Docs["Docs pod<br/>Docusaurus + validator"]:::ctrl
+        Platform["vCluster Platform"]:::ctrl
+        Pair["Per-pair sandbox<br/>namespace · vCluster · HTTPRoute<br/>ResourceQuota · platform user"]:::tenant
 
-        subgraph PerPair["Per participant pair"]
-            NS["Namespace<br/>participant-&lt;pair&gt;"]
-            VC["vCluster<br/>(Helm release)"]
-            HR["HTTPRoute<br/>/team/&lt;pair&gt;/"]
-            RQ["ResourceQuota"]
-            PU["Platform user"]
-        end
-
-        subgraph Gateway["Envoy Gateway"]
-            TLS["TLS termination<br/>Let's Encrypt via cert-manager"]
-            RL["Rate limiting"]
-        end
-
-        subgraph Docs["Docs pod"]
-            Docusaurus["Docusaurus static site"]
-            Validator["Validator sidecar<br/>(Go, checks pair progress)"]
-        end
-
-        Platform["vCluster Platform<br/>(kubeconfig download)"]
-
-        ArgoCD --> Crossplane
-        ArgoCD --> Docs
-        ArgoCD --> Gateway
-        XDevEnv --> PerPair
+        ArgoCD -->|syncs| XDevEnv
+        ArgoCD -->|syncs| Gateway
+        ArgoCD -->|syncs| Docs
+        ArgoCD -->|syncs| Platform
+        XDevEnv -.->|composes| Pair
         Gateway --> Docs
-        Gateway --> PerPair
+        Gateway --> Pair
         Gateway --> Platform
     end
 
-    Participant["Participant browser"] --> Gateway
+    Participant ==>|HTTPS| Gateway
+
+    classDef user fill:#f1f5f9,stroke:#475569,color:#0f172a
+    classDef ctrl fill:#eef2ff,stroke:#4338ca,color:#312e81
+    classDef edge fill:#fef2f2,stroke:#b91c1c,color:#7f1d1d
+    classDef tenant fill:#f5f5f4,stroke:#57534e,color:#1c1917
 ```
+
+Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition. The "Per-pair sandbox" node represents the namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user that the `XDeveloperEnvironment` Composition produces for each participant pair.
+
 
 **Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
 
