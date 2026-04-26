@@ -545,15 +545,40 @@ tasks:
 
   verify:all:
     desc: |
-      End-to-end Phase 1 green check. Asserts ArgoCD is installed, the
-      app-of-apps hierarchy is Synced+Healthy, and every vcluster generated
-      from gitops/participant-xrs/ has a Ready pod in its
-      participant-* namespace. Runs verify:pair for each discovered pair.
+      End-to-end check for every pair under gitops/participant-xrs/.
+      Runs cluster-wide preflight once (helm, root-app, AppProjects,
+      participant-vclusters Application, docs Application) and then
+      dispatches to verify:pair (or verify:pair:platform when
+      MODE=platform) for each discovered pair, so per-pair behaviour
+      is identical to running the per-pair task standalone — including
+      the inner-vcluster smoke test.
+
+      Default is MODE=local — the operator path most callers want after
+      `task local:all`. Set MODE=platform on Aruba (after
+      `vcluster platform login`) to exercise the participant path:
+      public Envoy Gateway + Loft auth proxy + per-pair access policy
+      + apiserver, all in one go.
+
+      Note: the per-pair task repeats some of the cluster-wide
+      preflight (helm, root-app, participant-vclusters Application)
+      so it can be run standalone. The duplicated checks are fast,
+      read-only, and idempotent.
+
+      Usage:
+        task verify:all                   # operator path (local vind)
+        task verify:all MODE=platform     # participant path (Aruba)
+    vars:
+      MODE: '{{.MODE | default "local"}}'
     cmds:
       - |
         set -euo pipefail
         fail() { echo "FAIL: $*" >&2; exit 1; }
         ok()   { echo "  ok: $*"; }
+
+        case "{{.MODE}}" in
+          local|platform) ;;
+          *) fail "unknown MODE={{.MODE}} (expected: local | platform)" ;;
+        esac
 
         echo "==> ArgoCD helm release"
         helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd' || fail "argo-cd helm release missing"
@@ -577,21 +602,28 @@ tasks:
         echo "==> Docs Application"
         kubectl get application docs -n {{.ARGOCD_NS}} >/dev/null 2>&1 && ok "docs Application present" || echo "  (docs Application not yet applied — skipping)"
 
-        echo "==> Per-pair verification"
+        echo "==> Per-pair verification (MODE={{.MODE}})"
         pairs=$(ls gitops/participant-xrs/*.yaml 2>/dev/null | xargs -n1 basename | sed 's/\.yaml$//')
         [ -n "$pairs" ] || fail "no pair files under gitops/participant-xrs/"
+        # Assert Synced=True up front per pair — verify:pair only checks
+        # that the XR exists and the pod is Ready, which is correlated
+        # but weaker than the explicit condition.
+        for pair in $pairs; do
+          synced=$(kubectl get xdeveloperenvironments.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}' 2>/dev/null || echo "")
+          [ "$synced" = "True" ] || fail "$pair: Synced=$synced (expected True)"
+        done
+
         for pair in $pairs; do
           echo "  --> $pair"
-          kubectl get xdeveloperenvironments.workshop.example.io "$pair" >/dev/null || fail "XDeveloperEnvironment $pair missing"
-          synced=$(kubectl get xdeveloperenvironments.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}')
-          [ "$synced" = "True" ] || fail "$pair: Synced=$synced (expected True)"
-          kubectl get ns "participant-$pair" >/dev/null || fail "namespace participant-$pair missing"
-          kubectl wait --for=condition=Ready pod -l app=vcluster -n "participant-$pair" --timeout=300s >/dev/null || fail "$pair vcluster pod not Ready"
-          ok "$pair XDeveloperEnvironment Synced, pod Ready"
+          if [ "{{.MODE}}" = "platform" ]; then
+            task verify:pair:platform PAIR="$pair"
+          else
+            task verify:pair PAIR="$pair"
+          fi
         done
 
         echo
-        echo "Verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s))"
+        echo "Verify: OK ($(echo $pairs | wc -w | tr -d ' ') pair(s), MODE={{.MODE}})"
 
   # ------------------------------------------------------------------
   # Phase 2 — ArubaCloud

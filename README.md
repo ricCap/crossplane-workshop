@@ -165,7 +165,7 @@ Each module ends with one or more validator checks (entries in `validator/checks
 | `task platform:register-vclusters` | Register all vclusters with vCluster Platform |
 | `task verify:pair PAIR=<id>` | Run checks for one pair, **operator path** (port-forward + in-cluster kubeconfig). Use locally after `task local:all`. |
 | `task verify:pair:platform PAIR=<id>` | Run checks for one pair, **participant path** via vCluster Platform. Use on Aruba — exercises the public Envoy Gateway + Loft auth proxy + apiserver chain. |
-| `task verify:all` | End-to-end management-side check for all pairs (no inner-vcluster smoke test) |
+| `task verify:all [MODE=local\|platform]` | End-to-end check for every pair under `gitops/participant-xrs/`. Cluster-wide preflight once, then dispatches to `verify:pair` (default, `MODE=local`) or `verify:pair:platform` (`MODE=platform`, on Aruba) per pair. |
 
 ## Security
 
