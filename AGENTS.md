@@ -61,6 +61,42 @@ When the modules and the style guide disagree, the modules win — fix the guide
 
 Do not `kubectl apply` against the management cluster outside the documented bootstrap tasks. Once `task bootstrap:all` has run, ArgoCD owns cluster state — out-of-band changes will be reverted by `selfHeal: true`.
 
+## Branch naming
+
+Follow the [Conventional Branch](https://conventional-branch.github.io/) spec: `<type>/<short-kebab-description>`, lowercase, hyphen-separated, no trailing slash.
+
+Allowed types:
+
+- `feature/` — new functionality (e.g. `feature/add-validator-check`)
+- `bugfix/` — fix to existing behaviour (e.g. `bugfix/fix-httproute-host`)
+- `hotfix/` — urgent fix targeting a release (e.g. `hotfix/aruba-image-pull`)
+- `release/` — release prep branches (e.g. `release/v0.2.0`)
+- `chore/` — maintenance, refactors, deps, CI (e.g. `chore/bump-argocd-chart`)
+- `docs/` — docs-only changes (e.g. `docs/clarify-solo-setup`)
+- `test/` — test-only changes
+
+`main` is protected; never commit directly. Open a PR from a conventional branch.
+
+## Releasing
+
+The two workshop images (`ghcr.io/riccap/crossplane-workshop-docs`, `ghcr.io/riccap/crossplane-workshop-validator`) flow into two places:
+
+- **Solo (k3d)** — `gitops/solo/` always pulls `:latest`. Every push to `main` rebuilds and retags `:latest`, so solo gets the newest code automatically. No release step needed.
+- **Aruba (managed cluster, ArgoCD)** — `gitops/docs/deployment.yaml` is pinned to a specific `:vX.Y.Z`. Aruba only moves when that pin is bumped in a PR. This is the "stable" channel.
+
+To cut a new release:
+
+1. Pick a version. Both images share one `vX.Y.Z`.
+2. Create a [GitHub Release](https://github.com/ricCap/crossplane-workshop/releases/new) targeting `main`. Set the tag to `vX.Y.Z` (let GitHub create it), fill in release notes, publish. Equivalent CLI: `gh release create v0.2.0 --target main --generate-notes`.
+3. Watch the two GitHub Actions runs ("Build and push docs image", "Build and push validator image") finish on the tag. They will publish `:v0.2.0` and `:sha-<commit>` for both images and **leave `:latest` alone**.
+4. Open a PR bumping the two `image:` tags in `gitops/docs/deployment.yaml` from the previous version to `v0.2.0`. Merge.
+5. ArgoCD on Aruba syncs the Deployment within a few minutes. Verify:
+   ```
+   kubectl -n docs get deploy docs -o jsonpath='{.spec.template.spec.containers[*].image}'
+   ```
+
+If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to the previous `:vX.Y.Z` — the older image tags stay published in GHCR.
+
 ## Required tools
 
 `docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.31.0), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional.
