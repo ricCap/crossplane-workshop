@@ -410,25 +410,93 @@ tasks:
 
   platform:register-vclusters:
     desc: |
-      Register all Crossplane-managed vclusters with vCluster Platform.
-      Creates an API access key, then uses `--all` to discover and register
-      every vcluster on the cluster. Idempotent — safe to re-run.
+      Install the `vcluster-platform-api-key` Secret in every
+      `participant-*` namespace so each per-pair vcluster syncer can
+      phone home to vCluster Platform. Without this Secret, the
+      `VirtualClusterInstance` composed by the XDeveloperEnvironment
+      Composition stays in `phase: Pending` with
+      `Condition SpaceSynced is missing`. Idempotent.
+
+      This task does NOT call `vcluster platform add vcluster`. The
+      XDeveloperEnvironment Composition already creates one VCI per
+      pair (project `default`, `external: true`) via
+      provider-kubernetes, so Platform-side registration is
+      GitOps-managed. This task only handles the syncer-side
+      credential the chart mounts at `/var/vcluster/platform`.
+
+      Required env vars:
+        PLATFORM_ACCESS_KEY     Platform API access key. Generate it
+                                in the Platform UI: Profile → Access
+                                Keys → Create. Treat as a secret.
+
+      Optional env vars (sensible defaults):
+        PLATFORM_HOST           https://platform.testdomain-riccap.it
+        PLATFORM_PROJECT        default
+        PLATFORM_INSECURE       false (set to true for self-signed
+                                Platform — e.g. local vind without LE)
+
+      Secret schema per loft-sh/vcluster v0.33.1
+      `pkg/platform/secret.go` :: `ApplyPlatformSecret` — required
+      keys are `accessKey`, `host`, `project`, `insecure`, with the
+      `vcluster.loft.sh/created-by-cli` marker label.
+
+      Usage:
+        PLATFORM_ACCESS_KEY=<key> task platform:register-vclusters
+    vars:
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform.testdomain-riccap.it"}}'
+      PLATFORM_PROJECT: '{{.PLATFORM_PROJECT | default "default"}}'
+      PLATFORM_INSECURE: '{{.PLATFORM_INSECURE | default "false"}}'
     cmds:
       - |
         set -euo pipefail
-        PLATFORM_HOST=https://platform.testdomain-riccap.it
+        [ -n "${PLATFORM_ACCESS_KEY:-}" ] || {
+          echo "PLATFORM_ACCESS_KEY env var required." >&2
+          echo "Generate one in the Platform UI: {{.PLATFORM_HOST}} → Profile → Access Keys → Create." >&2
+          exit 1
+        }
 
-        # Log in to Platform (interactive — prompts for password).
-        vcluster platform login "${PLATFORM_HOST}" --username admin
+        # Validate the access key by logging in. Also caches the
+        # login for any downstream `vcluster platform connect` /
+        # `verify:pair:platform` calls.
+        if [ "{{.PLATFORM_INSECURE}}" = "true" ]; then
+          vcluster platform login "{{.PLATFORM_HOST}}" --access-key "${PLATFORM_ACCESS_KEY}" --insecure >/dev/null
+        else
+          vcluster platform login "{{.PLATFORM_HOST}}" --access-key "${PLATFORM_ACCESS_KEY}" >/dev/null
+        fi
 
-        # Register all vclusters on the cluster into the default project.
-        echo "Registering all vclusters..."
-        vcluster platform add vcluster \
-          --all \
-          --project default \
-          || echo "(some vclusters may already be registered)"
+        # Discover participant namespaces and install/refresh the
+        # Secret in each. Existing pods don't auto-pick-up Secret
+        # changes — we restart the StatefulSet at the end so the
+        # syncer picks up the credential without a manual nudge.
+        pairs=$(kubectl get ns -o name | sed 's|namespace/||' | grep '^participant-' || true)
+        [ -n "$pairs" ] || {
+          echo "No participant-* namespaces found. Either no XDeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
+          exit 1
+        }
 
-        echo "Done. Check ${PLATFORM_HOST}"
+        n=0
+        for ns in $pairs; do
+          kubectl -n "$ns" create secret generic vcluster-platform-api-key \
+            --from-literal=accessKey="${PLATFORM_ACCESS_KEY}" \
+            --from-literal=host="{{.PLATFORM_HOST}}" \
+            --from-literal=project="{{.PLATFORM_PROJECT}}" \
+            --from-literal=insecure="{{.PLATFORM_INSECURE}}" \
+            --dry-run=client -o yaml \
+            | kubectl apply -f - >/dev/null
+          kubectl -n "$ns" label secret vcluster-platform-api-key \
+            vcluster.loft.sh/created-by-cli=true --overwrite >/dev/null
+          # Restart the syncer so it remounts the (now-populated)
+          # platform-api-key volume. The Helm Release's StatefulSet
+          # is named after the pair, which equals "$ns" with the
+          # "participant-" prefix stripped.
+          pair="${ns#participant-}"
+          kubectl -n "$ns" rollout restart "statefulset/${pair}" >/dev/null 2>&1 || true
+          echo "  ok: $ns"
+          n=$((n + 1))
+        done
+
+        echo "Done. ${n} Secret(s) installed and syncer(s) restarted."
+        echo "VCIs in p-default should reach Ready within ~30s."
 
   # ------------------------------------------------------------------
   # Verify
