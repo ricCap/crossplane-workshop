@@ -394,7 +394,31 @@ tasks:
       - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
-      - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} -- kubectl get ns
+      # Smoke-test the inner vcluster: pull its kubeconfig (written by
+      # the vcluster Helm chart into Secret/vc-<pair>) and run
+      # `kubectl get ns` against it. We can't use `vcluster connect`
+      # here because the participant vcluster is a Helm release inside
+      # the management cluster, not a sibling Docker-driver vcluster
+      # on the host — `vcluster connect` would look for a non-existent
+      # `vcluster.cp.<pair>` container. Port-forward to the Service
+      # instead and bypass TLS hostname verification (the kubeconfig's
+      # server URL is the in-cluster DNS name, not localhost).
+      - |
+        set -euo pipefail
+        PAIR="{{.PAIR}}"
+        NS="participant-${PAIR}"
+        KCFG=$(mktemp)
+        kubectl -n "${NS}" get secret "vc-${PAIR}" -o jsonpath='{.data.config}' | base64 -d \
+          | sed "s|https://${PAIR}.${NS}:443|https://localhost:18443|" > "${KCFG}"
+        kubectl -n "${NS}" port-forward "svc/${PAIR}" 18443:443 >/dev/null 2>&1 &
+        PF=$!
+        cleanup() { kill "${PF}" 2>/dev/null || true; rm -f "${KCFG}"; }
+        trap cleanup EXIT
+        for _ in $(seq 1 30); do
+          curl -ksf https://localhost:18443/livez >/dev/null 2>&1 && break
+          sleep 0.5
+        done
+        kubectl --kubeconfig "${KCFG}" --insecure-skip-tls-verify get ns
       - echo "{{.PAIR}} OK"
 
   verify:all:
