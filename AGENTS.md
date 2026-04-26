@@ -11,12 +11,12 @@ GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central man
 - `bootstrap/` — one-time install inputs: ArgoCD Helm values and the root app-of-apps Application.
 - `gitops/projects/` — ArgoCD `AppProject` definitions.
 - `gitops/apps/` — top-level ArgoCD Applications and ApplicationSets reconciled by the root app.
-- `gitops/participant-xrs/` — **one XVCluster XR file per participant pair**. This is the scale lever. (Crossplane v2 XRs, no claim layer.)
-- `gitops/crossplane-config/` — XVCluster XRD + Composition, ProviderConfigs.
+- `gitops/participant-xrs/` — **one XDeveloperEnvironment XR file per participant pair**. This is the scale lever. (Crossplane v2 XRs, no claim layer.)
+- `gitops/crossplane-config/` — XDeveloperEnvironment XRD + Composition, ProviderConfigs.
 - `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
 - `Taskfile.yml` — every command lives here.
 
-The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (XVCluster → provider-helm Release + provider-kubernetes Objects for HTTPRoute/ResourceQuota). Routing uses Gateway API (Envoy Gateway) instead of Ingress.
+The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (XDeveloperEnvironment → provider-helm Release + provider-kubernetes Objects for HTTPRoute/ResourceQuota). Routing uses Gateway API (Envoy Gateway) instead of Ingress.
 
 ## How to run anything
 
@@ -37,13 +37,13 @@ applies `gitops/solo/` directly (no ArgoCD), exposes the docs site + wall on
 `http://localhost:8080/`, and reports a single synthetic pair called `local`. Pick it
 when you want to exercise the workshop content without the per-pair infrastructure;
 pick `local:all` when you're validating anything that touches vcluster, ArgoCD, or the
-XVCluster Composition.
+XDeveloperEnvironment Composition.
 
 See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which phase.
 
 ## Scaling to more pairs
 
-Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml` shape (an XVCluster XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each XVCluster into a full participant environment (Namespace, vcluster, HTTPRoute, ResourceQuota) within ~2 min. No tasks involved.
+Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml` shape (an XDeveloperEnvironment XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each XDeveloperEnvironment into a full participant environment (Namespace, vcluster, HTTPRoute, ResourceQuota) within ~2 min. No tasks involved.
 
 ## Planning
 
@@ -117,7 +117,7 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
   ArubaCloud, and the `VirtualClusterInstance` composed by the
   Composition stays in `phase: Pending` with
   `Condition SpaceSynced is missing` — including locally, which makes
-  XVClusters report `Ready=False` in a local vind test even when
+  XDeveloperEnvironments report `Ready=False` in a local vind test even when
   everything else reconciles cleanly.
 
 ## Out of scope

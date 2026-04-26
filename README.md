@@ -12,7 +12,7 @@ graph TB
         ArgoCD["ArgoCD<br/>app-of-apps"]
 
         subgraph Crossplane["Crossplane"]
-            XVCluster["XVCluster Composition"]
+            XDevEnv["XDeveloperEnvironment Composition"]
         end
 
         subgraph PerPair["Per participant pair"]
@@ -38,7 +38,7 @@ graph TB
         ArgoCD --> Crossplane
         ArgoCD --> Docs
         ArgoCD --> Gateway
-        XVCluster --> PerPair
+        XDevEnv --> PerPair
         Gateway --> Docs
         Gateway --> PerPair
         Gateway --> Platform
@@ -47,7 +47,7 @@ graph TB
     Participant["Participant browser"] --> Gateway
 ```
 
-**Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XVCluster Composition.
+**Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
 
 ## Prerequisites
 
@@ -104,7 +104,7 @@ against the raw `gitops/solo/all.yaml`, public GHCR images, nothing else).
 
 ```yaml
 apiVersion: workshop.example.io/v1alpha1
-kind: XVCluster
+kind: XDeveloperEnvironment
 metadata:
   name: brave-mango
 spec:
@@ -113,7 +113,7 @@ spec:
 
 2. Commit and push.
 
-Crossplane reconciles the XVCluster into a namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user within ~2 minutes. No tasks or manual steps.
+Crossplane reconciles the XDeveloperEnvironment into a namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user within ~2 minutes. No tasks or manual steps.
 
 To register new vclusters with the Platform UI, run `task platform:register-vclusters`.
 

@@ -391,7 +391,7 @@ tasks:
       - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
       - kubectl -n {{.ARGOCD_NS}} get application root-app
       - kubectl -n {{.ARGOCD_NS}} get application participant-vclusters
-      - kubectl get xvclusters.workshop.example.io {{.PAIR}}
+      - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} -- kubectl get ns
@@ -436,12 +436,12 @@ tasks:
         [ -n "$pairs" ] || fail "no pair files under gitops/participant-xrs/"
         for pair in $pairs; do
           echo "  --> $pair"
-          kubectl get xvclusters.workshop.example.io "$pair" >/dev/null || fail "XVCluster $pair missing"
-          synced=$(kubectl get xvclusters.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}')
+          kubectl get xdeveloperenvironments.workshop.example.io "$pair" >/dev/null || fail "XDeveloperEnvironment $pair missing"
+          synced=$(kubectl get xdeveloperenvironments.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}')
           [ "$synced" = "True" ] || fail "$pair: Synced=$synced (expected True)"
           kubectl get ns "participant-$pair" >/dev/null || fail "namespace participant-$pair missing"
           kubectl wait --for=condition=Ready pod -l app=vcluster -n "participant-$pair" --timeout=300s >/dev/null || fail "$pair vcluster pod not Ready"
-          ok "$pair XVCluster Synced, pod Ready"
+          ok "$pair XDeveloperEnvironment Synced, pod Ready"
         done
 
         echo

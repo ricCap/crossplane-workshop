@@ -1,4 +1,4 @@
-# provider-helm on the management cluster — used by the XVCluster
+# provider-helm on the management cluster — used by the XDeveloperEnvironment
 # Composition to install the loft-sh/vcluster Helm chart per pair.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider

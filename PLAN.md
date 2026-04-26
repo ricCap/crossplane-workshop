@@ -71,7 +71,7 @@ task verify:pair PAIR=fancy-lemon
 
 ## Phase 3 — Crossplane Composition swap (second iteration, deferred)
 
-**Goal**: replace the `template.spec.source` block of `gitops/apps/participant-vclusters.yaml` with one that renders a Crossplane `XVCluster` XR referencing a Composition that uses `provider-helm` to install the same `loft-sh/vcluster` chart. This delivers the workshop's **"gotcha moment" reveal**: participants discover at the end that the vcluster they have been using was produced by a Composition on the management cluster.
+**Goal**: replace the `template.spec.source` block of `gitops/apps/participant-vclusters.yaml` with one that renders a Crossplane `XDeveloperEnvironment` XR referencing a Composition that uses `provider-helm` to install the same `loft-sh/vcluster` chart. This delivers the workshop's **"gotcha moment" reveal**: participants discover at the end that the vcluster they have been using was produced by a Composition on the management cluster.
 
 **Constraint**: nothing outside that single `template` block should need to move. The ApplicationSet scale lever (the `pairs/` directory), the bootstrap flow, and the Taskfile stay identical.
 
