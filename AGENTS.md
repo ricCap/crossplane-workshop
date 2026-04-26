@@ -56,8 +56,9 @@ That gives us two distinct verify flows, and they should not be confused:
 |---|---|---|---|
 | `task verify:pair PAIR=<id>` | local vind / any environment from the operator's machine | `kubectl port-forward` to the participant `Service`, then `kubectl get ns` against the in-cluster kubeconfig from `Secret/vc-<pair>` (server URL rewritten to localhost, TLS verification skipped) | Crossplane composed everything correctly and the inner apiserver is healthy. Operator-only — bypasses Platform entirely. |
 | `task verify:pair:platform PAIR=<id>` | Aruba (or any environment with Platform reachable) | `vcluster platform connect vcluster <id>` → kubeconfig points at the public Platform URL → `kubectl get ns` | Public Envoy Gateway hostname, LE cert, Loft auth proxy, per-pair access policy, and apiserver are *all* working. Same chain a participant traverses. |
+| `task verify:all [MODE=local\|platform]` | wherever the chosen per-pair task is meaningful | cluster-wide preflight (helm, root-app, AppProjects) once, then dispatches to the per-pair task above for every file in `gitops/participant-xrs/`. Defaults to `MODE=local`. | Same per-pair guarantees as the per-pair task, multiplied across all pairs, plus the cluster-wide ArgoCD invariants. |
 
-Both tasks run the management-side checks (helm/argocd/XRD/Composition/XR/ns/pod) first; they only differ in the final inner-vcluster smoke test.
+The two per-pair tasks run the management-side checks (helm/argocd/XRD/Composition/XR/ns/pod) first; they only differ in the final inner-vcluster smoke test. `verify:all` adds an explicit `Synced=True` assertion per pair (slightly stronger than the per-pair task's "XR exists + pod Ready") before dispatching.
 
 Use the local task on a vind because Platform isn't exposed there (no LE cert for `platform.testdomain-riccap.it`, no DNS record). Use the platform task on Aruba so an outage on the Envoy Gateway / Platform / DNS path actually makes the check fail — otherwise you've validated the operator's port-forward, not the participant experience.
 

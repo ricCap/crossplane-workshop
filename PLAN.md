@@ -31,7 +31,7 @@ task verify:pair PAIR=fancy-lemon        # operator-side success check (port-for
 3. `kubectl get ns` shows `participant-fancy-lemon`.
 4. `kubectl -n participant-fancy-lemon get po` shows the vcluster pod `Running`.
 5. The operator-side smoke test passes: `task verify:pair PAIR=fancy-lemon` (which port-forwards to the participant Service and runs `kubectl get ns` against the in-cluster kubeconfig from `Secret/vc-fancy-lemon`) returns an isolated namespace list — **not** the host cluster's namespaces. The participant-side equivalent (`task verify:pair:platform`) requires Platform on a real DNS name and is exercised on Aruba, not locally.
-6. **Scale test**: adding `gitops/participant-vclusters/pairs/brave-mango.yaml` → committing → pushing → within ~2 min `vcluster-brave-mango` exists, with no other manual step.
+6. **Scale test**: adding `gitops/participant-vclusters/pairs/brave-mango.yaml` → committing → pushing → within ~2 min `vcluster-brave-mango` exists, with no other manual step. Re-running `task verify:all` (default `MODE=local`) loops over every pair file under `gitops/participant-xrs/`, runs the cluster-wide preflight once, and then dispatches to `task verify:pair` per pair — so adding a new pair gets the operator-side smoke test for free. On Aruba, the same task with `MODE=platform` exercises the participant path (`task verify:pair:platform` per pair).
 
 ## Solo local (k3d) — laptop walkthroughs
 
