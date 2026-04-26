@@ -87,11 +87,7 @@ The two workshop images (`ghcr.io/riccap/crossplane-workshop-docs`, `ghcr.io/ric
 To cut a new release:
 
 1. Pick a version. Both images share one `vX.Y.Z`.
-2. Tag and push (or use `task release -- v0.2.0`):
-   ```
-   git tag -a v0.2.0 -m "v0.2.0"
-   git push origin v0.2.0
-   ```
+2. Create a [GitHub Release](https://github.com/ricCap/crossplane-workshop/releases/new) targeting `main`. Set the tag to `vX.Y.Z` (let GitHub create it), fill in release notes, publish. Equivalent CLI: `gh release create v0.2.0 --target main --generate-notes`.
 3. Watch the two GitHub Actions runs ("Build and push docs image", "Build and push validator image") finish on the tag. They will publish `:v0.2.0` and `:sha-<commit>` for both images and **leave `:latest` alone**.
 4. Open a PR bumping the two `image:` tags in `gitops/docs/deployment.yaml` from the previous version to `v0.2.0`. Merge.
 5. ArgoCD on Aruba syncs the Deployment within a few minutes. Verify:

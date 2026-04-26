@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - 'v*'
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
@@ -115,25 +118,28 @@ jobs:
       # main) and :sha-<commit>. On a tag push (vX.Y.Z): tag :vX.Y.Z and
       # :sha-<commit>, but DO NOT touch :latest — Aruba runs off the pinned
       # tag, the solo path off :latest, and the two must move independently.
-      - name: Create manifest list and push
+      - name: Create manifest list and push (branch)
+        if: github.ref_type == 'branch'
         working-directory: /tmp/digests
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            docker buildx imagetools create \
-              -t ${{ env.IMAGE }}:${{ github.ref_name }} \
-              -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
-              $(printf '${{ env.IMAGE }}@sha256:%s ' *)
-          else
-            docker buildx imagetools create \
-              -t ${{ env.IMAGE }}:latest \
-              -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
-              $(printf '${{ env.IMAGE }}@sha256:%s ' *)
-          fi
+          docker buildx imagetools create \
+            -t ${{ env.IMAGE }}:latest \
+            -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
-      - name: Inspect image
+      - name: Create manifest list and push (tag)
+        if: github.ref_type == 'tag'
+        working-directory: /tmp/digests
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            docker buildx imagetools inspect ${{ env.IMAGE }}:${{ github.ref_name }}
-          else
-            docker buildx imagetools inspect ${{ env.IMAGE }}:latest
-          fi
+          docker buildx imagetools create \
+            -t ${{ env.IMAGE }}:${{ github.ref_name }} \
+            -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image (branch)
+        if: github.ref_type == 'branch'
+        run: docker buildx imagetools inspect ${{ env.IMAGE }}:latest
+
+      - name: Inspect image (tag)
+        if: github.ref_type == 'tag'
+        run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ github.ref_name }}
