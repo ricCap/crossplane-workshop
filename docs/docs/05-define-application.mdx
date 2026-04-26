@@ -1,0 +1,358 @@
+---
+sidebar_position: 6
+title: 5. Define an Application
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 5 — Define an Application ⏱️ 40 min
+
+<PairId />
+
+:::note Running solo locally?
+Same cluster, same commands. Your tile at `/team/local/` will light up once the check passes. See [Solo local setup (k3d)](./solo-local-setup).
+:::
+
+## 5.1 Before you start ⏱️ 5 min
+
+This is the module where the workshop clicks together. You're going to define your own Kubernetes API — a high-level `Application` kind — and teach Crossplane how to turn one `Application` into a frontend, a backend, and everything that wires them together.
+
+Three pieces of new terminology (all defined in the [Cheatsheet](./cheatsheet#core-objects)):
+
+| Piece | Role |
+|---|---|
+| **XRD** (CompositeResourceDefinition) | Declares the schema of your new `Application` kind: what fields it has, what types, what defaults |
+| **Composition** | The recipe. "When someone creates an `Application`, create these managed resources" |
+| **XR** (Composite Resource) | An instance your users apply. The thing that triggers the recipe |
+
+You're using **Crossplane v2**, so XRs are **namespaced** and there's no claim layer — you apply an `Application` directly. If you've read older tutorials that talk about a "claim" wrapping an XR, that's the v1 pattern; ignore it here.
+
+You're about to: install a composition function, apply an XRD, apply a Composition, apply one XR, and watch a frontend + backend materialize.
+
+## 5.2 Build the Application API ⏱️ 30 min
+
+### 1. Install the composition function
+
+Crossplane v2 Compositions are a **pipeline** of one or more [composition functions](./cheatsheet#core-objects). You'll use [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform), which accepts the familiar resources-and-patches shape as input.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+EOF
+```
+
+Wait for it to go healthy (usually ~30 seconds):
+
+```bash
+kubectl get function
+```
+
+Expected output:
+
+```
+NAME                           INSTALLED   HEALTHY   PACKAGE
+function-patch-and-transform   True        True      xpkg.crossplane.io/...:v0.9.0
+```
+
+### 2. Apply the XRD
+
+The XRD declares your new API. `Application` will be **namespaced** (v2 default) with two fields: a `message` (required) and a `color` (optional, defaulted).
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: applications.workshop.example.io
+spec:
+  scope: Namespaced
+  group: workshop.example.io
+  names:
+    kind: Application
+    plural: applications
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                message:
+                  type: string
+                color:
+                  type: string
+                  default: "#2563eb"
+              required:
+                - message
+EOF
+```
+
+Verify:
+
+```bash
+kubectl get xrd applications.workshop.example.io
+```
+
+Expected output:
+
+```
+NAME                               ESTABLISHED   OFFERED   AGE
+applications.workshop.example.io   True                    5s
+```
+
+`ESTABLISHED=True` means the `Application` CRD is registered; you can now apply XRs. The `OFFERED` column stays empty because v2 does not generate a claim kind — in v1 it would show `True` if the XRD declared `claimNames`, but v2 lets you apply the XR directly so there's nothing to offer.
+
+### 3. Apply the Composition
+
+The Composition is the recipe. It creates five managed resources when an `Application` exists: a ConfigMap with the frontend HTML, a frontend Deployment + Service (nginx serving the ConfigMap), and a backend Deployment + Service (http-echo returning the message + color as JSON).
+
+Save this to `composition.yaml` and apply it with `kubectl apply -f composition.yaml`:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: applications.workshop.example.io
+spec:
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: Application
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: frontend-configmap
+            base:
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: ConfigMap
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    data:
+                      index.html: |
+                        <!DOCTYPE html>
+                        <html><head><meta charset="utf-8"><title>Tile</title>
+                        <style>
+                          body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+                          #tile { font-size: 2rem; font-weight: 700; }
+                        </style>
+                        </head><body>
+                        <div id="tile">Loading...</div>
+                        <script>
+                          fetch('./api/message')
+                            .then(r => r.text())
+                            .then(txt => {
+                              try {
+                                const d = JSON.parse(txt);
+                                const el = document.getElementById('tile');
+                                el.innerText = d.message || '(no message)';
+                                if (d.color) el.style.color = d.color;
+                              } catch (e) {
+                                document.getElementById('tile').innerText = 'Bad response: ' + txt;
+                              }
+                            })
+                            .catch(e => {
+                              document.getElementById('tile').innerText = 'Error: ' + e.message;
+                            });
+                        </script>
+                        </body></html>
+          - name: frontend-deployment
+            base:
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
+                forProvider:
+                  manifest:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    spec:
+                      replicas: 1
+                      selector:
+                        matchLabels: { app: frontend }
+                      template:
+                        metadata:
+                          labels: { app: frontend }
+                        spec:
+                          containers:
+                            - name: nginx
+                              image: nginx:alpine
+                              ports:
+                                - containerPort: 80
+                              volumeMounts:
+                                - name: html
+                                  mountPath: /usr/share/nginx/html
+                          volumes:
+                            - name: html
+                              configMap:
+                                name: frontend
+          - name: frontend-service
+            base:
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: frontend
+                      namespace: default
+                    spec:
+                      selector: { app: frontend }
+                      ports:
+                        - port: 80
+                          targetPort: 80
+          - name: backend-deployment
+            base:
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
+                forProvider:
+                  manifest:
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: backend
+                      namespace: default
+                    spec:
+                      replicas: 1
+                      selector:
+                        matchLabels: { app: backend }
+                      template:
+                        metadata:
+                          labels: { app: backend }
+                        spec:
+                          containers:
+                            - name: http-echo
+                              image: hashicorp/http-echo:1.0.0
+                              args:
+                                - '-listen=:5678'
+                                - '-text={"message":"placeholder","color":"#2563eb"}'
+                              ports:
+                                - containerPort: 5678
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.message
+                    - fromFieldPath: spec.color
+                  strategy: string
+                  string:
+                    fmt: '-text={"message":"%s","color":"%s"}'
+                toFieldPath: spec.forProvider.manifest.spec.template.spec.containers[0].args[1]
+          - name: backend-service
+            base:
+              apiVersion: kubernetes.m.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                providerConfigRef:
+                  kind: ClusterProviderConfig
+                  name: default
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: backend
+                      namespace: default
+                    spec:
+                      selector: { app: backend }
+                      ports:
+                        - port: 5678
+                          targetPort: 5678
+```
+
+Three v2 details worth pointing out before you read the YAML:
+
+- The `CompositeResourceDefinition` above is `apiextensions.crossplane.io/v2`, but the `Composition` here is still `apiextensions.crossplane.io/v1`. That is **not a typo** — in Crossplane v2 the XRD API group bumped to `/v2` to express namespaced XRs, but `Composition` stays on `/v1`. Mixing them is expected.
+- Every composed resource is an `Object.kubernetes.m.crossplane.io/v1alpha1` — the **namespaced** Object kind (note the `.m.` in the group). Crossplane v2 requires that a namespaced XR (our `Application`) only compose resources that are themselves namespaced, and this `.m.` variant is provider-kubernetes' namespaced Object type.
+- Each composed Object sets `spec.providerConfigRef.kind: ClusterProviderConfig` to reach the `default` `ClusterProviderConfig` you applied in module 4. Without the explicit `kind`, provider-kubernetes would look for a namespaced `ProviderConfig` in the resource's own namespace — which doesn't exist here.
+
+The `CombineFromComposite` patch on `backend-deployment` is what injects the XR's `spec.message` and `spec.color` into the http-echo container's `-text` argument at reconcile time.
+
+### 4. Apply your Application XR
+
+Now that the API exists, apply an instance. Change `message` to whatever you want — that's the text your tile will show.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: workshop.example.io/v1alpha1
+kind: Application
+metadata:
+  name: wall-tile
+  namespace: default
+spec:
+  message: "hello from <your pair>"
+  color: "#10b981"
+EOF
+```
+
+Watch everything materialize:
+
+```bash
+kubectl get application wall-tile -n default
+kubectl get deploy,svc,cm -n default
+```
+
+Expected output (abridged):
+
+```
+NAME        SYNCED   READY   COMPOSITION                         AGE
+wall-tile   True     True    applications.workshop.example.io    30s
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/backend    1/1     1            1           25s
+deployment.apps/frontend   1/1     1            1           25s
+```
+
+<ValidateCheck check="application-ready" />
+
+When the tile turns green, open the [workshop wall](/wall) and click **Refresh** — your tile should light up with the colored message you put in the XR.
+
+## 5.3 What just happened
+
+You extended Kubernetes with an `Application` kind. One `kubectl apply` now fans out into five managed resources that provider-kubernetes reconciles into real Deployments, Services, and a ConfigMap. The XR's `message` and `color` fields flow through the Composition's patch into the backend's args — so you have a typed, field-driven interface to a multi-resource stack.
+
+That's Crossplane's central value: **compose your own APIs**, and let Kubernetes and providers do the rest.
+
+### Go deeper
+
+- [CompositeResourceDefinitions (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/composite-resource-definitions/) — every field an XRD can take.
+- [Compositions (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/compositions/) — pipeline mode, function authoring.
+- [function-patch-and-transform README](https://github.com/crossplane-contrib/function-patch-and-transform) — patch types, transforms, when to use what.
+- [Namespaced XRs in v2](https://docs.crossplane.io/latest/whats-new/) — why the v1 claim layer is gone.

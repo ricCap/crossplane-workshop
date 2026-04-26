@@ -26,7 +26,8 @@ func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
 		{Group: "", Version: "v1", Resource: "pods"}:                                  "PodList",
 		{Group: "apps", Version: "v1", Resource: "deployments"}:                       "DeploymentList",
 		{Group: "pkg.crossplane.io", Version: "v1", Resource: "providers"}:            "ProviderList",
-		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}: "ObjectList",
+		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}:   "ObjectList",
+		{Group: "kubernetes.m.crossplane.io", Version: "v1alpha1", Resource: "objects"}: "ObjectList",
 		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "applications"}: "ApplicationList",
 	}
 	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, gvrToListKind, objs...)
@@ -206,7 +207,24 @@ func TestCheckProviderKubernetesInstalled_Unhealthy(t *testing.T) {
 
 // --- checkFirstMRReady ----------------------------------------------------
 
-func TestCheckFirstMRReady_Ready(t *testing.T) {
+func TestCheckFirstMRReady_Ready_Namespaced(t *testing.T) {
+	// The v2-native namespaced Object — what the module 04 docs teach.
+	o := u("kubernetes.m.crossplane.io/v1alpha1", "Object", "default", "hello-configmap", []map[string]interface{}{
+		cond("Ready", "True", "Available", "ready"),
+	})
+	client := newFakeClient(t, o)
+	pass, details, err := checkFirstMRReady(context.Background(), client)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pass {
+		t.Fatalf("expected pass=true, got details=%q", details)
+	}
+}
+
+func TestCheckFirstMRReady_Ready_ClusterScoped(t *testing.T) {
+	// Legacy cluster-scoped Object — the check should still accept it so
+	// participants who follow older tutorials aren't penalized.
 	o := u("kubernetes.crossplane.io/v1alpha2", "Object", "", "hello-configmap", []map[string]interface{}{
 		cond("Ready", "True", "Available", "ready"),
 	})

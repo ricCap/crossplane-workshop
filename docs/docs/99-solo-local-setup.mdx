@@ -1,0 +1,95 @@
+---
+sidebar_position: 9
+title: Solo local setup (k3d)
+---
+
+# Running the workshop on your own laptop
+
+The main workshop runs on a shared cluster where each pair gets an isolated sandbox. If you want to walk through modules 02–06 on your own — outside the live workshop, with no shared infrastructure — this page is the full recipe. Everything runs in a single [k3d](https://k3d.io) cluster on your machine.
+
+You do not need to clone this repo. Every manifest is fetched from public URLs; every image is pulled from public registries.
+
+## Prerequisites
+
+| Tool | Install hint |
+|---|---|
+| [Docker](https://docs.docker.com/get-docker/) | `brew install --cask docker` on macOS |
+| [kubectl](https://kubernetes.io/docs/tasks/tools/) | `brew install kubernetes-cli` |
+| [helm](https://helm.sh/docs/intro/install/) | `brew install helm` |
+| [k3d](https://k3d.io/#installation) | `brew install k3d` |
+
+That's it. Crossplane is not a prerequisite — installing it is module 03.
+
+## 1. Create the cluster
+
+```bash
+k3d cluster create crossplane-workshop-solo \
+  -p "8080:80@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:0"
+```
+
+Two flags worth explaining. `-p "8080:80@loadbalancer"` forwards your host's port 8080 to the cluster's ServiceLB, which is where Envoy Gateway terminates traffic. `--k3s-arg "--disable=traefik@server:0"` turns off k3s's bundled traefik ingress controller — the workshop routes through Envoy Gateway (Gateway API), and two controllers fighting over port 80 ends with curl getting traefik's 404 page instead of the docs. When the cluster is up, `kubectl cluster-info` should show a `k3d-crossplane-workshop-solo` context.
+
+## 2. Install Envoy Gateway
+
+The workshop's routing is [Gateway API](https://gateway-api.sigs.k8s.io)-native and does not use Ingress:
+
+```bash
+helm install eg oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.4.0 \
+  --namespace envoy-gateway-system --create-namespace \
+  --wait
+```
+
+## 3. Install the docs + wall + validator
+
+One `kubectl apply` installs the Docusaurus site (this one), the validator sidecar, a `Gateway` listener on port 80, and the HTTPRoutes that expose `/` → docs, `/team/local/` → the frontend you'll create in module 05, and `/team/local/api/` → its backend:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/main/gitops/solo/all.yaml
+```
+
+Wait for the docs pod to come up:
+
+```bash
+kubectl wait --for=condition=Available deploy/docs -n docs --timeout=180s
+```
+
+## 4. Open the workshop
+
+Visit [http://localhost:8080/](http://localhost:8080/). You should land on the same page you're reading now, served from your k3d cluster. Open the [wall](/wall) in a second tab — it'll show a single tile for the synthetic `local` pair, with all checks red until you finish modules 02–06.
+
+## 5. Do the modules
+
+Follow modules 02–06 in order. Two differences from the workshop-day flow:
+
+- **No kubeconfig download.** You're already on the cluster where the modules run — `kubectl config current-context` is `k3d-crossplane-workshop-solo`.
+- **Your pair ID is `local`.** The validator reports a single synthetic pair called `local`, and the wall's tile at `/team/local/` is wired to the frontend + backend Services that module 05's `Application` XR creates in the `default` namespace.
+
+Each module's validation button will evaluate against your k3d cluster and flip green as you progress.
+
+## 6. Clean up
+
+```bash
+k3d cluster delete crossplane-workshop-solo
+```
+
+## What's intentionally missing
+
+- **Sandbox isolation.** You are both operator and participant; if you `kubectl delete ns crossplane-system`, you break your own setup. In the live workshop, each pair's sandbox means a mistake is isolated.
+- **GitOps.** The solo path applies raw YAML. No sync loop, no self-heal — if you want changes to stick, re-apply the manifests.
+- **TLS.** Traffic is plain HTTP on localhost:8080.
+
+## Troubleshooting
+
+**`k3d cluster create` fails with "port 8080 already allocated"**
+: Another process is bound to 8080 on your host. Stop it, or pick a different host port (e.g. `-p "18080:80@loadbalancer"` and visit `http://localhost:18080/`). Use the same port in your browser.
+
+**`helm install eg …` fails with "cannot pull OCI chart"**
+: Docker Hub rate-limits anonymous OCI pulls. Authenticate with `docker login` (any free Docker Hub account works) and retry.
+
+**Wall shows no tiles / `/api/pairs` returns an empty array**
+: The `VALIDATOR_SOLO` env var isn't set. If you applied the manifest above, this should not happen; re-check with `kubectl get deploy docs -n docs -o yaml | grep -A1 VALIDATOR_SOLO`.
+
+**`/team/local/` returns 404 before you've finished module 05**
+: Expected. The `frontend` and `backend` Services don't exist yet — the `Application` XR in module 05 creates them. Once the XR goes Ready, the route starts working with no further action on your part.

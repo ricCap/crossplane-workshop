@@ -1,0 +1,102 @@
+---
+sidebar_position: 3
+title: 2. Connect to your cluster
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Module 2 — Connect to your cluster ⏱️ 10 min
+
+<PairId />
+
+:::note Running solo locally?
+Your kubeconfig already points at your k3d cluster and your pair ID is `local`. Skip straight to the [`hello` pod step](#23-smoke-test-apply-a-hello-pod). See [Solo local setup (k3d)](./solo-local-setup) if you haven't set it up yet.
+:::
+
+## 2.1 Before you start ⏱️ 2 min
+
+`kubectl` talks to *a* cluster — whichever cluster is described by the **kubeconfig** your shell currently points at. For the next five modules, every command needs to land in your workshop cluster, not in some other cluster you might have configured on your machine.
+
+A kubeconfig is just a YAML file with the cluster's address, a certificate, and credentials. You're about to download yours, tell your shell to use it, and prove it works by applying a one-line Pod manifest.
+
+You're about to: download a kubeconfig, export it, and apply a `hello` pod.
+
+## 2.2 Load your kubeconfig ⏱️ 5 min
+
+### 1. Download the kubeconfig file
+
+Your instructor has given you a download link for your pair's kubeconfig. Download the file and keep the path handy — this example assumes `~/Downloads/<pair-id>-kubeconfig.yaml`.
+
+### 2. Point your shell at it
+
+```bash
+export KUBECONFIG=~/Downloads/<pair-id>-kubeconfig.yaml
+kubectl config current-context
+```
+
+The `current-context` command prints the context name — treat anything non-empty as success. If `kubectl` prints an error, re-check the file path and that the download completed.
+
+### 3. List namespaces as a smoke test
+
+```bash
+kubectl get namespaces
+```
+
+You should see the standard system namespaces (`default`, `kube-system`, `kube-public`, …). If you see a permission error, check you're using your own pair's kubeconfig — each pair only has access to their own cluster.
+
+### 4. (Optional) Install handy tools
+
+These are not required but they'll make the rest of the workshop faster. Skip if you're tight on time.
+
+```bash
+brew install kubectx k9s helm      # macOS / Linuxbrew
+```
+
+Windows / plain Linux install links are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+
+## 2.3 Smoke test — apply a `hello` pod ⏱️ 3 min {#23-smoke-test-apply-a-hello-pod}
+
+Apply a one-container Pod so the validator has something concrete to confirm your `kubectl apply` pipeline actually writes to the cluster.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello
+  namespace: default
+spec:
+  containers:
+    - name: hello
+      image: busybox:1.36
+      command: ["sh", "-c", "echo hello && sleep 3600"]
+EOF
+```
+
+Wait a few seconds for the image pull, then confirm:
+
+```bash
+kubectl get pod hello -n default
+```
+
+Expected output:
+
+```
+NAME    READY   STATUS    RESTARTS   AGE
+hello   1/1     Running   0          15s
+```
+
+<ValidateCheck check="hello-pod" />
+
+When the tile turns green, your kubeconfig is good and `kubectl apply` works end-to-end.
+
+## 2.4 What just happened
+
+You told your shell which cluster to talk to and proved the connection by writing a resource that the validator can read back. Everything from module 3 onward assumes this works.
+
+### Go deeper
+
+- [kubectl config documentation](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/) — everything `kubectl config` can do.
+- [Kubeconfig file reference](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) — what's inside the YAML you just downloaded.
+- You can leave the `hello` pod running — it doesn't use meaningful resources and later modules ignore it. If you prefer a clean slate: `kubectl delete pod hello -n default`.

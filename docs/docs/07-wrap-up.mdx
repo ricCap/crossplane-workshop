@@ -1,0 +1,53 @@
+---
+sidebar_position: 8
+title: 7. Wrap-up
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Module 7 — Wrap-up ⏱️ 5 min
+
+<PairId />
+
+Three hours ago you had a kubeconfig and no cluster state. Now you have:
+
+| Module | You built |
+|---|---|
+| 02 | A working `kubectl` pointing at your workshop cluster |
+| 03 | Crossplane running in `crossplane-system` |
+| 04 | `provider-kubernetes` installed and managing one `Object` |
+| 05 | An `Application` XRD + Composition + one XR that composes into five real resources |
+| 06 | A Composition edit that reshaped the frontend without touching the XR |
+
+That last point is the one worth taking home. **A Composition change reshaped real resources without the consumer doing anything.** That's the primitive real platforms are built on.
+
+## 7.1 Where to go next
+
+### Practical next steps
+
+- **Install a cloud provider.** [`provider-aws-family`](https://github.com/crossplane-contrib/provider-aws-family), [`provider-gcp`](https://github.com/crossplane-contrib/provider-gcp), or [`provider-azure`](https://github.com/crossplane-contrib/provider-azure) give you real infrastructure instead of `ConfigMap`s. Same XRD/Composition shape you already know.
+- **Try another composition function.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) or [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) get you out of YAML patches into real programmatic composition.
+- **Look at real-world platforms.** [Upbound Marketplace](https://marketplace.upbound.io/) and the [Crossplane examples repo](https://github.com/crossplane/crossplane/tree/main/cluster/test/e2e/manifests) show what production compositions look like.
+
+### Concepts we didn't cover
+
+The workshop kept scope tight on purpose. The big topics we skipped:
+
+- **Claims vs. XRs** — the v1 pattern. Still seen in older repos; covered in the [Cheatsheet §1.3](./cheatsheet#claims-vs-xrs--why-this-workshop-skips-claims).
+- **Operations** — Crossplane's newer construct for imperative one-shot work (migrations, repairs). [Operations docs](https://docs.crossplane.io/latest/concepts/operations/).
+- **Package management** — `Configuration` packages let you ship your XRD + Composition together as one installable unit. [Configuration packages docs](https://docs.crossplane.io/latest/concepts/packages/).
+- **Policy and ValidatingAdmissionPolicy.** Crossplane XRs work with Kubernetes' admission ecosystem; you can gate them, mutate them, and enforce org-wide rules.
+
+## 7.2 Feedback
+
+Two minutes of feedback from you today shapes the next run of this workshop. Fill in whatever you can, skip the rest.
+
+**[Open the feedback form](https://example.com/workshop-feedback)** *(your instructor will share the real URL in chat)*
+
+Anonymous. No wrong answers. If one thing broke or one thing clicked, we want to know.
+
+## 7.3 Thanks
+
+Thanks for spending an afternoon on this. Leave your cluster running as long as you like — experiment, break things, come back in a week. The [Crossplane Slack](https://slack.crossplane.io) is friendly and the maintainers hang out there.
+
+See you at the next one.

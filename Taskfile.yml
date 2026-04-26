@@ -82,8 +82,12 @@ tasks:
 
   solo:up:
     desc: "Create the solo k3d cluster with host port 8080 mapped to the load balancer."
+    # `--disable=traefik` prevents k3s's bundled traefik ingress controller from
+    # claiming the cluster LB. Envoy Gateway's `eg` GatewayClass is what the
+    # workshop manifests target, and two controllers fighting for port 80 ends
+    # with curl getting traefik's 404 page instead of our docs.
     cmds:
-      - k3d cluster create {{.SOLO_CLUSTER_NAME}} -p "8080:80@loadbalancer"
+      - k3d cluster create {{.SOLO_CLUSTER_NAME}} -p "8080:80@loadbalancer" --k3s-arg "--disable=traefik@server:0"
       - kubectl cluster-info
 
   solo:down:

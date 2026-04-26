@@ -5,39 +5,57 @@ title: Introduction
 ---
 
 import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Welcome to the Crossplane Workshop
+# Welcome to the Crossplane workshop ⏱️ 5 min
 
-This workshop guides you through using [Crossplane](https://crossplane.io) to provision and manage
-cloud infrastructure using Kubernetes-native APIs.
+Over the next three hours you will install [Crossplane](https://crossplane.io), teach it how to manage Kubernetes resources, and use it to ship a small application. You'll walk away with a working mental model of Crossplane's core objects — Provider, XRD, Composition, Composite Resource — and a cluster you can keep experimenting in afterwards.
 
-## Your environment
+## How the workshop is structured
 
-Each participant pair has an isolated [vCluster](https://www.vcluster.com) sandbox on the shared
-management cluster. Your instructor has given you a **pair ID** — something like `fancy-lemon`.
-Enter it here once and every validation check in the workshop will know which vcluster to talk to:
+The sidebar on the left lists the modules in reading order:
+
+| # | Module | Kind | ⏱️ |
+|---|---|---|---|
+| 00 | Introduction | content | 5 min |
+| 01 | Cheatsheet | reference | — |
+| 02 | Connect to your cluster | task | 10 min |
+| 03 | Install Crossplane | task | 15 min |
+| 04 | Providers & your first managed resource | task | 20 min |
+| 05 | Define an Application | task | 40 min |
+| 06 | Modify your Application | task | 20 min |
+| 07 | Wrap-up | content | 5 min |
+
+Modules 02–06 are **task modules**: a short framing, then hands-on steps, then a validation check. Modules 00, 01, and 07 are **content modules**: read and move on.
+
+The **cheatsheet** (01) is a reference page. Keep it open in a second tab — it's the fastest way to look up what an XRD or a Composition is without leaving your current module.
+
+If you're running this on your own laptop outside the live workshop, jump to [Solo local setup (k3d)](./solo-local-setup) first.
+
+## How validation works
+
+Each task module ends with a **check button**. Clicking it asks the workshop's validator to inspect your cluster and confirm the step worked. Green means you're good to move on; red comes with a diagnostic message so you know what to fix.
+
+You're working in a pair. Enter your **pair ID** — the phrase your instructor handed you, like `fancy-lemon` — once, and every check on every module will use it:
 
 <PairId />
 
-Your pair ID is stored in this browser's local storage, so you can refresh the page, close the
-tab, or take a coffee break and come back — it will still be there. To switch pairs, click
-**change** above.
+Your pair ID is saved in your browser, so you can close this tab and come back. To switch, click **change** above.
 
-- **Your vcluster**: `<pair-id>` in namespace `participant-<pair-id>` on the management cluster
-- **What you own**: everything inside that vcluster
-- **What you share**: nothing — other pairs cannot see or affect your resources
+### Try it now
 
-## Accessing your vcluster
+The button below runs your first check. It asks the validator to list namespaces in your workshop cluster — a smoke test that confirms your pair ID matches a live cluster and that the workshop infrastructure can reach it.
 
-The workshop uses [vCluster Platform](https://www.vcluster.com/docs/platform/) as the front door.
-Log in at [platform.testdomain-riccap.it](https://platform.testdomain-riccap.it) with your
-pair ID as username — your instructor will give you the password. From the Platform UI you
-can download a kubeconfig for your vcluster and use it with `kubectl` / `helm` from any
-terminal. Each pair only sees and can act on their own vcluster.
+<ValidateCheck check="cluster-reachable" />
 
-## Workshop format
+If the tile turns green, you're ready for module 02. If it turns red, re-check the pair ID your instructor gave you and ask them to verify your cluster is up before you move on.
 
-Each module ends with an interactive check. When a check turns green, the tutorial knows your
-vcluster is in the expected state and you can move on.
+## How to use the assistant
 
-Ready? Start with module 1.
+Each machine has [Claude Code](https://claude.com/claude-code) installed with the `crossplane-workshop-helper` plugin. When something is confusing or a check won't go green, type `/debug` and paste the error — the assistant will walk through what it sees. `/explain-xr` takes a pasted XR or Composition and explains it line by line.
+
+The assistant doesn't know the answers ahead of time. It reads your cluster state, reads the official Crossplane docs, and tells you what it finds. If it guesses, call it out.
+
+## Ready?
+
+Open [Module 01 — Cheatsheet](./cheatsheet) in a second tab (you'll come back to it often) and then head to [Module 02 — Connect to your cluster](./connect-to-cluster).
