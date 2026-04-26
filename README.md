@@ -8,79 +8,36 @@ A 3-hour workshop where participant pairs each get an isolated vCluster sandbox 
 
 ```mermaid
 graph TB
-    Participant["Participant browser"]:::external
+    Participant["Participant browser"]:::user
 
-    subgraph ArubaCloud["ArubaCloud Managed Kubernetes (single node)"]
+    subgraph ArubaCloud["ArubaCloud Managed Kubernetes"]
         direction TB
+        ArgoCD["ArgoCD<br/>app-of-apps"]:::ctrl
+        XDevEnv["Crossplane<br/>XDeveloperEnvironment"]:::ctrl
+        Gateway["Envoy Gateway<br/>TLS · rate limiting"]:::edge
+        Docs["Docs pod<br/>Docusaurus + validator"]:::ctrl
+        Platform["vCluster Platform"]:::ctrl
+        Pair["Per-pair sandbox<br/>namespace · vCluster · HTTPRoute<br/>ResourceQuota · platform user"]:::tenant
 
-        subgraph ControlPlane["GitOps &amp; composition control plane"]
-            direction LR
-            ArgoCD["ArgoCD<br/>app-of-apps"]:::gitops
-            XDevEnv["Crossplane<br/>XDeveloperEnvironment<br/>Composition"]:::crossplane
-            ArgoCD -->|reconciles| XDevEnv
-        end
-
-        subgraph Gateway["Envoy Gateway"]
-            direction LR
-            TLS["TLS termination<br/>cert-manager + Let's Encrypt"]:::gateway
-            RL["Per-IP rate limiting<br/>20 req/s"]:::gateway
-        end
-
-        subgraph Docs["Docs pod"]
-            direction LR
-            Docusaurus["Docusaurus static site"]:::docs
-            Validator["Validator sidecar<br/>Go, checks pair progress"]:::docs
-        end
-
-        Platform["vCluster Platform<br/>kubeconfig download"]:::platform
-
-        subgraph PerPair["Per participant pair"]
-            direction LR
-            NS["Namespace<br/>participant-&lt;pair&gt;"]:::pair
-            VC["vCluster<br/>Helm release"]:::pair
-            HR["HTTPRoute<br/>/team/&lt;pair&gt;/"]:::pair
-            RQ["ResourceQuota"]:::pair
-            PU["Platform user"]:::pair
-        end
-
+        ArgoCD -->|syncs| XDevEnv
         ArgoCD -->|syncs| Gateway
         ArgoCD -->|syncs| Docs
         ArgoCD -->|syncs| Platform
-
-        XDevEnv -.->|composes| NS
-        XDevEnv -.->|composes| VC
-        XDevEnv -.->|composes| HR
-        XDevEnv -.->|composes| RQ
-        XDevEnv -.->|composes| PU
-
-        Gateway -->|routes /| Docs
-        Gateway -->|routes /team/&lt;pair&gt;/| HR
-        Gateway -->|routes platform.| Platform
+        XDevEnv -.->|composes| Pair
+        Gateway --> Docs
+        Gateway --> Pair
+        Gateway --> Platform
     end
 
     Participant ==>|HTTPS| Gateway
 
-    subgraph Legend["Legend"]
-        direction LR
-        L_ext["External user"]:::external
-        L_git["GitOps (ArgoCD)"]:::gitops
-        L_xp["Crossplane"]:::crossplane
-        L_gw["Gateway"]:::gateway
-        L_docs["Docs / validator"]:::docs
-        L_plat["vCluster Platform"]:::platform
-        L_pair["Per-pair resource"]:::pair
-    end
-
-    classDef external fill:#e2e8f0,stroke:#475569,color:#0f172a
-    classDef gitops fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
-    classDef crossplane fill:#e9d5ff,stroke:#7e22ce,color:#581c87
-    classDef gateway fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
-    classDef docs fill:#d1fae5,stroke:#047857,color:#064e3b
-    classDef platform fill:#fce7f3,stroke:#be185d,color:#831843
-    classDef pair fill:#f3f4f6,stroke:#374151,color:#111827
+    classDef user fill:#f1f5f9,stroke:#475569,color:#0f172a
+    classDef ctrl fill:#eef2ff,stroke:#4338ca,color:#312e81
+    classDef edge fill:#fef2f2,stroke:#b91c1c,color:#7f1d1d
+    classDef tenant fill:#f5f5f4,stroke:#57534e,color:#1c1917
 ```
 
-Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition.
+Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition. The "Per-pair sandbox" node represents the namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user that the `XDeveloperEnvironment` Composition produces for each participant pair.
 
 
 **Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
