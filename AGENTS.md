@@ -32,7 +32,7 @@ task crossplane:ui                       # port-forward the UXP Web UI to http:/
 task verify:pair PAIR=fancy-lemon        # programmatic Phase 1 success check for one pair
 ```
 
-The **solo** path is for single-developer laptop runs of modules 1–4. It targets k3d,
+The **solo** path is for single-developer laptop runs of modules 02–06. It targets k3d,
 applies `gitops/solo/` directly (no ArgoCD), exposes the docs site + wall on
 `http://localhost:8080/`, and reports a single synthetic pair called `local`. Pick it
 when you want to exercise the workshop content without the per-pair infrastructure;
@@ -48,6 +48,14 @@ Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml`
 ## Planning
 
 PLAN.md holds the roadmap. Whenever you agree a new plan with the user, update PLAN.md in the same change — otherwise this file drifts and stops being useful.
+
+## Authoring workshop modules
+
+The MDX modules under `docs/docs/` are the workshop's surface. The house style for them — voice, section shape, validator-check discipline, MDX conventions — lives in [`.claude/skills/workshop-style-guide/SKILL.md`](.claude/skills/workshop-style-guide/SKILL.md). Claude Code loads project-local skills automatically when you open this repo, so any agentic authoring (whether through the `crossplane-workshop-authoring` plugin's `/new-module` command or just a freeform "draft module N" prompt) should treat that document as the binding contract.
+
+It's a **living document**. After authoring or reviewing a module, if a style decision emerged that isn't yet captured there, append it under "Rules added during authoring" with a one-sentence rationale.
+
+When the modules and the style guide disagree, the modules win — fix the guide, not the modules.
 
 ## GitOps discipline
 

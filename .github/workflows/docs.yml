@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
 
 permissions:
   contents: read
@@ -23,6 +27,9 @@ env:
 #
 # Note: `ubuntu-24.04-arm` is a free native arm64 runner for public GitHub
 # repos. If this repo ever goes private, add an Actions billing review here.
+#
+# On pull_request, the build runs but does not push, and the merge job is
+# skipped — so a broken Dockerfile fails CI before it can land on main.
 jobs:
   build:
     strategy:
@@ -48,6 +55,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -60,17 +68,19 @@ jobs:
         with:
           context: docs
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || '' }}
           cache-from: type=gha,scope=docs-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=docs-${{ env.PLATFORM_PAIR }}
 
       - name: Export digest
+        if: github.event_name == 'push'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: docs-digests-${{ env.PLATFORM_PAIR }}
@@ -79,6 +89,7 @@ jobs:
           retention-days: 1
 
   merge:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 5

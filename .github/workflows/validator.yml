@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - 'validator/**'
+      - '.github/workflows/validator.yml'
 
 permissions:
   contents: read
@@ -17,6 +21,9 @@ env:
 # Same matrix+merge pattern as docs.yml. Go builds are fast enough that QEMU
 # wouldn't have been a real problem here, but keeping the two workflows
 # symmetric makes changes cheaper in the future.
+#
+# On pull_request, the build runs but does not push, and the merge job is
+# skipped — so a broken Dockerfile fails CI before it can land on main.
 jobs:
   build:
     strategy:
@@ -42,6 +49,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -54,17 +62,19 @@ jobs:
         with:
           context: validator
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || '' }}
           cache-from: type=gha,scope=validator-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=validator-${{ env.PLATFORM_PAIR }}
 
       - name: Export digest
+        if: github.event_name == 'push'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: validator-digests-${{ env.PLATFORM_PAIR }}
@@ -73,6 +83,7 @@ jobs:
           retention-days: 1
 
   merge:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 5
