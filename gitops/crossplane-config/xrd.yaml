@@ -43,6 +43,18 @@ spec:
                 quota:
                   type: object
                   description: "ResourceQuota limits for the participant namespace."
+                  # `default: {}` on the parent is required for the
+                  # child defaults below to actually fire when an XR
+                  # ships without a `spec.quota` block at all (which
+                  # is the common case — see gitops/participant-xrs/).
+                  # OpenAPI schema defaulting only walks into a
+                  # subtree when the parent object is present, so
+                  # without this line every child `default:` is dead
+                  # code for absent-quota XRs and the Composition's
+                  # base manifest is the only thing that ever takes
+                  # effect (see #40 → #41 for the test that surfaced
+                  # this).
+                  default: {}
                   properties:
                     cpu:
                       type: string
