@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Operational guide for anyone (human or AI) working in this repo. For the roadmap, phases, and deferred work, see [PLAN.md](PLAN.md).
+Operational guide for anyone (human or AI) working in this repo. For forward-looking work and the rationale behind big calls, see [PLAN.md](PLAN.md).
 
 ## Purpose
 
@@ -39,8 +39,6 @@ applies `gitops/solo/` directly (no ArgoCD), exposes the docs site + wall on
 when you want to exercise the workshop content without the per-pair infrastructure;
 pick `local:all` when you're validating anything that touches vcluster, ArgoCD, or the
 XDeveloperEnvironment Composition.
-
-See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which phase.
 
 ## Scaling to more pairs
 
