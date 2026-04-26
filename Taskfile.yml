@@ -404,9 +404,31 @@ tasks:
         echo "Forwarding via service: $SVC"
         kubectl -n envoy-gateway-system port-forward "svc/$SVC" 8443:443
 
+  vcluster:connect:
+    desc: |
+      Connect to a participant vcluster (Helm-driver) and switch the
+      active kube-context. Exits when you `vcluster disconnect`.
+      Usage: task vcluster:connect PAIR=fancy-lemon
+    requires:
+      vars: [PAIR]
+    cmds:
+      - vcluster connect {{.PAIR}} -n participant-{{.PAIR}} --driver helm
+
   # ------------------------------------------------------------------
   # vCluster Platform
   # ------------------------------------------------------------------
+
+  platform:ui:
+    desc: |
+      Port-forward the vCluster Platform (Loft) UI to https://localhost:9898/.
+      Login as admin; password is in
+        helm get values vcluster-platform -n vcluster-platform | yq .admin.password
+      (or the value of PLATFORM_ADMIN_PASSWORD when bootstrap:vcluster-platform was run).
+    cmds:
+      - |
+        echo "Platform UI: https://localhost:9898"
+        echo "Username:    admin"
+        kubectl -n {{.VCLUSTER_PLATFORM_NS}} port-forward svc/loft 9898:443
 
   platform:register-vclusters:
     desc: |
