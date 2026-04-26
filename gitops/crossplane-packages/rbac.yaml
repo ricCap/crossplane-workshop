@@ -89,7 +89,7 @@ rules:
     # never finishes garbage collection.
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
-    resources: ["resourcequotas"]
+    resources: ["resourcequotas", "limitranges"]
     verbs: ["*"]
   - apiGroups: [""]
     resources: ["secrets"]
