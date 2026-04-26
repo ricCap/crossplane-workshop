@@ -155,6 +155,7 @@ Each module ends with one or more validator checks (entries in `validator/checks
 | `task bootstrap:all` | Full bootstrap (ArgoCD + credentials + Envoy Gateway + Platform + root app) |
 | `task bootstrap:argocd` | Install ArgoCD via Helm |
 | `task bootstrap:repo-credentials` | Provision GitHub deploy key for ArgoCD |
+| `task bootstrap:repo-credentials-aruba` | Same as above but uses a distinct deploy-key title so local rotations don't clobber Aruba's key |
 | `task bootstrap:ghcr-pull-secret` | Provision GHCR pull secret for docs images |
 | `task bootstrap:envoy-gateway` | Install Envoy Gateway |
 | `task bootstrap:vcluster-platform` | Install vCluster Platform (needs `PLATFORM_ADMIN_PASSWORD`) |

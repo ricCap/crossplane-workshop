@@ -220,6 +220,56 @@ tasks:
 
         echo "repo credentials provisioned for {{.REPO_SSH_URL}}"
 
+  bootstrap:repo-credentials-aruba:
+    desc: |
+      Same as bootstrap:repo-credentials but uses a distinct deploy-key
+      title (`argocd-crossplane-workshop-aruba`) so local (vind) runs
+      don't rotate the key the ArubaCloud cluster relies on. Run this
+      once against the Aruba kubeconfig; the idempotent local task can
+      keep rotating its own key freely.
+    deps: [bootstrap:argocd]
+    vars:
+      DEPLOY_KEY_TITLE: argocd-crossplane-workshop-aruba
+    cmds:
+      - |
+        set -euo pipefail
+
+        command -v gh >/dev/null 2>&1 || { echo "gh CLI not found — install with 'brew install gh'"; exit 1; }
+        gh auth status >/dev/null 2>&1 || { echo "gh not authenticated — run 'gh auth login'"; exit 1; }
+
+        existing=$(gh repo deploy-key list --repo {{.GITHUB_REPO}} --json id,title --jq '.[] | select(.title=="{{.DEPLOY_KEY_TITLE}}") | .id' || true)
+        if [ -n "${existing}" ]; then
+          echo "Removing existing deploy key '{{.DEPLOY_KEY_TITLE}}' (id=${existing})"
+          gh repo deploy-key delete "${existing}" --repo {{.GITHUB_REPO}}
+        fi
+
+        TMPDIR=$(mktemp -d -t crossplane-workshop-aruba-deploy-XXXXXX)
+        trap 'rm -rf "${TMPDIR}"' EXIT
+        ssh-keygen -t ed25519 -N "" -f "${TMPDIR}/key" -C "{{.DEPLOY_KEY_TITLE}}@{{.GITHUB_REPO}}" -q
+
+        gh repo deploy-key add "${TMPDIR}/key.pub" --title "{{.DEPLOY_KEY_TITLE}}" --repo {{.GITHUB_REPO}}
+
+        KEY_B64=$(base64 < "${TMPDIR}/key" | tr -d '\n')
+        URL_B64=$(printf %s '{{.REPO_SSH_URL}}' | base64 | tr -d '\n')
+        TYPE_B64=$(printf %s 'git' | base64 | tr -d '\n')
+
+        cat <<YAML | kubectl apply -f -
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: {{.ARGOCD_REPO_SECRET}}
+          namespace: {{.ARGOCD_NS}}
+          labels:
+            argocd.argoproj.io/secret-type: repository
+        type: Opaque
+        data:
+          type: ${TYPE_B64}
+          url: ${URL_B64}
+          sshPrivateKey: ${KEY_B64}
+        YAML
+
+        echo "aruba repo credentials provisioned for {{.REPO_SSH_URL}}"
+
   bootstrap:ghcr-pull-secret:
     desc: |
       Provision a dockerconfigjson Secret in the docs namespace so the
