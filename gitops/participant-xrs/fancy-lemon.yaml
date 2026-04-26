@@ -1,5 +1,5 @@
 apiVersion: workshop.example.io/v1alpha1
-kind: XVCluster
+kind: XDeveloperEnvironment
 metadata:
   name: fancy-lemon
 spec:

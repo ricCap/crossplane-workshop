@@ -1,15 +1,15 @@
-# Composition that turns an XVCluster XR (Crossplane v2, cluster-scoped,
-# no claim layer) into a complete participant environment: namespace,
-# vcluster Helm release, per-pair HTTPRoute for /team/<pair>/ routing
-# via Gateway API, and a ResourceQuota.
+# Composition that turns an XDeveloperEnvironment XR (Crossplane v2,
+# cluster-scoped, no claim layer) into a complete participant
+# environment: namespace, vcluster Helm release, per-pair HTTPRoute
+# for /team/<pair>/ routing via Gateway API, and a ResourceQuota.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: vclusters.workshop.example.io
+  name: developerenvironments.workshop.example.io
 spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1
-    kind: XVCluster
+    kind: XDeveloperEnvironment
   mode: Pipeline
   pipeline:
     - step: patch-and-transform
@@ -213,7 +213,7 @@ spec:
                 toFieldPath: spec.forProvider.manifest.spec.rules[1].backendRefs[0].name
 
           # --- 4. ResourceQuota ---
-          # Values are patched from spec.quota.* on the XVCluster XR.
+          # Values are patched from spec.quota.* on the XDeveloperEnvironment XR.
           # The XRD defines defaults so XRs without explicit quota
           # still get sensible limits.
           - name: resource-quota

@@ -1,5 +1,5 @@
 # Crossplane config that depends on provider-helm CRDs: ProviderConfig,
-# XVCluster XRD, and the Composition. Depends on crossplane-packages
+# XDeveloperEnvironment XRD, and the Composition. Depends on crossplane-packages
 # (gitops/apps/crossplane-packages.yaml) being synced first so the
 # ProviderConfig CRD exists. ArgoCD retries until it does.
 apiVersion: argoproj.io/v1alpha1

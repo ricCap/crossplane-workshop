@@ -234,7 +234,7 @@ func listPairIDs(ctx context.Context, mgmtClient *kubernetes.Clientset) ([]strin
 
 // vclientForPair loads the kubeconfig secret for a pair from the
 // management cluster and builds a dynamic client to that pair's vcluster.
-// The secret name / namespace convention matches what the XVCluster
+// The secret name / namespace convention matches what the XDeveloperEnvironment
 // Composition writes: secret `vc-<pair>` in namespace `participant-<pair>`.
 //
 // In local mode, pairs don't have per-pair vclusters — the synthetic

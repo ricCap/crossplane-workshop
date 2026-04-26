@@ -1,13 +1,15 @@
-# Each file in gitops/participant-xrs/ is a cluster-scoped XVCluster XR
-# (Crossplane v2, no claim layer). The XVCluster Composition reconciles
-# each one into a full participant environment: Namespace, vcluster
-# Helm Release, per-pair HTTPRoute, and ResourceQuota.
+# Each file in gitops/participant-xrs/ is a cluster-scoped
+# XDeveloperEnvironment XR (Crossplane v2, no claim layer). The
+# XDeveloperEnvironment Composition reconciles each one into a full
+# participant environment: Namespace, vcluster Helm Release, per-pair
+# HTTPRoute, and ResourceQuota.
 #
 # Scale lever: add a new YAML file to gitops/participant-xrs/ with
 # just the pair ID. Crossplane does the rest.
 #
-# The "gotcha moment" reveal: participants discover that the vcluster
-# they used the whole workshop was itself a Crossplane-managed resource.
+# The "gotcha moment" reveal: participants discover that the
+# environment they used the whole workshop was itself a
+# Crossplane-managed resource.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
