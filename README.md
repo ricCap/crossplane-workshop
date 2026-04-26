@@ -60,7 +60,18 @@ graph TB
 
     Participant ==>|HTTPS| Gateway
 
-    classDef external fill:#fef3c7,stroke:#b45309,color:#1f2937
+    subgraph Legend["Legend"]
+        direction LR
+        L_ext["External user"]:::external
+        L_git["GitOps (ArgoCD)"]:::gitops
+        L_xp["Crossplane"]:::crossplane
+        L_gw["Gateway"]:::gateway
+        L_docs["Docs / validator"]:::docs
+        L_plat["vCluster Platform"]:::platform
+        L_pair["Per-pair resource"]:::pair
+    end
+
+    classDef external fill:#e2e8f0,stroke:#475569,color:#0f172a
     classDef gitops fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
     classDef crossplane fill:#e9d5ff,stroke:#7e22ce,color:#581c87
     classDef gateway fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
@@ -69,7 +80,7 @@ graph TB
     classDef pair fill:#f3f4f6,stroke:#374151,color:#111827
 ```
 
-Legend: blue = ArgoCD/GitOps, purple = Crossplane, red = gateway, green = docs/validator, pink = vCluster Platform, grey = per-pair tenant resources, amber = external user. Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition.
+Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition.
 
 
 **Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
