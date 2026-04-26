@@ -22,7 +22,7 @@ Project roadmap for the Crossplane workshop GitOps scaffolding. See [AGENTS.md](
 ```
 task local:all                           # vcluster create (Docker driver) + helm install argocd + apply root-app
 task argocd:ui                           # port-forward the ArgoCD UI
-task verify:pair PAIR=fancy-lemon        # programmatic success check for one pair
+task verify:pair PAIR=fancy-lemon        # operator-side success check (port-forward path)
 ```
 
 **Success criteria**:
@@ -30,7 +30,7 @@ task verify:pair PAIR=fancy-lemon        # programmatic success check for one pa
 2. `kubectl -n argocd get applications,applicationsets` shows `root-app`, `participant-vclusters` (ApplicationSet), and `vcluster-fancy-lemon` (Application) — all `Synced / Healthy`.
 3. `kubectl get ns` shows `participant-fancy-lemon`.
 4. `kubectl -n participant-fancy-lemon get po` shows the vcluster pod `Running`.
-5. `vcluster connect fancy-lemon -n participant-fancy-lemon` succeeds; `kubectl get ns` against the returned kubeconfig shows an isolated namespace list — **not** the host cluster's namespaces.
+5. The operator-side smoke test passes: `task verify:pair PAIR=fancy-lemon` (which port-forwards to the participant Service and runs `kubectl get ns` against the in-cluster kubeconfig from `Secret/vc-fancy-lemon`) returns an isolated namespace list — **not** the host cluster's namespaces. The participant-side equivalent (`task verify:pair:platform`) requires Platform on a real DNS name and is exercised on Aruba, not locally.
 6. **Scale test**: adding `gitops/participant-vclusters/pairs/brave-mango.yaml` → committing → pushing → within ~2 min `vcluster-brave-mango` exists, with no other manual step.
 
 ## Solo local (k3d) — laptop walkthroughs
@@ -62,12 +62,13 @@ task solo:down
 ```
 task bootstrap:all                       # identical to Phase 1's bootstrap step
 task remote:register-vcluster-cloud      # one-time SaaS registration
-task verify:pair PAIR=fancy-lemon
+task verify:pair:platform PAIR=fancy-lemon  # participant-path success check via vCluster Platform
 ```
 
 **Success criteria**: Phase 1 checks 1–6 against the ArubaCloud cluster, plus:
 
 7. The ArubaCloud cluster appears in vcluster.cloud's SaaS UI after registration, and `fancy-lemon` is visible there.
+8. `task verify:pair:platform PAIR=fancy-lemon` succeeds — the public Envoy Gateway hostname, the LE cert, the Loft auth proxy, the per-pair access policy, and the in-cluster vcluster apiserver all respond. This is the chain a participant traverses; locally we exercise only steps 1–6 because Platform isn't exposed on a real DNS name there.
 
 ## Phase 3 — Crossplane Composition swap (second iteration, deferred)
 

@@ -29,7 +29,8 @@ task bootstrap:all        # Phase 2 bootstrap (against whatever KUBECONFIG point
 task solo:all             # Solo local (k3d) — no vcluster, no ArgoCD; for laptop walkthroughs
 task argocd:ui                           # port-forward the ArgoCD UI to https://localhost:8080
 task crossplane:ui                       # port-forward the UXP Web UI to http://localhost:8200
-task verify:pair PAIR=fancy-lemon        # programmatic Phase 1 success check for one pair
+task verify:pair PAIR=fancy-lemon        # LOCAL operator-side check (port-forward, after task local:all)
+task verify:pair:platform PAIR=fancy-lemon  # REMOTE participant-side check via vCluster Platform (Aruba)
 ```
 
 The **solo** path is for single-developer laptop runs of modules 02–06. It targets k3d,
@@ -44,6 +45,21 @@ See [PLAN.md](PLAN.md) §Phase 1 and §Phase 2 for which tasks belong to which p
 ## Scaling to more pairs
 
 Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml` shape (an XDeveloperEnvironment XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each XDeveloperEnvironment into a full participant environment (Namespace, vcluster, HTTPRoute, ResourceQuota) within ~2 min. No tasks involved.
+
+## Verification: two paths, on purpose
+
+The participant vcluster's apiserver is a ClusterIP Service inside the management cluster — not publicly accessible. Participants reach it through **vCluster Platform** at `https://platform.testdomain-riccap.it`, which terminates auth, looks up the user's `VirtualClusterInstance`, and proxies the request to the in-cluster vcluster API. The cluster apiserver itself stays private.
+
+That gives us two distinct verify flows, and they should not be confused:
+
+| Task | Where | Path | What it proves |
+|---|---|---|---|
+| `task verify:pair PAIR=<id>` | local vind / any environment from the operator's machine | `kubectl port-forward` to the participant `Service`, then `kubectl get ns` against the in-cluster kubeconfig from `Secret/vc-<pair>` (server URL rewritten to localhost, TLS verification skipped) | Crossplane composed everything correctly and the inner apiserver is healthy. Operator-only — bypasses Platform entirely. |
+| `task verify:pair:platform PAIR=<id>` | Aruba (or any environment with Platform reachable) | `vcluster platform connect vcluster <id>` → kubeconfig points at the public Platform URL → `kubectl get ns` | Public Envoy Gateway hostname, LE cert, Loft auth proxy, per-pair access policy, and apiserver are *all* working. Same chain a participant traverses. |
+
+Both tasks run the management-side checks (helm/argocd/XRD/Composition/XR/ns/pod) first; they only differ in the final inner-vcluster smoke test.
+
+Use the local task on a vind because Platform isn't exposed there (no LE cert for `platform.testdomain-riccap.it`, no DNS record). Use the platform task on Aruba so an outage on the Envoy Gateway / Platform / DNS path actually makes the check fail — otherwise you've validated the operator's port-forward, not the participant experience.
 
 ## Planning
 

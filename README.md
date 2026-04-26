@@ -162,8 +162,9 @@ Each module ends with one or more validator checks (entries in `validator/checks
 | `task argocd:ui` | Port-forward ArgoCD UI to localhost:8080 |
 | `task wall:ui` | Port-forward Envoy Gateway to localhost:8443 |
 | `task platform:register-vclusters` | Register all vclusters with vCluster Platform |
-| `task verify:pair PAIR=<id>` | Run checks for one participant pair |
-| `task verify:all` | End-to-end check for all pairs |
+| `task verify:pair PAIR=<id>` | Run checks for one pair, **operator path** (port-forward + in-cluster kubeconfig). Use locally after `task local:all`. |
+| `task verify:pair:platform PAIR=<id>` | Run checks for one pair, **participant path** via vCluster Platform. Use on Aruba — exercises the public Envoy Gateway + Loft auth proxy + apiserver chain. |
+| `task verify:all` | End-to-end management-side check for all pairs (no inner-vcluster smoke test) |
 
 ## Security
 
