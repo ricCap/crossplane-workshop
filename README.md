@@ -8,44 +8,69 @@ A 3-hour workshop where participant pairs each get an isolated vCluster sandbox 
 
 ```mermaid
 graph TB
-    subgraph ArubaCloud["ArubaCloud Managed K8s (single node)"]
-        ArgoCD["ArgoCD<br/>app-of-apps"]
+    Participant["Participant browser"]:::external
 
-        subgraph Crossplane["Crossplane"]
-            XDevEnv["XDeveloperEnvironment Composition"]
-        end
+    subgraph ArubaCloud["ArubaCloud Managed Kubernetes (single node)"]
+        direction TB
 
-        subgraph PerPair["Per participant pair"]
-            NS["Namespace<br/>participant-&lt;pair&gt;"]
-            VC["vCluster<br/>(Helm release)"]
-            HR["HTTPRoute<br/>/team/&lt;pair&gt;/"]
-            RQ["ResourceQuota"]
-            PU["Platform user"]
+        subgraph ControlPlane["GitOps &amp; composition control plane"]
+            direction LR
+            ArgoCD["ArgoCD<br/>app-of-apps"]:::gitops
+            XDevEnv["Crossplane<br/>XDeveloperEnvironment<br/>Composition"]:::crossplane
+            ArgoCD -->|reconciles| XDevEnv
         end
 
         subgraph Gateway["Envoy Gateway"]
-            TLS["TLS termination<br/>Let's Encrypt via cert-manager"]
-            RL["Rate limiting"]
+            direction LR
+            TLS["TLS termination<br/>cert-manager + Let's Encrypt"]:::gateway
+            RL["Per-IP rate limiting<br/>20 req/s"]:::gateway
         end
 
         subgraph Docs["Docs pod"]
-            Docusaurus["Docusaurus static site"]
-            Validator["Validator sidecar<br/>(Go, checks pair progress)"]
+            direction LR
+            Docusaurus["Docusaurus static site"]:::docs
+            Validator["Validator sidecar<br/>Go, checks pair progress"]:::docs
         end
 
-        Platform["vCluster Platform<br/>(kubeconfig download)"]
+        Platform["vCluster Platform<br/>kubeconfig download"]:::platform
 
-        ArgoCD --> Crossplane
-        ArgoCD --> Docs
-        ArgoCD --> Gateway
-        XDevEnv --> PerPair
-        Gateway --> Docs
-        Gateway --> PerPair
-        Gateway --> Platform
+        subgraph PerPair["Per participant pair"]
+            direction LR
+            NS["Namespace<br/>participant-&lt;pair&gt;"]:::pair
+            VC["vCluster<br/>Helm release"]:::pair
+            HR["HTTPRoute<br/>/team/&lt;pair&gt;/"]:::pair
+            RQ["ResourceQuota"]:::pair
+            PU["Platform user"]:::pair
+        end
+
+        ArgoCD -->|syncs| Gateway
+        ArgoCD -->|syncs| Docs
+        ArgoCD -->|syncs| Platform
+
+        XDevEnv -.->|composes| NS
+        XDevEnv -.->|composes| VC
+        XDevEnv -.->|composes| HR
+        XDevEnv -.->|composes| RQ
+        XDevEnv -.->|composes| PU
+
+        Gateway -->|routes /| Docs
+        Gateway -->|routes /team/&lt;pair&gt;/| HR
+        Gateway -->|routes platform.| Platform
     end
 
-    Participant["Participant browser"] --> Gateway
+    Participant ==>|HTTPS| Gateway
+
+    classDef external fill:#fef3c7,stroke:#b45309,color:#1f2937
+    classDef gitops fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef crossplane fill:#e9d5ff,stroke:#7e22ce,color:#581c87
+    classDef gateway fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    classDef docs fill:#d1fae5,stroke:#047857,color:#064e3b
+    classDef platform fill:#fce7f3,stroke:#be185d,color:#831843
+    classDef pair fill:#f3f4f6,stroke:#374151,color:#111827
 ```
+
+Legend: blue = ArgoCD/GitOps, purple = Crossplane, red = gateway, green = docs/validator, pink = vCluster Platform, grey = per-pair tenant resources, amber = external user. Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition.
+
 
 **Routing**: Envoy Gateway terminates TLS for `workshop.testdomain-riccap.it` and `platform.testdomain-riccap.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
 
