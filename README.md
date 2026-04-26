@@ -85,7 +85,7 @@ For local development, use `task local:all` which creates a vind cluster first, 
 
 ### Solo local setup (k3d)
 
-If you just want to walk through modules 1–4 on your own laptop — no vCluster, no ArgoCD,
+If you just want to walk through modules 02–06 on your own laptop — no vCluster, no ArgoCD,
 no shared cluster — use the solo path:
 
 ```
@@ -119,12 +119,21 @@ To register new vclusters with the Platform UI, run `task platform:register-vclu
 
 ## Workshop modules
 
+The workshop targets **Crossplane v2 / UXP v2** — namespaced XRs, no claim layer, composition functions.
+
 | Module | What participants do |
 |--------|---------------------|
-| **1 -- Install Crossplane** | Install Crossplane inside their vCluster |
-| **2 -- Install provider-kubernetes** | Set up provider-kubernetes with cluster-admin binding and InjectedIdentity ProviderConfig |
-| **3 -- Define Application XRD** | Create an `Application` XRD + Composition, submit a claim, see their tile appear on the wall |
-| **4 -- Modify the Composition** | Change HTML/CSS/colors in the Composition, observe the tile update live |
+| **00 -- Intro** | Validate kubeconfig reaches their cluster (`cluster-reachable` check) |
+| **01 -- Cheatsheet** | Reference: kubectl verbs, conditions, Crossplane terminology, Crossplane vs UXP |
+| **02 -- Connect to your cluster** | Download the pair kubeconfig, export `KUBECONFIG`, apply a `hello` pod |
+| **03 -- Install Crossplane** | Install UXP v2 via Helm with `webui.enabled=true` |
+| **04 -- Providers & your first MR** | Install `provider-kubernetes`, apply a `ClusterProviderConfig`, create one `Object` MR wrapping a `ConfigMap` |
+| **05 -- Define an Application** | Author a namespaced `CompositeResourceDefinition` + a `Composition` running `function-patch-and-transform`; apply one `Application` XR; tile lights up on the wall |
+| **06 -- Modify your Application** | Edit the Composition or XR fields, watch the tile update live |
+| **07 -- Wrap-up** | Recap, pointers to claims, Operations, Configuration packages |
+| **99 -- Solo local setup (k3d)** | Reference page: how to run modules 02–06 on a laptop k3d cluster, no shared infra |
+
+Each module ends with one or more validator checks (entries in `validator/checks.go`); the dashboard tile turns green when the matching cluster state is observed.
 
 ## Key URLs
 
