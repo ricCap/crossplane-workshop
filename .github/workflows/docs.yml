@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
@@ -101,14 +100,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # On a branch push to main: retag :latest (so the solo path keeps tracking
+      # main) and :sha-<commit>. On a tag push (vX.Y.Z): tag :vX.Y.Z and
+      # :sha-<commit>, but DO NOT touch :latest — Aruba runs off the pinned
+      # tag, the solo path off :latest, and the two must move independently.
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            -t ${{ env.IMAGE }}:latest \
-            -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
-            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker buildx imagetools create \
+              -t ${{ env.IMAGE }}:${{ github.ref_name }} \
+              -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
+              $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+          else
+            docker buildx imagetools create \
+              -t ${{ env.IMAGE }}:latest \
+              -t ${{ env.IMAGE }}:sha-${{ github.sha }} \
+              $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+          fi
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE }}:latest
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker buildx imagetools inspect ${{ env.IMAGE }}:${{ github.ref_name }}
+          else
+            docker buildx imagetools inspect ${{ env.IMAGE }}:latest
+          fi

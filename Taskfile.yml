@@ -459,3 +459,28 @@ tasks:
         echo "  vcluster platform login <your-vcluster.cloud-host>"
         echo "  vcluster platform connect cluster <cluster-name>"
         echo "Confirm the exact incantation on first run; see PLAN.md open items."
+
+  # ------------------------------------------------------------------
+  # Releases — pin Aruba to a stable image. See AGENTS.md §Releasing.
+  # ------------------------------------------------------------------
+
+  release:
+    desc: 'Tag a new release. Usage: task release -- v0.2.0'
+    cmds:
+      - |
+        VERSION="{{.CLI_ARGS}}"
+        if [ -z "$VERSION" ]; then
+          echo "usage: task release -- vX.Y.Z" >&2
+          exit 1
+        fi
+        case "$VERSION" in
+          v*) ;;
+          *) echo "version must start with 'v' (e.g. v0.2.0)" >&2; exit 1 ;;
+        esac
+        git tag -a "$VERSION" -m "$VERSION"
+        git push origin "$VERSION"
+        echo
+        echo "Tag pushed. Watch the builds:"
+        echo "  gh run list --workflow=docs.yml --limit 1"
+        echo "  gh run list --workflow=validator.yml --limit 1"
+        echo "Then open a PR bumping the image tags in gitops/docs/deployment.yaml."
