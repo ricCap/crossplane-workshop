@@ -120,22 +120,27 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
-## Known broken / deferred
+## Platform credential bootstrap
 
-- **`task platform:register-vclusters`** — currently broken. It calls
-  `vcluster platform login --username admin`, but the CLI has never
-  supported `--username`/`--password` flags; it only accepts
-  `--access-key` (or interactive browser login). The task also targets
-  `https://platform.testdomain-riccap.it`, which doesn't resolve
-  locally. Fixing it requires accepting `PLATFORM_HOST` and
-  `PLATFORM_ACCESS_KEY` as inputs and installing the resulting
-  `vcluster-platform-api-key` Secret in each `participant-*` namespace.
-  Until then, Platform registration is an out-of-band manual step on
-  ArubaCloud, and the `VirtualClusterInstance` composed by the
-  Composition stays in `phase: Pending` with
-  `Condition SpaceSynced is missing` — including locally, which makes
-  XDeveloperEnvironments report `Ready=False` in a local vind test even when
-  everything else reconciles cleanly.
+The `XDeveloperEnvironment` Composition writes Loft `User` /
+`VirtualClusterInstance` / password Secret resources per pair — that's
+the Platform-side registration. What it does *not* write is the
+`vcluster-platform-api-key` Secret each participant vcluster's syncer
+needs to phone home to Platform. Without it, the VCI stays
+`phase: Pending` with `Condition SpaceSynced is missing`.
+
+Provision that credential with:
+
+```
+PLATFORM_ACCESS_KEY=<key> task platform:register-vclusters
+```
+
+Generate the access key in the Platform UI: Profile → Access Keys →
+Create. Override `PLATFORM_HOST`, `PLATFORM_PROJECT`, or
+`PLATFORM_INSECURE` if your environment differs from the Aruba
+defaults. Re-running is safe (Secret is replaced in place; affected
+StatefulSets are restarted so the syncer remounts the populated
+volume).
 
 ## Out of scope
 
