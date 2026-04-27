@@ -39,6 +39,7 @@ helm repo update upbound-stable
 
 ```bash
 helm install crossplane upbound-stable/crossplane \
+  --version 2.2.0-up.5 \
   --namespace crossplane-system \
   --create-namespace \
   --devel \
@@ -46,7 +47,7 @@ helm install crossplane upbound-stable/crossplane \
   --set webui.enabled=true
 ```
 
-`--wait` makes Helm block until the Crossplane Deployments are Available. On a workshop-sized cluster this usually takes 30–60 seconds. `webui.enabled=true` turns on the read-only Web UI you'll use in the optional step below.
+`--version 2.2.0-up.5` pins the chart to the same revision the workshop's GitOps cluster runs (see `gitops/apps/crossplane.yaml`) — without it, Helm picks the latest available, which has drifted past what the modules were authored against. `--devel` is required because the `-up.5` suffix is a SemVer pre-release tag that Helm otherwise filters out. `--wait` makes Helm block until the Crossplane Deployments are Available. On a workshop-sized cluster this usually takes 30–60 seconds. `webui.enabled=true` turns on the read-only Web UI you'll use in the optional step below.
 
 ### 3. Verify the pods
 
