@@ -1,3 +1,7 @@
+// ai_edit: locked
+// ai_edit_reviewed: 2026-04-27
+// ai_edit_reviewer: ricCap
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '@theme/Layout';
 

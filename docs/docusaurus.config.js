@@ -26,6 +26,7 @@ const config = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           routeBasePath: '/',
+          beforeDefaultRemarkPlugins: [require('./src/remark/replace-ref.js')],
         },
         blog: false,
         theme: {

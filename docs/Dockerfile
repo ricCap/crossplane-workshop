@@ -8,8 +8,13 @@ COPY package.json package-lock.json* ./
 
 RUN npm ci
 
-# Copy the rest of the source and build
+# Copy the rest of the source and build. WORKSHOP_REF pins the git ref that
+# `{{REF}}` placeholders in MDX code blocks resolve to (see
+# `src/remark/replace-ref.js`). The CI workflow passes the tag name on a
+# `vX.Y.Z` build; defaults to `main` for branch builds and local docker build.
 COPY . .
+ARG WORKSHOP_REF=main
+ENV WORKSHOP_REF=${WORKSHOP_REF}
 RUN npm run build
 
 # Stage 2 — serve via nginx
