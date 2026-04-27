@@ -13,23 +13,26 @@ The binding contract between instructor and authoring assistant for workshop-wid
 
 ## Module structure (the workshop's own shape)
 
-The workshop sidebar is:
+The workshop sidebar groups core 101 content and the choose-your-own-adventure tracks into Docusaurus collapsible categories. Top-level numbered files set ordering; categories use `_category_.json` for the label.
 
-| # | Slug | Kind | ⏱️ | Summary |
-|---|---|---|---|---|
-| 00 | `intro` | content | 5m | Welcome, workshop structure, how validation works, interactive pair-id entry + "prove your cluster is reachable" check |
-| 01 | `cheatsheet` | reference | — | Kubernetes cheat sheet, tools, Crossplane terminology, v1 vs v2, Crossplane vs UXP |
-| 02 | `connect-to-cluster` | task | 10m | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
-| 03 | `install-crossplane` | task | 15m | UXP v2 via Helm; optional 3.4 post-task: port-forward the Web UI |
-| 04 | `providers-and-first-mr` | task | 20m | Install `provider-kubernetes`, create one MR directly, observe reconciliation |
-| 05 | `define-application` | task | 40m | Namespaced XRD + Composition (using composition functions) for `Application`, apply a first XR |
-| 06 | `modify-application` | task | 20m | Change the Composition; observe the downstream change |
-| 07 | `wrap-up` | content | 5m | What you built, where to go next, feedback link |
-| — | `solo-local-setup` | reference | — | Laptop (k3d) fallback, not numbered in the sidebar |
+| Path | Kind | ⏱️ | Summary |
+|---|---|---|---|
+| `00-intro.mdx` | content | 5m | Welcome, workshop structure, how validation works, interactive pair-id entry + "prove your cluster is reachable" check |
+| `01-cheatsheet.mdx` | reference | — | Kubernetes cheat sheet, tools, Crossplane terminology, v1 vs v2, Crossplane vs UXP |
+| `02-connect-to-cluster.mdx` | task | 10m | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
+| `04-crossplane-101/` | category | — | The guided core path — every pair completes this before branching |
+| &nbsp;&nbsp;`01-install-crossplane.mdx` | task | 15m | UXP v2 via Helm; optional 3.3 post-task: port-forward the Web UI |
+| &nbsp;&nbsp;`02-providers-and-first-mr.mdx` | task | 20m | Install `provider-kubernetes`, create one MR directly, observe reconciliation |
+| &nbsp;&nbsp;`03-define-application.mdx` | task | 40m | Namespaced XRD + Composition (using composition functions) for `Application`, apply a first XR |
+| &nbsp;&nbsp;`04-modify-application.mdx` | task | 20m | Change the Composition; observe the downstream change |
+| `05-crossplane-2xx/` | category | — | Choose-your-own-adventure: extra providers, contrib functions, OCI publishing — mix of guided and open-ended |
+| `06-crossplane-3xx/` | category | — | Medium-difficulty pointer-driven tasks: cloud providers, secrets stack, status functions |
+| `07-crossplane-4xx/` | category | — | Advanced threads: Upjet provider generation, v1→v2 upgrades — mostly upstream-doc pointers |
+| `08-journeys/` | category | — | Cross-cutting suggestion threads (microservice templates, infra mgmt, process automation) — not tasks themselves |
+| `90-wrap-up.mdx` | content | 5m | What you built, where to go next, feedback link |
+| `99-solo-local-setup.mdx` | reference | — | Laptop (k3d) fallback, not part of the paired flow |
 
 The "gotcha reveal" (the participant cluster is itself composed by Crossplane) lives in **instructor slides only** — not in the docs. Mention of substrate implementation (vcluster, k3s, etc.) in paired-path modules is prohibited.
-
-"201 / 301" medium-and-advanced choose-your-own-adventure tracks are planned follow-ups, not in scope for the core module rewrite.
 
 ## Voice and tone
 
@@ -72,20 +75,22 @@ One screen max. If the material is longer, split into subsections numbered `## <
 ```mdx
 ---
 sidebar_position: <N>
-title: <N>. <Title>
+title: <Title>
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Module <N> — <Title>
+# <Title>
 
 <PairId />
 ```
 
-Only import components the module actually uses. If the module doesn't have a validator check (intro, cheatsheet, wrap-up), drop the `ValidateCheck` import.
+Only import components the module actually uses. If the module doesn't have a validator check (intro, cheatsheet, wrap-up, category overviews), drop the `ValidateCheck` import. Same for `PairId` on non-task pages.
 
-`sidebar_position` matches the module number (00 = 1, 01 = 2, …). Verify against existing files under `docs/docs/` before committing.
+`sidebar_position` is the **global ordinal** across the whole sidebar — sum across categories. Verify against the existing files under `docs/docs/` before committing; the existing 101 modules are the cleanest reference.
+
+Titles do **not** carry numeric prefixes. The collapsible category provides the visual grouping; the H1 matches `title:` exactly. Don't write `# 3. Install Crossplane` or `# 201. Deploy a Database` — write `# Install Crossplane` and `# Deploy a Database`.
 
 ### Section numbering
 
@@ -130,9 +135,68 @@ Every `check` referenced in a module **must** exist in three places in `validato
 
 When a module introduces a new check, propose the Go stub for `validator/checks.go` in the same PR. Do not ship a module that references a `check` not yet in the registry — the check button will silently return "unknown check".
 
+## Sectional categories (2XX / 3XX / 4XX / Journeys)
+
+Beyond Crossplane 101, the workshop offers four collapsible categories for participants who finish 101 and want to branch. Each is a directory under `docs/docs/` with a `_category_.json` and one or more MDX modules numbered `01-`, `02-`, … inside. Filenames inside categories restart at `01-`, **just like 101**.
+
+The "201 / 202 / 301 / …" task numbering used in the source-of-truth Notion page is an **informal task ID**, not a display string. Don't put it in titles, file prefixes, or `sidebar_position`. The collapsible category provides the visual grouping; the title is bare.
+
+### Section purpose
+
+| Category | Audience | Shape |
+|---|---|---|
+| `05-crossplane-2xx` | Pairs done with 101, varied confidence levels | Mix of guided and open-ended tasks. Beginners pick guided; confident pairs pick open-ended. Each task is a normal task module with a validator check where one is feasible. |
+| `06-crossplane-3xx` | Pairs comfortable with providers + compositions | Pointer-driven: a pre-task framing the problem, a "Hints" subsection with bullets and links, no step-by-step. Validator check optional — many of these are exploratory and don't have a clean check. |
+| `07-crossplane-4xx` | Pairs ready for advanced material | "Here's the topic; here are the upstream docs" prompts (Upjet provider generation, v1→v2 upgrades). Participants chart their own course. No validator check expected. |
+| `08-journeys` | Pairs who want a real-world scenario | Cross-cutting suggestion threads — see the Journeys section below. |
+
+### Stub modules
+
+While a section's content isn't authored yet, ship a single overview MDX with the section's purpose, a "Coming soon" admonition, and an optional teaser bullet list of planned tasks. Stubs **do not** carry `<PairId />`, `<ValidateCheck />`, or a `⏱️` estimate — those are reserved for real task modules.
+
+```mdx
+---
+sidebar_position: <N>
+title: <Section name>
+---
+
+# <Section name>
+
+<one-line description of what this section will hold>
+
+:::note Coming soon
+This section is a placeholder. The full task list is being authored.
+:::
+```
+
+## Guided vs open-ended tasks
+
+The 2XX category mixes two task shapes. The shape is signalled by an optional `(Guided)` prefix in the title and H1.
+
+- **`(Guided)` tasks.** Title: `# (Guided) Deploy a Database`. Full step-by-step substeps with copy-pasteable blocks and expected output, exactly like a 101 task. End with a `<ValidateCheck>`. Recommended slot for beginners and pairs who want a smooth path.
+- **Open-ended tasks.** Title with no prefix: `# Compose with crossplane-contrib functions`. Replace the substeps section with a `## Hints` subsection — a bullet list of pointers, links to upstream docs, and the rough shape of the answer. Validator check only if a meaningful end state can be checked; otherwise drop it and label the section accordingly.
+
+Pre-task and post-task structure is unchanged for both shapes. The difference is granularity in the middle: guided tasks tell participants exactly what to type; open-ended tasks tell them what to discover.
+
+## Journeys
+
+Journeys are **cross-cutting suggestion threads** for pairs who want a coherent real-world scenario rather than a single task. A journey module **is not itself a task**: no validator check, no time estimate, no `<PairId />`. It frames a scenario and links out to the 2XX/3XX/4XX tasks the participants would compose to build it.
+
+Three journeys are planned:
+
+- **Microservice templates.** Design an IDP where developers request an "Application" and get an opinionated golden path (database, Git repo, CI).
+- **Infrastructure management.** Stand up a landing zone in the cloud — VPC, subnet, security group — using e.g. the Aruba provider.
+- **Process automation.** Use `provider-http` `DisposableRequest` to poll endpoints until conditions are met, with `function-status-transformer` reporting status.
+
+A journey module's body is short: 1–2 paragraphs of scenario, then a "Suggested tasks" list linking to relevant entries in 2XX/3XX/4XX. Keep it under one screen. When the linked tasks don't exist yet, leave the journey as a stub with a "Coming soon" admonition.
+
 ## Rules added during authoring
 
-*(Empty at the start of the rewrite. Append concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
+### Sectional categories scaffolded ahead of content (2026-04-27)
+
+Decided to ship `05-crossplane-2xx`, `06-crossplane-3xx`, `07-crossplane-4xx`, and `08-journeys` as collapsible-category stubs **before** the task content is finalized. *Because:* the instructor's content guideline calls for a choose-your-own-adventure shape, and reserving the categories now lets future task PRs slot in without renumbering or sidebar churn. Wrap-up moved from `07` to `90` for the same reason — leaves room between `08-journeys` and the wrap-up.
+
+*(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--
 Example of what an added rule looks like:
