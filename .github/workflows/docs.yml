@@ -65,12 +65,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # On a tag push (vX.Y.Z) we bake WORKSHOP_REF=vX.Y.Z into the build so
+      # the docs site's `{{REF}}` placeholders resolve to the matching git tag
+      # (e.g. raw.githubusercontent.com/.../vX.Y.Z/...). On branch / PR builds
+      # the arg defaults to `main` via the Dockerfile.
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
         with:
           context: docs
           platforms: ${{ matrix.platform }}
+          build-args: |
+            WORKSHOP_REF=${{ github.ref_type == 'tag' && github.ref_name || 'main' }}
           outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || '' }}
           cache-from: type=gha,scope=docs-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=docs-${{ env.PLATFORM_PAIR }}

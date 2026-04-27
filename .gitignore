@@ -1,8 +1,11 @@
-# Ignore agent-transient state under .claude/ (worktrees, local settings,
-# session caches), but track shared project skills so contributors get them
-# automatically when they clone the repo.
+# Ignore agent-transient state under .claude/ (worktrees, per-machine
+# settings.local.json, session caches), but track shared project config
+# so contributors get the same skills, hooks, and project-level
+# settings.json automatically when they clone the repo.
 .claude/*
 !.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
 .DS_Store
 *.swp
 *.swo

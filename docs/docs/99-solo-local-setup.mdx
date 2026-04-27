@@ -1,6 +1,9 @@
 ---
 sidebar_position: 9
 title: Solo local setup (k3d)
+ai_edit: locked
+ai_edit_reviewed: 2026-04-27
+ai_edit_reviewer: ricCap
 ---
 
 # Running the workshop on your own laptop
@@ -13,10 +16,13 @@ You do not need to clone this repo. Every manifest is fetched from public URLs; 
 
 | Tool | Install hint |
 |---|---|
-| [Docker](https://docs.docker.com/get-docker/) | `brew install --cask docker` on macOS |
+| [Docker](https://docs.docker.com/get-docker/) | `brew install --cask docker` on macOS (or better, Docker Desktop)|
 | [kubectl](https://kubernetes.io/docs/tasks/tools/) | `brew install kubernetes-cli` |
 | [helm](https://helm.sh/docs/intro/install/) | `brew install helm` |
 | [k3d](https://k3d.io/#installation) | `brew install k3d` |
+
+> You can use any local kubernetes installation (minikube/kind/...). Just beware of load balancer conflicts.
+
 
 That's it. Crossplane is not a prerequisite — installing it is the first module of Crossplane 101.
 
@@ -43,10 +49,14 @@ helm install eg oci://docker.io/envoyproxy/gateway-helm \
 
 ## 3. Install the docs + wall + validator
 
-One `kubectl apply` installs the Docusaurus site (this one), the validator sidecar, a `Gateway` listener on port 80, and the HTTPRoutes that expose `/` → docs, `/team/local/` → the frontend you'll create in the Define-an-Application module, and `/team/local/api/` → its backend:
+One `kubectl apply` installs:
+1. the Docusaurus site (this one)
+2. the validator sidecar
+3. a `Gateway` listener on port 80
+4. an HTTPRoutes that expose `/` → docs, `/team/local/` → the frontend you'll create in the Define-an-Application module, and `/team/local/api/` → its backend
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/main/gitops/solo/all.yaml
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml
 ```
 
 Wait for the docs pod to come up:
@@ -57,7 +67,7 @@ kubectl wait --for=condition=Available deploy/docs -n docs --timeout=180s
 
 ## 4. Open the workshop
 
-Visit [http://localhost:8080/](http://localhost:8080/). You should land on the same page you're reading now, served from your k3d cluster. Open the [wall](/wall) in a second tab — it'll show a single tile for the synthetic `local` pair, with all checks red until you finish the workshop modules.
+Visit [http://localhost:8080/](http://localhost:8080/). You should land on the same page you're reading now, served from your k3d cluster.
 
 ## 5. Do the modules
 

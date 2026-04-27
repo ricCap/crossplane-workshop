@@ -72,6 +72,39 @@ It's a **living document**. After authoring or reviewing a module, if a style de
 
 When the modules and the style guide disagree, the modules win — fix the guide, not the modules.
 
+### AI-edit lock
+
+Some files are human-reviewed and authoritative — the author has signed off on them and does not want AI to touch them without explicit, per-edit consent. They carry an `ai_edit: locked` marker, alongside `ai_edit_reviewed: <YYYY-MM-DD>` and `ai_edit_reviewer: <handle>` for provenance.
+
+For MDX, the marker lives in frontmatter:
+
+```yaml
+---
+sidebar_position: 9
+title: Solo local setup (k3d)
+ai_edit: locked
+ai_edit_reviewed: 2026-04-27
+ai_edit_reviewer: ricCap
+---
+```
+
+For source files (JSX/TSX/JS/TS/CSS/HTML/YAML/shell/Python/Go), the marker is a top-of-file comment within the first 15 lines — the comment opener (`//`, `#`, or `<!--` … `-->`) is part of the regex so the hook doesn't false-positive on prose mentions deeper in the file:
+
+```jsx
+// ai_edit: locked
+// ai_edit_reviewed: 2026-04-27
+// ai_edit_reviewer: ricCap
+
+import React from 'react';
+```
+
+Behaviour rules:
+
+- **Default: don't edit locked pages.** When a sweep, refactor, or "fix typos" task would touch one, skip it and tell the user which page was skipped and why. Sweeping consent ("update the docs") is not consent to touch locked pages — ask explicitly.
+- **One-edit consent.** If the user agrees to a specific edit on a locked page, the durable path is to bump the frontmatter to `ai_edit: ask` (or remove it) as a separate, user-approved edit so the decision lands in git history. The one-shot escape hatch is `AI_EDIT_BYPASS=1` in the env.
+- **The lock is enforced.** A `PreToolUse` hook ([`.claude/hooks/check-ai-edit-lock.sh`](.claude/hooks/check-ai-edit-lock.sh), wired in [`.claude/settings.json`](.claude/settings.json)) blocks `Edit`/`Write` on locked MDX files and returns the rules above to the agent. So this is not a polite request — it's a guardrail.
+- **What to lock.** Pages that have been carefully shaped by the instructor and where AI edits have caused regressions or drift in the past. Do *not* lock pages that are still being drafted; the lock is a contract that the page is finished.
+
 ## GitOps discipline
 
 Do not `kubectl apply` against the management cluster outside the documented bootstrap tasks. Once `task bootstrap:all` has run, ArgoCD owns cluster state — out-of-band changes will be reverted by `selfHeal: true`.
@@ -103,7 +136,7 @@ To cut a new release:
 
 1. Pick a version. Both images share one `vX.Y.Z`.
 2. Create a [GitHub Release](https://github.com/ricCap/crossplane-workshop/releases/new) targeting `main`. Set the tag to `vX.Y.Z` (let GitHub create it), fill in release notes, publish. Equivalent CLI: `gh release create v0.2.0 --target main --generate-notes`.
-3. Watch the two GitHub Actions runs ("Build and push docs image", "Build and push validator image") finish on the tag. They will publish `:v0.2.0` and `:sha-<commit>` for both images and **leave `:latest` alone**.
+3. Watch the two GitHub Actions runs ("Build and push docs image", "Build and push validator image") finish on the tag. They will publish `:v0.2.0` and `:sha-<commit>` for both images and **leave `:latest` alone**. The docs image build automatically bakes `WORKSHOP_REF=v0.2.0` into the static site (via [`docs/src/remark/replace-ref.js`](docs/src/remark/replace-ref.js)) so `{{REF}}` placeholders in MDX code blocks (e.g. the solo-setup `kubectl apply` URL) point at the tagged manifests, not `main`. **Sweep new MDX for any `…/main/…` URLs you should have written as `…/{{REF}}/…`** before cutting a release — the substitution only fires on the placeholder.
 4. Open a PR bumping the two `image:` tags in `gitops/docs/deployment.yaml` from the previous version to `v0.2.0`. Merge.
 5. ArgoCD on Aruba syncs the Deployment within a few minutes. Verify:
    ```

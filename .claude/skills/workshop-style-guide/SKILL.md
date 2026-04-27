@@ -88,6 +88,34 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 Only import components the module actually uses. If the module doesn't have a validator check (intro, cheatsheet, wrap-up, category overviews), drop the `ValidateCheck` import. Same for `PairId` on non-task pages.
 
+### AI-edit lock
+
+A page that the instructor has finished and signed off on can carry an `ai_edit: locked` field in its frontmatter:
+
+```mdx
+---
+sidebar_position: 9
+title: Solo local setup (k3d)
+ai_edit: locked
+ai_edit_reviewed: 2026-04-27
+ai_edit_reviewer: ricCap
+---
+```
+
+Locked pages are **off-limits to AI edits without explicit per-edit consent from the user.** A `PreToolUse` hook (`.claude/hooks/check-ai-edit-lock.sh`) blocks `Edit`/`Write` on locked files. The same lock convention covers React pages and other source files — for `.jsx`/`.tsx`/etc. the marker is a top-of-file comment block (`// ai_edit: locked` etc.) within the first 15 lines instead of frontmatter. Sweeping permissions ("clean up the docs") do not extend to locked pages — skip them and tell the user which were skipped. The durable consent pattern is to flip the marker to `ai_edit: ask` (or remove it) in a separate user-approved edit, so the decision lands in git. See AGENTS.md §AI-edit lock for the full rules.
+
+Do not lock pages that are still being drafted. The lock is a contract that the page is finished — applying it mid-draft creates friction without value.
+
+### Pinning git refs in code blocks
+
+URLs in fenced code blocks that point at this repo's `raw.githubusercontent.com` paths must use the placeholder `{{REF}}` instead of a hard-coded `main` or `vX.Y.Z`. Example:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml
+```
+
+The remark plugin at [`docs/src/remark/replace-ref.js`](docs/src/remark/replace-ref.js) substitutes `{{REF}}` at build time: snapshotted versioned docs get the snapshot's tag; everything else gets `process.env.WORKSHOP_REF` (set to the tag name on release builds, defaulted to `main`). Keep the placeholder; do not pre-substitute.
+
 `sidebar_position` is the **global ordinal** across the whole sidebar — sum across categories. Verify against the existing files under `docs/docs/` before committing; the existing 101 modules are the cleanest reference.
 
 Titles do **not** carry numeric prefixes. The collapsible category provides the visual grouping; the H1 matches `title:` exactly. Don't write `# 3. Install Crossplane` or `# 201. Deploy a Database` — write `# Install Crossplane` and `# Deploy a Database`.
