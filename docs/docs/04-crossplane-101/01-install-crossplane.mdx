@@ -6,7 +6,7 @@ title: Install Crossplane
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Install Crossplane ⏱️ 15 min
+# Install Crossplane ⏱️ 15m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same cluster, same commands — nothing changes in this module for the solo path. See [Solo local setup (k3d)](../solo-local-setup) for background.
 :::
 
-## 3.1 Before you start ⏱️ 3 min
+## 3.1 Before you start ⏱️ 3m
 
 [Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes controller that manages external APIs — cloud providers, other Kubernetes clusters, SaaS products — through Kubernetes resources you apply with `kubectl`. After this module Crossplane itself will be running in your cluster, ready for a provider.
 
@@ -26,7 +26,7 @@ UXP v2 releases are tagged like `2.2.0-up.5`, which Helm treats as pre-release. 
 
 You're about to: add a Helm repo, install the chart, and verify the `crossplane` Deployment is Available.
 
-## 3.2 Install the Helm chart ⏱️ 7 min
+## 3.2 Install the Helm chart ⏱️ 7m
 
 ### 1. Add the Upbound Helm repo
 
@@ -81,7 +81,7 @@ A transient restart or two on `crossplane-apollo` during install is normal — i
 
 When the tile turns green, Crossplane is running and you're ready for module 4.
 
-## 3.3 (Optional) Open the Web UI ⏱️ 5 min
+## 3.3 (Optional) Open the Web UI ⏱️ 5m
 
 The Web UI shows every Crossplane object in your cluster — Providers, XRDs, Compositions, XRs, and managed resources — in a tree you can click through. It's handy while you're learning; it's not required.
 

@@ -6,7 +6,7 @@ title: Connect to your cluster
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Connect to your cluster ⏱️ 10 min
+# Connect to your cluster ⏱️ 10m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Your kubeconfig already points at your k3d cluster and your pair ID is `local`. Skip straight to the [`hello` pod step](#23-smoke-test-apply-a-hello-pod). See [Solo local setup (k3d)](./solo-local-setup) if you haven't set it up yet.
 :::
 
-## 2.1 Before you start ⏱️ 2 min
+## 2.1 Before you start ⏱️ 2m
 
 `kubectl` talks to *a* cluster — whichever cluster is described by the **kubeconfig** your shell currently points at. For the next five modules, every command needs to land in your workshop cluster, not in some other cluster you might have configured on your machine.
 
@@ -22,7 +22,7 @@ A kubeconfig is just a YAML file with the cluster's address, a certificate, and 
 
 You're about to: download a kubeconfig, export it, and apply a `hello` pod.
 
-## 2.2 Load your kubeconfig ⏱️ 5 min
+## 2.2 Load your kubeconfig ⏱️ 5m
 
 ### 1. Download the kubeconfig file
 
@@ -55,7 +55,7 @@ brew install kubectx k9s helm      # macOS / Linuxbrew
 
 Windows / plain Linux install links are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
-## 2.3 Smoke test — apply a `hello` pod ⏱️ 3 min {#23-smoke-test-apply-a-hello-pod}
+## 2.3 Smoke test — apply a `hello` pod ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
 
 Apply a one-container Pod so the validator has something concrete to confirm your `kubectl apply` pipeline actually writes to the cluster.
 
