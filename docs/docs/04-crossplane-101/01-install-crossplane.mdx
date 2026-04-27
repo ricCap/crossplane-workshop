@@ -1,24 +1,24 @@
 ---
 sidebar_position: 4
-title: 3. Install Crossplane
+title: Install Crossplane
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Module 3 — Install Crossplane ⏱️ 15 min
+# Install Crossplane ⏱️ 15m
 
 <PairId />
 
 :::note Running solo locally?
-Same cluster, same commands — nothing changes in this module for the solo path. See [Solo local setup (k3d)](./solo-local-setup) for background.
+Same cluster, same commands — nothing changes in this module for the solo path. See [Solo local setup (k3d)](../solo-local-setup) for background.
 :::
 
-## 3.1 Before you start ⏱️ 3 min
+## 3.1 Before you start ⏱️ 3m
 
 [Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes controller that manages external APIs — cloud providers, other Kubernetes clusters, SaaS products — through Kubernetes resources you apply with `kubectl`. After this module Crossplane itself will be running in your cluster, ready for a provider.
 
-You'll install **UXP v2** (Upbound's distribution of Crossplane) via its Helm chart. UXP is Crossplane with a bundled read-only [Web UI](https://docs.upbound.io) — everything you learn transfers one-for-one to upstream Crossplane. See the [Cheatsheet §1.3](./cheatsheet#crossplane-vs-uxp) for the full comparison.
+You'll install **UXP v2** (Upbound's distribution of Crossplane) via its Helm chart. UXP is Crossplane with a bundled read-only [Web UI](https://docs.upbound.io) — everything you learn transfers one-for-one to upstream Crossplane. See the [Cheatsheet §1.3](../cheatsheet#crossplane-vs-uxp) for the full comparison.
 
 :::info Why `--devel`?
 UXP v2 releases are tagged like `2.2.0-up.5`, which Helm treats as pre-release. The `--devel` flag is what tells Helm "install pre-release versions too". It's not actually pre-release code — it's the stable UXP v2 line.
@@ -26,7 +26,7 @@ UXP v2 releases are tagged like `2.2.0-up.5`, which Helm treats as pre-release. 
 
 You're about to: add a Helm repo, install the chart, and verify the `crossplane` Deployment is Available.
 
-## 3.2 Install the Helm chart ⏱️ 7 min
+## 3.2 Install the Helm chart ⏱️ 7m
 
 ### 1. Add the Upbound Helm repo
 
@@ -73,7 +73,7 @@ Five pods come up for a UXP v2 install:
 - **`upbound-controller-manager`** — UXP's control-plane orchestrator (sibling to `apollo`). Same story: extra in local use, required for the Upbound cloud integration you won't exercise here.
 - **`webui`** — the read-only dashboard enabled by `webui.enabled=true`.
 
-If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplane-rbac-manager` would appear. The three extra pods are what "UXP" bundles on top; see the [Cheatsheet §1.3 comparison](./cheatsheet#crossplane-vs-uxp).
+If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplane-rbac-manager` would appear. The three extra pods are what "UXP" bundles on top; see the [Cheatsheet §1.3 comparison](../cheatsheet#crossplane-vs-uxp).
 
 A transient restart or two on `crossplane-apollo` during install is normal — it waits on CRDs the core controller is still registering.
 
@@ -81,7 +81,7 @@ A transient restart or two on `crossplane-apollo` during install is normal — i
 
 When the tile turns green, Crossplane is running and you're ready for module 4.
 
-## 3.3 (Optional) Open the Web UI ⏱️ 5 min
+## 3.3 (Optional) Open the Web UI ⏱️ 5m
 
 The Web UI shows every Crossplane object in your cluster — Providers, XRDs, Compositions, XRs, and managed resources — in a tree you can click through. It's handy while you're learning; it's not required.
 

@@ -17,14 +17,14 @@ The workshop sidebar is:
 
 | # | Slug | Kind | ⏱️ | Summary |
 |---|---|---|---|---|
-| 00 | `intro` | content | 5 min | Welcome, workshop structure, how validation works, interactive pair-id entry + "prove your cluster is reachable" check |
+| 00 | `intro` | content | 5m | Welcome, workshop structure, how validation works, interactive pair-id entry + "prove your cluster is reachable" check |
 | 01 | `cheatsheet` | reference | — | Kubernetes cheat sheet, tools, Crossplane terminology, v1 vs v2, Crossplane vs UXP |
-| 02 | `connect-to-cluster` | task | 10 min | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
-| 03 | `install-crossplane` | task | 15 min | UXP v2 via Helm; optional 3.4 post-task: port-forward the Web UI |
-| 04 | `providers-and-first-mr` | task | 20 min | Install `provider-kubernetes`, create one MR directly, observe reconciliation |
-| 05 | `define-application` | task | 40 min | Namespaced XRD + Composition (using composition functions) for `Application`, apply a first XR |
-| 06 | `modify-application` | task | 20 min | Change the Composition; observe the downstream change |
-| 07 | `wrap-up` | content | 5 min | What you built, where to go next, feedback link |
+| 02 | `connect-to-cluster` | task | 10m | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
+| 03 | `install-crossplane` | task | 15m | UXP v2 via Helm; optional 3.4 post-task: port-forward the Web UI |
+| 04 | `providers-and-first-mr` | task | 20m | Install `provider-kubernetes`, create one MR directly, observe reconciliation |
+| 05 | `define-application` | task | 40m | Namespaced XRD + Composition (using composition functions) for `Application`, apply a first XR |
+| 06 | `modify-application` | task | 20m | Change the Composition; observe the downstream change |
+| 07 | `wrap-up` | content | 5m | What you built, where to go next, feedback link |
 | — | `solo-local-setup` | reference | — | Laptop (k3d) fallback, not numbered in the sidebar |
 
 The "gotcha reveal" (the participant cluster is itself composed by Crossplane) lives in **instructor slides only** — not in the docs. Mention of substrate implementation (vcluster, k3s, etc.) in paired-path modules is prohibited.
@@ -45,10 +45,10 @@ Every content section is either **content** (reference, concepts) or **task** (t
 
 ### Time estimate
 
-Every section heading carries a time estimate:
+Every section heading carries a time estimate. Format is `⏱️ <integer><unit>` with no space between the number and unit, and the unit abbreviated to a single lowercase letter — `m` for minutes, `h` for hours. No `min`, no `mins`, no `5 minutes`.
 
 ```mdx
-## 3.1 Install the chart ⏱️ 5 min
+## 3.1 Install the chart ⏱️ 5m
 ```
 
 Estimate total workshop time by summing the `⏱️` values across task sections. Content sections and the cheatsheet have no estimate.

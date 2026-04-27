@@ -1,22 +1,22 @@
 ---
 sidebar_position: 5
-title: 4. Providers & your first managed resource
+title: Providers & your first managed resource
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Module 4 — Providers & your first managed resource ⏱️ 20 min
+# Providers & your first managed resource ⏱️ 20m
 
 <PairId />
 
 :::note Running solo locally?
-Same commands, same cluster. See [Solo local setup (k3d)](./solo-local-setup).
+Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
-## 4.1 Before you start ⏱️ 3 min
+## 4.1 Before you start ⏱️ 3m
 
-Crossplane on its own knows nothing about any particular API. **Providers** extend Crossplane with support for a specific set of resources — AWS, GCP, Helm, Kubernetes, and so on. See [Cheatsheet §1.3](./cheatsheet#core-objects) for the definitions.
+Crossplane on its own knows nothing about any particular API. **Providers** extend Crossplane with support for a specific set of resources — AWS, GCP, Helm, Kubernetes, and so on. See [Cheatsheet §1.3](../cheatsheet#core-objects) for the definitions.
 
 In this module you'll install [`provider-kubernetes`](https://github.com/crossplane-contrib/provider-kubernetes), the provider that lets Crossplane create any Kubernetes object in any target cluster. Then you'll create one **managed resource (MR)** directly — a `ConfigMap` — and watch Crossplane reconcile it.
 
@@ -24,7 +24,7 @@ Why a single MR before the XRD + Composition work in module 5? Because compositi
 
 You're about to: install a provider, grant it permissions, give it a ProviderConfig, and apply one MR.
 
-## 4.2 Install the provider ⏱️ 8 min
+## 4.2 Install the provider ⏱️ 8m
 
 ### 1. Apply the `Provider` manifest
 
@@ -69,7 +69,7 @@ You're binding `cluster-admin` on purpose. In modules 5 and 6 you'll create new 
 
 ### 3. Apply a `ClusterProviderConfig`
 
-A [ProviderConfig](./cheatsheet#core-objects) tells `provider-kubernetes` which Kubernetes API to talk to. The simplest — and the right choice for acting on the same cluster — is `InjectedIdentity`: the provider uses its own in-cluster ServiceAccount token.
+A [ProviderConfig](../cheatsheet#core-objects) tells `provider-kubernetes` which Kubernetes API to talk to. The simplest — and the right choice for acting on the same cluster — is `InjectedIdentity`: the provider uses its own in-cluster ServiceAccount token.
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -91,7 +91,7 @@ The name `default` matters for module 5: the Composition's resources reference i
 
 When the tile turns green, the provider is installed, permissioned, and configured. Move on to your first MR.
 
-## 4.3 Your first managed resource ⏱️ 7 min
+## 4.3 Your first managed resource ⏱️ 7m
 
 ### 1. What you're about to create
 

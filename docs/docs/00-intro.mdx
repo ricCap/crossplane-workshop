@@ -7,28 +7,28 @@ title: Introduction
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Welcome to the Crossplane workshop ⏱️ 5 min
+# Welcome to the Crossplane workshop ⏱️ 5m
 
 Over the next three hours you will install [Crossplane](https://crossplane.io), teach it how to manage Kubernetes resources, and use it to ship a small application. You'll walk away with a working mental model of Crossplane's core objects — Provider, XRD, Composition, Composite Resource — and a cluster you can keep experimenting in afterwards.
 
 ## How the workshop is structured
 
-The sidebar on the left lists the modules in reading order:
+The sidebar on the left lists the modules in reading order, grouped by phase:
 
-| # | Module | Kind | ⏱️ |
+| Section | Module | Kind | ⏱️ |
 |---|---|---|---|
-| 00 | Introduction | content | 5 min |
-| 01 | Cheatsheet | reference | — |
-| 02 | Connect to your cluster | task | 10 min |
-| 03 | Install Crossplane | task | 15 min |
-| 04 | Providers & your first managed resource | task | 20 min |
-| 05 | Define an Application | task | 40 min |
-| 06 | Modify your Application | task | 20 min |
-| 07 | Wrap-up | content | 5 min |
+| | Introduction | content | 5m |
+| | Cheatsheet | reference | — |
+| | Connect to your cluster | task | 10m |
+| Crossplane 101 | Install Crossplane | task | 15m |
+| Crossplane 101 | Providers & your first managed resource | task | 20m |
+| Crossplane 101 | Define an Application | task | 40m |
+| Crossplane 101 | Modify your Application | task | 20m |
+| | Wrap-up | content | 5m |
 
-Modules 02–06 are **task modules**: a short framing, then hands-on steps, then a validation check. Modules 00, 01, and 07 are **content modules**: read and move on.
+The **task modules** (Connect to your cluster, plus everything in Crossplane 101) follow the same rhythm: a short framing, then hands-on steps, then a validation check. The Introduction, Cheatsheet, and Wrap-up are **content modules**: read and move on.
 
-The **cheatsheet** (01) is a reference page. Keep it open in a second tab — it's the fastest way to look up what an XRD or a Composition is without leaving your current module.
+The **Cheatsheet** is a reference page. Keep it open in a second tab — it's the fastest way to look up what an XRD or a Composition is without leaving your current module.
 
 If you're running this on your own laptop outside the live workshop, jump to [Solo local setup (k3d)](./solo-local-setup) first.
 
@@ -48,7 +48,7 @@ The button below runs your first check. It asks the validator to list namespaces
 
 <ValidateCheck check="cluster-reachable" />
 
-If the tile turns green, you're ready for module 02. If it turns red, re-check the pair ID your instructor gave you and ask them to verify your cluster is up before you move on.
+If the tile turns green, you're ready for Connect to your cluster. If it turns red, re-check the pair ID your instructor gave you and ask them to verify your cluster is up before you move on.
 
 ## How to use the assistant
 
@@ -58,4 +58,4 @@ The assistant doesn't know the answers ahead of time. It reads your cluster stat
 
 ## Ready?
 
-Open [Module 01 — Cheatsheet](./cheatsheet) in a second tab (you'll come back to it often) and then head to [Module 02 — Connect to your cluster](./connect-to-cluster).
+Open the [Cheatsheet](./cheatsheet) in a second tab (you'll come back to it often) and then head to [Connect to your cluster](./connect-to-cluster).
