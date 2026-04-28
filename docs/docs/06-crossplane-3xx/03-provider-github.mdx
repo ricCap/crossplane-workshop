@@ -13,14 +13,30 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 :::note Running solo locally?
 The pre-staged credential below only exists on the Aruba workshop
 cluster. On a local solo cluster (k3d, no vcluster, no operator-staged
-Secret), use your own GitHub credentials instead: create a
+Secret), use your own GitHub credentials instead. Create a
 [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
-scoped to your own account or an org you control, then create the
-Secret yourself:
+with these settings:
+
+- **Resource owner**: your own account, or an org you control
+- **Repository access**: "All repositories" (simplest) or pick the
+  specific repos you'll let Crossplane manage
+- **Repository permissions**: `Contents: Read and write`,
+  `Administration: Read and write`, `Metadata: Read-only` (auto-selected)
+- **Expiration**: whatever you're comfortable with; 7–30 days is plenty
+  for a workshop walkthrough
+
+`Administration: Read and write` is what lets the provider create and
+delete `Repository` resources; `Contents` covers everything inside them
+(branches, files, branch-protection rules). Without `Administration` the
+`Repository` MR will reconcile to `Synced=False` with a 403 from the
+GitHub API.
+
+Then create the Secret yourself, replacing `<your-pat>` with the token
+and `<owner>` with your GitHub username or org:
 
 ```bash
 kubectl -n crossplane-system create secret generic github-app-credentials \
-  --from-literal=credentials="{\"token\":\"<your-pat>\",\"owner\":\"<your-gh-username-or-org>\"}"
+  --from-literal=credentials='{"token":"<your-pat>","owner":"<owner>"}'
 ```
 
 The rest of the module works unchanged — you just won't be writing into
