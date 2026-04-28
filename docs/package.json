@@ -25,7 +25,11 @@
     "@docusaurus/types": "3.9.2"
   },
   "overrides": {
-    "webpackbar": "7.0.0"
+    "webpackbar": "7.0.0",
+    "postcss": "^8.5.10",
+    "serialize-javascript": "^7.0.5",
+    "follow-redirects": "^1.16.0",
+    "uuid": "^14.0.0"
   },
   "browserslist": {
     "production": [
