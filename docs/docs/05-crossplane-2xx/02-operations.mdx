@@ -1,0 +1,61 @@
+---
+sidebar_position: 2
+title: Crossplane Operations
+ai_edit: locked
+ai_edit_reviewed: 2026-04-28
+ai_edit_reviewer: ricCap
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Crossplane Operations
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 2.1 Before you start
+
+Everything you've done in 101 is **declarative**: you describe a desired state, and Crossplane reconciles toward it forever. [Operations](https://docs.crossplane.io/latest/operations/) flip that model — they run a [composition function](./../cheatsheet#core-objects) pipeline **imperatively**, to perform a one-off or recurring task that has a beginning and an end.
+
+There are three kinds: an `Operation` runs a pipeline once to completion, a `CronOperation` runs one on a schedule, and a `WatchOperation` runs one in response to changes on a watched resource.
+
+You're about to explore what each kind unlocks — no guided substeps, only pointers.
+
+## 2.2 What you can achieve
+
+- **Backups & retention.** Snapshot a database on a cadence and prune old snapshots — a `CronOperation`.
+- **Credential & certificate rotation.** Rotate a secret across every consumer that matches a label — an `Operation` triggered by you, or a `WatchOperation` triggered by an upstream change.
+- **Drift checks & validation.** Run an ad-hoc audit pipeline that reports configuration drift to status, without altering the resource — an `Operation` you re-run on demand.
+- **Batched rolling upgrades.** Walk a fleet through a controlled upgrade with health checks between batches — a `CronOperation` (or a chain of `Operation`s gated on status).
+
+## 2.3 Hints
+
+- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Re-run the install command from [module 3.1](../crossplane-101/install-crossplane) with the extra `args` value:
+
+  ```bash
+  helm upgrade --install crossplane upbound-stable/crossplane \
+    --version 2.2.0-up.5 \
+    --namespace crossplane-system --create-namespace \
+    --devel \
+    --set webui.enabled=true \
+    --set args='{"--enable-operations"}' \
+    --wait
+  ```
+
+  Until that flag is on, `Operation` / `CronOperation` / `WatchOperation` resources will sit unreconciled.
+- Read the three resource references end to end before authoring anything: [`Operation`](https://docs.crossplane.io/latest/operations/operation/), [`CronOperation`](https://docs.crossplane.io/latest/operations/cron-operation/), [`WatchOperation`](https://docs.crossplane.io/latest/operations/watch-operation/). Each ships a small worked example.
+- Operations reuse the same composition functions you encountered in module 3.4 — start by reading [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) and pick the simplest pipeline that produces the side effect you want.
+- Inspect what an Operation did with `kubectl get operations` and `kubectl describe operation <name>` — pipeline output and per-step conditions land on `.status`.
+
+## 2.4 After
+
+Operations let Crossplane own day-2 lifecycle work — not only the resources, but the procedures that act on them.
+
+**Go deeper:**
+
+- [Crossplane Operations overview](https://docs.crossplane.io/latest/operations/)
+- [`Operation` resource reference](https://docs.crossplane.io/latest/operations/operation/)
+- [Crossplane v2 release notes](https://docs.crossplane.io/latest/whats-new/)
