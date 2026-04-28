@@ -30,7 +30,7 @@ You're about to: edit the Composition in place, see the downstream ConfigMap upd
 kubectl edit composition applications.workshop.example.io
 ```
 
-Find the `frontend-configmap` resource (the first one under `spec.pipeline[0].input.resources`) and modify the HTML inside `base.spec.forProvider.manifest.data.index.html`.
+Find the `frontend-configmap` resource (the first one under `spec.pipeline[0].input.resources`) and modify the HTML inside `base.data.index.html`.
 
 ### 2. Pick at least one change
 
@@ -50,7 +50,7 @@ Save and exit the editor.
 
 ### 3. Watch Crossplane reconcile
 
-Crossplane reconciles immediately: the `Object` wrapping the ConfigMap is patched with the new content, and provider-kubernetes applies the change. Confirm:
+Crossplane reconciles immediately: the desired ConfigMap from the function's output is updated, and Crossplane core applies the patch in place. Confirm:
 
 ```bash
 kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | head -20
@@ -76,7 +76,7 @@ The check is still green because none of the conditions it watches have changed 
 
 ## 6.3 What just happened
 
-You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five managed resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
+You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
 
 ### Go deeper
 

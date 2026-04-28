@@ -22,8 +22,8 @@ The workshop sidebar groups core 101 content and the choose-your-own-adventure t
 | `02-connect-to-cluster.mdx` | task | 10m | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
 | `04-crossplane-101/` | category | — | The guided core path — every pair completes this before branching |
 | &nbsp;&nbsp;`01-install-crossplane.mdx` | task | 15m | UXP v2 via Helm; optional 3.3 post-task: port-forward the Web UI |
-| &nbsp;&nbsp;`02-providers-and-first-mr.mdx` | task | 20m | Install `provider-kubernetes`, create one MR directly, observe reconciliation |
-| &nbsp;&nbsp;`03-define-application.mdx` | task | 40m | Namespaced XRD + Composition (using composition functions) for `Application`, apply a first XR |
+| &nbsp;&nbsp;`02-first-composition.mdx` | task | 12m | Install `function-patch-and-transform`, define a tiny `Hello` XRD + Composition emitting a naked ConfigMap (no provider), apply one XR |
+| &nbsp;&nbsp;`03-define-application.mdx` | task | 30m | Namespaced XRD + Composition emitting naked frontend/backend Deployments + Services + ConfigMap, apply a first XR |
 | &nbsp;&nbsp;`04-modify-application.mdx` | task | 20m | Change the Composition; observe the downstream change |
 | `05-crossplane-2xx/` | category | — | Choose-your-own-adventure: extra providers, contrib functions, OCI publishing — mix of guided and open-ended |
 | `06-crossplane-3xx/` | category | — | Medium-difficulty pointer-driven tasks: cloud providers, secrets stack, status functions |
