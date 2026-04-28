@@ -18,15 +18,30 @@ Same cluster, same commands. Your tile at `/team/local/` will light up once the 
 
 This is the module where the workshop clicks together. You met the XRD-Composition-XR shape in [module 4](./first-composition) on a tiny `Hello` example — one XR fanned out into one ConfigMap. This module uses the same shape on something useful: a high-level `Application` kind that fans out into a frontend, a backend, and the ConfigMap that wires them together.
 
-The composition function from module 4 (`function-patch-and-transform`) is already installed. No new core-object types this module — but the Composition itself uses three function-pipeline mechanics worth naming up front.
+The composition function from module 4 (`function-patch-and-transform`) is already installed. No new core-object types this module — but the Composition itself uses three new pipeline mechanics. Here's the shape, abbreviated:
 
-### Composition mechanics introduced this module
+```yaml
+# inside spec.pipeline[0].input.resources, an array of any length:
+resources:
+  - name: backend-deployment       # internal label for this composed resource
+    base:                          # the resource template — naked native kind
+      apiVersion: apps/v1
+      kind: Deployment
+      ...
+    patches:                       # connect XR fields → this resource's fields
+      - type: CombineFromComposite # combine multiple XR fields via a format string
+        combine: { ... }
+        toFieldPath: spec.template.spec.containers[0].args[1]
+    readinessChecks:               # when does Crossplane mark this Ready?
+      - type: MatchCondition       # waits for Available=True (Deployments do this)
+        matchCondition: { ... }
+  - name: frontend-configmap
+    base: { ... }
+    readinessChecks:
+      - type: None                 # "Ready as soon as observed" (ConfigMaps, Services)
+```
 
-| Mechanic | What it does | The variant(s) you'll meet here |
-|---|---|---|
-| **Multi-resource `resources[]`** | A single Composition can emit any number of composed resources from one function step. Each entry has a `name` (Crossplane-internal label), a `base` (the resource template), optional `patches`, and `readinessChecks` | Five `resources[]` entries — frontend ConfigMap, frontend Deployment + Service, backend Deployment + Service |
-| **`patches`** | Field-level wiring between the XR's spec and the composed resource's spec. Each patch declares `fromFieldPath` and `toFieldPath`, and a `type` that says how the value is shaped | `FromCompositeFieldPath` (you saw this in module 4 — copy XR field into composed field). New here: `CombineFromComposite`, which formats multiple XR fields into one composed-resource field via a `printf`-style template |
-| **`readinessChecks`** | Tells `function-patch-and-transform` when to mark each composed resource Ready. Required — without it, P&T may hold a resource Pending forever if its kind doesn't publish a Ready condition | `type: None` (you used this in module 4 — "Ready as soon as observed", correct for ConfigMaps and Services). New here: `type: MatchCondition`, which waits for a specific condition like `Available=True` on a Deployment |
+You met `resources[]` (with one entry), `FromCompositeFieldPath` patches, and `readinessChecks: [- type: None]` in [module 4](./first-composition). New here: **multiple** `resources[]` entries, the **`CombineFromComposite`** patch type (formats multiple XR fields into one composed-resource field with a `printf`-style template), and **`MatchCondition`** readinessChecks (wait for a specific status condition rather than treating "observed" as Ready).
 
 You're about to: apply an XRD, apply a Composition that uses all three of these mechanics, apply one XR, and watch a working two-tier app materialize on your tile.
 
@@ -86,7 +101,32 @@ applications.workshop.example.io   True                    5s
 
 ### 2. Apply the Composition
 
-The Composition is the recipe. It creates five resources when an `Application` exists. Read the table below first; it's a map of the YAML you'll apply.
+The Composition is the recipe. It creates five resources when an `Application` exists. The picture, then the table, then the YAML.
+
+#### The fan-out, in one picture
+
+```mermaid
+flowchart TB
+  xr["Application XR<br/>spec.message<br/>spec.color"]
+  comp["Composition<br/>applications.workshop.example.io"]
+  fn["function-patch-and-transform"]
+
+  subgraph composed["Composed resources (default namespace)"]
+    direction LR
+    fcm["ConfigMap<br/>frontend"]
+    fd["Deployment<br/>frontend / nginx"]
+    fs["Service<br/>frontend :80"]
+    bd["Deployment<br/>backend / http-echo<br/>-text=…patched…"]
+    bs["Service<br/>backend :5678"]
+  end
+
+  xr == "triggers" ==> comp ==> fn
+  fn ==> fcm & fd & fs & bd & bs
+  xr -. "CombineFromComposite<br/>spec.message + spec.color<br/>→ args[1]" .-> bd
+  fd -. "volumeMounts" .-> fcm
+```
+
+The dashed arrow is the patch — the only place the XR's `message` and `color` fields actually flow into one of the composed resources. Everything else in the Composition is static template content. The other dashed arrow is a normal Kubernetes reference (the frontend Deployment mounts the frontend ConfigMap by name) — that's plain Kubernetes plumbing, nothing Crossplane-specific.
 
 #### What this Composition produces
 

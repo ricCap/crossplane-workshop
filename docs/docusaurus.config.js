@@ -13,6 +13,13 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
+  // Enable Mermaid diagrams in MDX (```mermaid fenced blocks).
+  // Used in the 101 modules to visualise XRD/Composition/XR fan-out
+  // and Provider runtime architecture.
+  markdown: {
+    mermaid: true,
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -36,7 +43,10 @@ const config = {
     ],
   ],
 
+  // Site-wide themes: mermaid (for ```mermaid fenced blocks in 101) plus
+  // `@easyops-cn/docusaurus-search-local` for client-side full-text search.
   themes: [
+    '@docusaurus/theme-mermaid',
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),
       {
