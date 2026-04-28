@@ -66,17 +66,23 @@ upbound-controller-manager-85cd77fb9-xxx  1/1     Running   0          45s
 webui-5c65cc8bdf-xxxxx                    1/1     Running   0          45s
 ```
 
-Five pods come up for a UXP v2 install:
+Five pods come up for a UXP v2 install. Two are the ones you'll actually interact with:
 
-- **`crossplane`** — the core Crossplane controller you'd get from any Crossplane install; runs the reconcilers for Providers, Compositions, and XRs.
-- **`crossplane-rbac-manager`** — generates ClusterRoles for each XRD so that end-users can `get`/`list` the XR kinds you define.
-- **`crossplane-apollo`** — UXP-specific control-plane component that backs Upbound's managed offering. Benign when you're running UXP locally; it has nothing to do in a standalone install but is still scheduled.
+- **`crossplane`** — the core Crossplane controller you'd get from any Crossplane install; the long-running program that watches XRDs, Compositions, XRs, Providers, and Functions, and runs a reconciliation loop on each one. Everything in the next four modules depends on this Pod being healthy.
+- **`webui`** — the read-only dashboard enabled by `webui.enabled=true`. You'll use it in §3.3.
+
+The other three are infrastructure you won't touch directly:
+
+<details>
+<summary>What are <code>crossplane-rbac-manager</code>, <code>crossplane-apollo</code>, and <code>upbound-controller-manager</code>?</summary>
+
+- **`crossplane-rbac-manager`** — generates ClusterRoles for each XRD you apply, so end-users can `get`/`list` the XR kinds you define without you having to write RBAC by hand. Upstream Crossplane ships this too.
+- **`crossplane-apollo`** — UXP-specific control-plane component that backs Upbound's managed offering. Benign when you're running UXP locally; it has nothing to do in a standalone install but is still scheduled. A transient restart or two during install is normal — it waits on CRDs the core controller is still registering.
 - **`upbound-controller-manager`** — UXP's control-plane orchestrator (sibling to `apollo`). Same story: extra in local use, required for the Upbound cloud integration you won't exercise here.
-- **`webui`** — the read-only dashboard enabled by `webui.enabled=true`.
 
-If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplane-rbac-manager` would appear. The three extra pods are what "UXP" bundles on top; see the [Cheatsheet §1.3 comparison](../cheatsheet#crossplane-vs-uxp).
+If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplane-rbac-manager` would appear. The other three are what "UXP" bundles on top; see the [Cheatsheet §1.3 comparison](../cheatsheet#crossplane-vs-uxp).
 
-A transient restart or two on `crossplane-apollo` during install is normal — it waits on CRDs the core controller is still registering.
+</details>
 
 <ValidateCheck check="crossplane-installed" />
 
