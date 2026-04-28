@@ -36,6 +36,21 @@ const config = {
     ],
   ],
 
+  themes: [
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: false,
+        docsRouteBasePath: '/',
+        language: ['en'],
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
   // Dev-only inline plugin: forward `/api/*` from the Docusaurus dev
   // server to the locally-running validator (default :8081). Pair with
   // `VALIDATOR_LOCAL=1 go run ./validator` in the `validator/` directory
