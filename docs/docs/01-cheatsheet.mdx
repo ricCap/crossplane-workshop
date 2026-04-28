@@ -80,15 +80,27 @@ On top of that, you can compose your own abstractions: `Application`, `Database`
 
 | Object | What it is | Scope |
 |---|---|---|
+| **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. Crossplane auto-generates one when you apply an XRD | Cluster |
+| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `Application` with `frontend` + `backend` fields. Compiles into a CRD when applied | Cluster |
+| **Composition** | The recipe. "When someone creates this XR, fan it out into these resources." In v2 the composed resources can be plain native Kubernetes objects (ConfigMap, Deployment, …) or Managed Resources from a Provider | Cluster |
+| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state — `function-patch-and-transform`, `function-go-templating`, `function-kcl`, `function-python`, etc. | Cluster |
+| **Composite Resource (XR)** | An instance of an XRD. Created by the user; Crossplane composes it into the resources its Composition declares | Namespaced (v2) |
 | **Provider** | A package that teaches Crossplane to manage an external API (AWS, GCP, Kubernetes, Helm, …) | Cluster |
-| **ProviderConfig** | Per-provider configuration — credentials, default region, etc. Usually one per provider per environment | Cluster |
-| **Managed Resource (MR)** | A Kubernetes representation of an external thing. The provider reconciles the external API to match `spec` | Cluster (most) |
-| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `Application` with `frontend` + `backend` fields | Cluster |
-| **Composition** | The recipe. "When someone creates an `Application`, here are the managed resources to create" | Cluster |
-| **Composite Resource (XR)** | An instance of an XRD. Created by the user; Crossplane composes it into managed resources | Namespaced (v2) |
-| **Function** | Pluggable composition logic. `function-patch-and-transform`, `function-kcl`, `function-go-templating`, etc. | Cluster |
+| **ProviderConfig** | Per-Provider runtime config — credentials, target endpoint. v2 namespaced flavor: one per namespace, isolated from other tenants | Namespaced (v2) |
+| **ClusterProviderConfig** | Per-Provider runtime config — v2 cluster-scoped flavor, shared across namespaces. The "default" config for single-tenant clusters | Cluster |
+| **Managed Resource (MR)** | A Kubernetes representation of an external thing the provider reconciles by calling its API (e.g. `Release.helm.m.crossplane.io`, `Bucket.s3.aws.upbound.io`) | Either, depending on the Provider |
 
 [Concepts overview (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/)
+
+### When to reach for what
+
+| Goal | Use this |
+|---|---|
+| Create a fresh native Kubernetes object (ConfigMap, Deployment, Service, Job, …) as part of a Composition | A Composition with a function — Crossplane v2 emits the resource directly, no Provider needed |
+| Create or manage something **outside** the cluster (cloud bucket, DNS record, GitHub repo) | Install the matching `provider-*` package and apply its MR (e.g. `Bucket.s3.aws.upbound.io`) |
+| Take ownership of an **existing** in-cluster resource without recreating it | `provider-kubernetes` `Object` MR with `managementPolicies: [Observe]` |
+| Install a **Helm chart** through Crossplane | `provider-helm` `Release.helm.m.crossplane.io` MR |
+| Aim a single Provider at **multiple target clusters or accounts** | One ProviderConfig per target, with separate credentials in each |
 
 ### Things that trip people up
 

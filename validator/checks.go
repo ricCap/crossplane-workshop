@@ -35,6 +35,7 @@ var checks = map[string]Check{
 	"crossplane-installed":          checkCrossplaneInstalled,
 	"hello-xr-ready":                checkHelloXRReady,
 	"application-ready":             checkApplicationReady,
+	"helm-release-ready":            checkHelmReleaseReady,
 	"provider-kubernetes-installed": checkProviderKubernetesInstalled,
 	"first-mr-ready":                checkFirstMRReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
@@ -53,6 +54,7 @@ var orderedCheckIDs = []string{
 	"crossplane-installed",
 	"hello-xr-ready",
 	"application-ready",
+	"helm-release-ready",
 }
 
 // checkLabels maps a check ID to a human-readable column label used by
@@ -63,6 +65,7 @@ var checkLabels = map[string]string{
 	"crossplane-installed": "Crossplane installed",
 	"hello-xr-ready":       "First Composition (Hello XR)",
 	"application-ready":    "Application Ready",
+	"helm-release-ready":   "Helm Release Ready",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -299,6 +302,53 @@ func checkHelloXRReady(ctx context.Context, client dynamic.Interface) (bool, str
 
 	first := list.Items[0]
 	return false, fmt.Sprintf("Hello %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+}
+
+// checkHelmReleaseReady looks for at least one Release.helm.m.crossplane.io/v1beta1
+// (provider-helm v1.x's namespaced Managed Resource) with condition
+// type=Ready, status=True. This is the validator gate for the
+// "Add a Provider" module: a participant who has installed
+// `provider-helm`, applied a ProviderConfig, and applied a Release MR
+// pointing at a chart should see this go Ready within ~30s of the
+// chart's pods becoming Available.
+//
+// We only check the v2 namespaced kind on purpose. The legacy cluster-
+// scoped Release.helm.crossplane.io/v1beta1 kind still exists for
+// backwards-compat in v1.2.0 but the workshop's provider-installation
+// module pins participants to the namespaced flow.
+func checkHelmReleaseReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	releasesGVR := schema.GroupVersionResource{
+		Group:    "helm.m.crossplane.io",
+		Version:  "v1beta1",
+		Resource: "releases",
+	}
+
+	list, err := client.Resource(releasesGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Helm Releases (helm.m.crossplane.io): %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Helm Release MRs found in the cluster", nil
+	}
+
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] == "Ready" && cond["status"] == "True" {
+				return true, fmt.Sprintf("Release %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			}
+		}
+	}
+
+	first := list.Items[0]
+	return false, fmt.Sprintf("Release %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // checkApplicationReady looks for at least one Application claim

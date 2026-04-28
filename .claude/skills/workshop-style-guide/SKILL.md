@@ -25,6 +25,7 @@ The workshop sidebar groups core 101 content and the choose-your-own-adventure t
 | &nbsp;&nbsp;`02-first-composition.mdx` | task | 12m | Install `function-patch-and-transform`, define a tiny `Hello` XRD + Composition emitting a naked ConfigMap (no provider), apply one XR |
 | &nbsp;&nbsp;`03-define-application.mdx` | task | 30m | Namespaced XRD + Composition emitting naked frontend/backend Deployments + Services + ConfigMap, apply a first XR |
 | &nbsp;&nbsp;`04-modify-application.mdx` | task | 20m | Change the Composition; observe the downstream change |
+| &nbsp;&nbsp;`05-add-a-provider.mdx` | task | 17m | Install `provider-helm`, apply a `ClusterProviderConfig` and a namespaced `ProviderConfig`, install the `podinfo` Helm chart through a `Release` MR. Components-table refresher. |
 | `05-crossplane-2xx/` | category | — | Choose-your-own-adventure: extra providers, contrib functions, OCI publishing — mix of guided and open-ended |
 | `06-crossplane-3xx/` | category | — | Medium-difficulty pointer-driven tasks: cloud providers, secrets stack, status functions |
 | `07-crossplane-4xx/` | category | — | Advanced threads: Upjet provider generation, v1→v2 upgrades — mostly upstream-doc pointers |
