@@ -18,13 +18,17 @@ Same cluster, same commands. Your tile at `/team/local/` will light up once the 
 
 This is the module where the workshop clicks together. You met the XRD-Composition-XR shape in [module 4](./first-composition) on a tiny `Hello` example — one XR fanned out into one ConfigMap. This module uses the same shape on something useful: a high-level `Application` kind that fans out into a frontend, a backend, and the ConfigMap that wires them together.
 
-The new things you'll see this round:
+The composition function from module 4 (`function-patch-and-transform`) is already installed. No new core-object types this module — but the Composition itself uses three function-pipeline mechanics worth naming up front.
 
-- A Composition with **five composed resources** instead of one.
-- Patches that flow the XR's fields into specific positions inside the composed resources (here: shoving `spec.message` and `spec.color` into the backend container's args).
-- Real readiness — the Deployments take a moment to come up, so the Composition uses `MatchCondition` readiness checks against the `Available` condition.
+### Composition mechanics introduced this module
 
-The composition function from module 4 (`function-patch-and-transform`) is already installed. Apply the XRD, Composition, and XR; watch a working two-tier app materialize on your tile.
+| Mechanic | What it does | The variant(s) you'll meet here |
+|---|---|---|
+| **Multi-resource `resources[]`** | A single Composition can emit any number of composed resources from one function step. Each entry has a `name` (Crossplane-internal label), a `base` (the resource template), optional `patches`, and `readinessChecks` | Five `resources[]` entries — frontend ConfigMap, frontend Deployment + Service, backend Deployment + Service |
+| **`patches`** | Field-level wiring between the XR's spec and the composed resource's spec. Each patch declares `fromFieldPath` and `toFieldPath`, and a `type` that says how the value is shaped | `FromCompositeFieldPath` (you saw this in module 4 — copy XR field into composed field). New here: `CombineFromComposite`, which formats multiple XR fields into one composed-resource field via a `printf`-style template |
+| **`readinessChecks`** | Tells `function-patch-and-transform` when to mark each composed resource Ready. Required — without it, P&T may hold a resource Pending forever if its kind doesn't publish a Ready condition | `type: None` (you used this in module 4 — "Ready as soon as observed", correct for ConfigMaps and Services). New here: `type: MatchCondition`, which waits for a specific condition like `Available=True` on a Deployment |
+
+You're about to: apply an XRD, apply a Composition that uses all three of these mechanics, apply one XR, and watch a working two-tier app materialize on your tile.
 
 ## 5.2 Build the Application API ⏱️ 22m
 
@@ -82,9 +86,44 @@ applications.workshop.example.io   True                    5s
 
 ### 2. Apply the Composition
 
-The Composition is the recipe. It creates five resources when an `Application` exists: a ConfigMap with the frontend HTML, a frontend Deployment + Service (nginx serving the ConfigMap), and a backend Deployment + Service (http-echo returning the message + color as JSON).
+The Composition is the recipe. It creates five resources when an `Application` exists. Read the table below first; it's a map of the YAML you'll apply.
 
-Apply it:
+#### What this Composition produces
+
+| Composed resource (`resources[].name`) | Base kind | Why it's there | Patches applied | Readiness check |
+|---|---|---|---|---|
+| `frontend-configmap` | `ConfigMap` | Holds the static HTML the frontend nginx serves. Ships an inline `<script>` that fetches `./api/message` and renders the JSON as the tile content | none — every `Application` gets the same HTML | `type: None` — ConfigMaps don't expose a Ready condition; treat as Ready on observation |
+| `frontend-deployment` | `Deployment` | Runs `nginx:alpine`, mounts the ConfigMap above at `/usr/share/nginx/html` | none — the deployment shape is identical for every Application | `type: MatchCondition` waiting for `Available=True` |
+| `frontend-service` | `Service` | Exposes the frontend on port 80; selected by `app: frontend`. The wall iframe targets `/team/<pair>/` which the workshop's HTTPRoute resolves to this Service | none | `type: None` |
+| `backend-deployment` | `Deployment` | Runs `hashicorp/http-echo`, returning a JSON blob on port 5678 | **one** — `CombineFromComposite` writes the XR's `spec.message` and `spec.color` into the container's `-text` argument as a single JSON-formatted string | `type: MatchCondition` waiting for `Available=True` |
+| `backend-service` | `Service` | Exposes the backend on port 5678. The HTTPRoute resolves `/team/<pair>/api/` to this Service | none | `type: None` |
+
+The interesting wiring is the patch on `backend-deployment`. The XR ships two scalar fields:
+
+```yaml
+spec:
+  message: "hello"
+  color: "#10b981"
+```
+
+`http-echo`'s `-text` argument expects a single string — the literal HTTP response body it'll echo back. The frontend's JS expects that body to be JSON shaped like `{"message":"…","color":"…"}`. `CombineFromComposite` glues the two together with a `printf`-style template:
+
+```yaml
+patches:
+  - type: CombineFromComposite
+    combine:
+      variables:
+        - fromFieldPath: spec.message
+        - fromFieldPath: spec.color
+      strategy: string
+      string:
+        fmt: '-text={"message":"%s","color":"%s"}'
+    toFieldPath: spec.template.spec.containers[0].args[1]
+```
+
+`toFieldPath` is the actual path inside the naked `Deployment` (compare to module 4's modules-of-`Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.…`). At reconcile time, Crossplane substitutes the variables into the template and writes the result to that path on the live Deployment.
+
+#### Apply the YAML
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -243,13 +282,7 @@ spec:
 EOF
 ```
 
-Three v2 details worth pointing out:
-
-- The `CompositeResourceDefinition` above is `apiextensions.crossplane.io/v2`, but the `Composition` here is still `apiextensions.crossplane.io/v1`. That is **not a typo** — in Crossplane v2 the XRD API group bumped to `/v2` to express namespaced XRs, but `Composition` stays on `/v1`. Mixing them is expected.
-- Every composed resource is **naked** — `apiVersion: v1, kind: ConfigMap` (or `apps/v1, Deployment`, etc.) directly under `base:`. There's no `provider-kubernetes` `Object` wrapper, no `providerConfigRef`. Crossplane core itself reads the desired state out of the function's output and applies the resources — same providerless path you used in module 4.
-- `readinessChecks` are per-resource. Deployments use `MatchCondition` against the `Available=True` condition Kubernetes publishes once enough replicas are ready. Services and ConfigMaps don't expose a Ready condition, so they use `type: None` — Crossplane treats them as Ready as soon as it has observed them.
-
-The `CombineFromComposite` patch on `backend-deployment` is what injects the XR's `spec.message` and `spec.color` into the http-echo container's `-text` argument at reconcile time. `toFieldPath` is `spec.template.spec.containers[0].args[1]` — the actual path inside the Deployment, since the resource is naked. (Compare to module 4, where there was no patch like this — every field was static.)
+One v2 quirk worth pointing out before you move on: the `CompositeResourceDefinition` above is `apiextensions.crossplane.io/v2`, but the `Composition` here is still `apiextensions.crossplane.io/v1`. That is **not a typo** — in Crossplane v2 the XRD API group bumped to `/v2` to express namespaced XRs, but `Composition` stays on `/v1`. Mixing them is expected.
 
 ### 3. Apply your Application XR
 

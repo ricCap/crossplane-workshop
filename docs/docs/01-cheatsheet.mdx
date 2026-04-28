@@ -78,17 +78,19 @@ On top of that, you can compose your own abstractions: `Application`, `Database`
 
 ### Core objects
 
-| Object | What it is | Scope |
-|---|---|---|
-| **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. Crossplane auto-generates one when you apply an XRD | Cluster |
-| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `Application` with `frontend` + `backend` fields. Compiles into a CRD when applied | Cluster |
-| **Composition** | The recipe. "When someone creates this XR, fan it out into these resources." In v2 the composed resources can be plain native Kubernetes objects (ConfigMap, Deployment, …) or Managed Resources from a Provider | Cluster |
-| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state — `function-patch-and-transform`, `function-go-templating`, `function-kcl`, `function-python`, etc. | Cluster |
-| **Composite Resource (XR)** | An instance of an XRD. Created by the user; Crossplane composes it into the resources its Composition declares | Namespaced (v2) |
-| **Provider** | A package that teaches Crossplane to manage an external API (AWS, GCP, Kubernetes, Helm, …) | Cluster |
-| **ProviderConfig** | Per-Provider runtime config — credentials, target endpoint. v2 namespaced flavor: one per namespace, isolated from other tenants | Namespaced (v2) |
-| **ClusterProviderConfig** | Per-Provider runtime config — v2 cluster-scoped flavor, shared across namespaces. The "default" config for single-tenant clusters | Cluster |
-| **Managed Resource (MR)** | A Kubernetes representation of an external thing the provider reconciles by calling its API (e.g. `Release.helm.m.crossplane.io`, `Bucket.s3.aws.upbound.io`) | Either, depending on the Provider |
+The `Scope` column has a subtle split. CRDs and XRDs are themselves cluster-scoped *objects* — but they *define a kind* whose own scope (Namespaced vs Cluster) is set in the definition's `spec.scope`. The "Defines a kind that is" column captures that.
+
+| Object | What it is | Scope (the object itself) | Defines a kind that is |
+|---|---|---|---|
+| **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. Crossplane auto-generates one when you apply an XRD | Cluster | `Namespaced` or `Cluster`, per `spec.scope` |
+| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `Application` with `frontend` + `backend` fields. Applying it makes Crossplane generate the matching CRD | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster` (v1 compat with claims), per `spec.scope` |
+| **Composite Resource (XR)** | An instance of an XRD. Created by the user; Crossplane composes it into the resources its Composition declares | Per the XRD — `Namespaced` in v2 by default | — |
+| **Composition** | The recipe. "When someone creates this XR, fan it out into these resources." In v2 the composed resources can be plain native Kubernetes objects (ConfigMap, Deployment, …) or Managed Resources from a Provider | Cluster | — |
+| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state — `function-patch-and-transform`, `function-go-templating`, `function-kcl`, `function-python`, etc. A Crossplane package | Cluster | — |
+| **Provider** | A package that teaches Crossplane to manage an external API (AWS, GCP, Kubernetes, Helm, …) | Cluster | — |
+| **ProviderConfig** | Per-Provider runtime config — credentials, target endpoint. v2 namespaced flavor (in `*.m.crossplane.io` for providers that ship the v2 split) | Namespaced | — |
+| **ClusterProviderConfig** | Per-Provider runtime config — v2's cluster-scoped flavor, shared across namespaces. The "default" config for single-tenant clusters | Cluster | — |
+| **Managed Resource (MR)** | A Kubernetes representation of an external thing the provider reconciles by calling its API (e.g. `Release.helm.m.crossplane.io`, `Bucket.s3.aws.upbound.io`) | Per-Provider choice — many v2 providers ship namespaced variants in a `*.m.crossplane.io` group alongside the legacy cluster-scoped kinds | — |
 
 [Concepts overview (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/)
 

@@ -18,16 +18,21 @@ Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 
 Crossplane installs cleanly, but it doesn't *do* anything yet. You haven't told it what kinds of resources to create or how to create them. This module is the smallest possible end-to-end loop: define a tiny API, write a recipe that creates one ConfigMap, apply an instance, watch the ConfigMap appear.
 
-Two pieces of new terminology (both in the [Cheatsheet](../cheatsheet#core-objects)):
+You're using **Crossplane v2**, so the resources Crossplane composes can be plain Kubernetes objects — `ConfigMap`, `Deployment`, `Service`, anything. No provider package required for the basic case. (You'll see why provider packages still matter for some use cases in [module 7](./add-a-provider).)
 
-| Piece | Role |
-|---|---|
-| **XRD** (CompositeResourceDefinition) | Declares the schema of a new Kubernetes API: what fields it has, what types |
-| **Composition** | The recipe. "When someone creates one of these, create *those* resources" |
+### The pieces you're about to meet
 
-You're using **Crossplane v2**, so the resources Crossplane composes can be plain Kubernetes objects — `ConfigMap`, `Deployment`, `Service`, anything. No provider package required for the basic case. (You'll see why provider packages still matter for some use cases at the end of the module.)
+Five terms, all introduced in this module. The full v2-correct version of this table — including the bits you'll meet in modules 5 and 7 — lives in the [Cheatsheet](../cheatsheet#core-objects).
 
-You're about to: install one composition function, grant Crossplane permission to create the kinds of resources you'll compose, define an API called `Hello`, write a recipe that turns each `Hello` into one `ConfigMap`, and apply an instance.
+| Component | What it is | Object scope | Scope of the kind it defines / produces |
+|---|---|---|---|
+| **CRD** (Kubernetes) | Custom Resource Definition. Extends the API server with a new kind. You won't write one directly — Crossplane generates one for you when you apply an XRD | Cluster | `Namespaced` or `Cluster`, per the CRD's `spec.scope` |
+| **XRD** (Composite Resource Definition) | Declares the schema of a new Crossplane API: what fields it has, what types. Applying it makes Crossplane create the matching CRD | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster`, per the XRD's `spec.scope` |
+| **XR** (Composite Resource) | An instance of an XRD. Apply one and the Composition runs | Per the XRD — `Namespaced` for the `Hello` you'll write | — |
+| **Composition** | The recipe. "When someone creates this kind of XR, produce these resources" | Cluster | — |
+| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state. `function-patch-and-transform` is the one you'll install | Cluster (it's a Crossplane package) | — |
+
+You're about to: install one composition function, define an API called `Hello`, write a recipe that turns each `Hello` into one `ConfigMap`, and apply an instance.
 
 ## 4.2 Install the composition function ⏱️ 3m
 

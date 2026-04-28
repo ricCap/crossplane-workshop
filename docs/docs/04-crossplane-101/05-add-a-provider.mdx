@@ -24,19 +24,19 @@ In this module you'll install [`provider-helm`](https://github.com/crossplane-co
 
 ### The pieces — a quick recap
 
-You've now seen most of the components a Crossplane platform is built from. Two new ones land in this module: **Provider** and **ProviderConfig**.
+You've now seen most of the components a Crossplane platform is built from. Three new ones land in this module: **Provider**, **ProviderConfig**, and **ClusterProviderConfig**. The `Scope` column splits a subtlety the v1 docs glossed over: a *defining* object (CRD, XRD) is itself cluster-scoped, but the kind it defines may be namespaced or cluster-scoped depending on its `spec.scope`.
 
-| Component | What it is | Who creates it | Scope |
-|---|---|---|---|
-| **CRD** | Kubernetes Custom Resource Definition. Extends the API with a new kind. | Crossplane (auto-generated from an XRD); the cluster operator for built-ins | Cluster |
-| **XRD** | Composite Resource Definition — your declaration of a new Crossplane API. Compiles into a CRD when applied. | You (the platform author) | Cluster |
-| **XR** | Composite Resource — an instance of an XRD that triggers a Composition. | Platform users | Namespaced (v2) |
-| **Composition** | The recipe. "When this XR exists, produce these resources." | You (the platform author) | Cluster |
-| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state (`function-patch-and-transform`, …). | Function package author; you install it | Cluster |
-| **MR** | Managed Resource — a Kubernetes representation of an external thing a Provider reconciles. | Crossplane (composed) or you (directly) | Either, depending on the Provider |
-| **Provider** ← *new this module* | A package teaching Crossplane to manage a class of external API (Helm, AWS, Kubernetes, …). | You install from a registry; Crossplane runs the controller | Cluster |
-| **ProviderConfig** ← *new this module* | Per-Provider runtime config (credentials, target endpoint). Namespaced flavor. | You | Namespaced (v2) |
-| **ClusterProviderConfig** ← *new this module* | Per-Provider runtime config — cluster-scoped flavor, shared across namespaces. | You | Cluster |
+| Component | What it is | Who creates it | Object scope | Scope of the kind it defines / produces |
+|---|---|---|---|---|
+| **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. | Crossplane (auto-generated from an XRD); the cluster operator for built-ins | Cluster | `Namespaced` or `Cluster`, set in the CRD's `spec.scope` |
+| **XRD** | Composite Resource Definition — your declaration of a new Crossplane API. Applying an XRD makes Crossplane generate the matching CRD. | You (the platform author) | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster` (v1-compat with claims), set in `spec.scope` |
+| **XR** | Composite Resource — an instance of an XRD that triggers a Composition. | Platform users | Per the XRD — `Namespaced` in v2 by default | — |
+| **Composition** | The recipe. "When this XR exists, produce these resources." | You (the platform author) | Cluster | — |
+| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state (`function-patch-and-transform`, …). | Function package author; you install it | Cluster (it's a Crossplane package, like a Provider) | — |
+| **MR** | Managed Resource — a Kubernetes representation of an external thing a Provider reconciles. | Crossplane (composed) or you (directly) | Per-Provider choice — most v2 providers ship namespaced variants in a `*.m.crossplane.io` API group alongside the legacy cluster-scoped kinds | — |
+| **Provider** ← *new this module* | A package teaching Crossplane to manage a class of external API (Helm, AWS, Kubernetes, …). | You install from a registry; Crossplane runs the controller | Cluster | — |
+| **ProviderConfig** ← *new this module* | Per-Provider runtime config (credentials, target endpoint). Namespaced flavor (in `*.m.crossplane.io` for providers that have caught up to v2). | You | Namespaced | — |
+| **ClusterProviderConfig** ← *new this module* | Per-Provider runtime config — v2's cluster-scoped flavor, shared across namespaces. | You | Cluster | — |
 
 You're about to: install a Provider, configure it (with both flavors of `ProviderConfig`), and apply one Managed Resource that installs a Helm chart.
 
