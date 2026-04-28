@@ -24,9 +24,10 @@ type Check func(ctx context.Context, client dynamic.Interface) (pass bool, detai
 
 // checks is the registry of all predefined check IDs.
 // Add new entries here; the HTTP handler looks up by ID automatically.
-// `provider-helm-installed`, `provider-kubernetes-installed`, and
-// `first-mr-ready` are kept in this map for future 2xx/3xx tracks
-// (provider-kubernetes adoption, provider-helm releases) but are
+// `provider-helm-installed`, `provider-kubernetes-installed`,
+// `first-mr-ready`, and `provider-github-installed` are kept in this
+// map for future 2xx/3xx tracks (provider-kubernetes adoption,
+// provider-helm releases, the GitHub provider module) but are
 // intentionally omitted from `orderedCheckIDs` and `checkLabels` so
 // they do not appear as red tiles during the core 101 path.
 var checks = map[string]Check{
@@ -39,6 +40,7 @@ var checks = map[string]Check{
 	"provider-kubernetes-installed": checkProviderKubernetesInstalled,
 	"first-mr-ready":                checkFirstMRReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
+	"provider-github-installed":     checkProviderGithubInstalled,
 }
 
 // orderedCheckIDs lists the checks in the order participants are expected
@@ -228,6 +230,12 @@ func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (
 // checkProviderKubernetesInstalled asserts that Provider/provider-kubernetes is Healthy.
 func checkProviderKubernetesInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	return checkProviderHealthy(ctx, client, "provider-kubernetes")
+}
+
+// checkProviderGithubInstalled asserts that Provider/provider-github is Healthy.
+// Used by module 06-crossplane-3xx/03-provider-github.
+func checkProviderGithubInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-github")
 }
 
 // checkProviderHealthy looks up a Crossplane Provider by name and walks its

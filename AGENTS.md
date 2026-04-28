@@ -151,7 +151,15 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
-## Platform credential bootstrap
+## External credential bootstrap
+
+Two operator-injected Secrets live alongside the GitOps-managed state.
+Both follow the same pattern: the Taskfile target reads sensitive
+material from env vars, writes the Secret into every `participant-*`
+namespace, and the per-pair vCluster picks it up. Neither secret is in
+git.
+
+### `vcluster-platform-api-key` (Loft Platform syncer)
 
 The `XDeveloperEnvironment` Composition writes Loft `User` /
 `VirtualClusterInstance` / password Secret resources per pair — that's
@@ -172,6 +180,39 @@ Create. Override `PLATFORM_HOST`, `PLATFORM_PROJECT`, or
 defaults. Re-running is safe (Secret is replaced in place; affected
 StatefulSets are restarted so the syncer remounts the populated
 volume).
+
+### `github-app-credentials` (provider-github)
+
+Module `06-crossplane-3xx/03-provider-github.mdx` has each pair install
+`provider-github` and target the shared sandbox org
+[`riccap-demo-org`](https://github.com/riccap-demo-org). The credential
+is a single GitHub App installed on that org; the Composition wires
+`sync.fromHost.secrets` ([gitops/crossplane-config/composition.yaml](gitops/crossplane-config/composition.yaml))
+to mirror the host Secret into each pair vcluster's `crossplane-system`
+namespace.
+
+Provision the credential with:
+
+```
+GITHUB_APP_ID=<id> \
+GITHUB_APP_INSTALLATION_ID=<id> \
+GITHUB_APP_PEM_FILE=/path/to/app.pem \
+  task github:register
+```
+
+The task writes a single `credentials` key holding the JSON blob the
+upbound `provider-github` expects (`{"app_auth":[{"id":…,"installation_id":…,"pem_file":…}],"owner":"riccap-demo-org"}`,
+PEM newlines escaped). Override `GITHUB_OWNER` if pointing at a
+different org. Re-running is safe.
+
+**App permission scope.** The App is intentionally tightened: read/write
+on Repository contents/metadata/administration, but *no* `delete_repo`
+and *no* `admin:org`. Per-pair scoping is enforced by the
+`pair-<id>-*` repo naming convention in the workshop module — the App
+can technically write to any repo in the org, so the convention is the
+only thing keeping pairs from stepping on each other. Cleaning up
+leftover repos is an out-of-band operator task; do not loosen the App
+scope to enable in-workshop deletes.
 
 ## Out of scope
 
