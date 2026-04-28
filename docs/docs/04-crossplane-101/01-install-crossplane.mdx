@@ -16,7 +16,7 @@ Same cluster, same commands — nothing changes in this module for the solo path
 
 ## 3.1 Before you start ⏱️ 3m
 
-[Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes controller that manages external APIs — cloud providers, other Kubernetes clusters, SaaS products — through Kubernetes resources you apply with `kubectl`. After this module Crossplane itself will be running in your cluster, ready for a provider.
+[Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes [**controller**](../cheatsheet#controllers-and-the-operator-pattern) — same operator pattern as the built-in Deployment controller — that watches a family of resources you'll meet in the next four modules (XRDs, Compositions, XRs, Managed Resources) and reconciles them into action. After this module Crossplane itself will be running in your cluster, watching nothing yet — module 4 gives it something to watch.
 
 You'll install **UXP v2** (Upbound's distribution of Crossplane) via its Helm chart. UXP is Crossplane with a bundled read-only [Web UI](https://docs.upbound.io) — everything you learn transfers one-for-one to upstream Crossplane. See the [Cheatsheet §1.3](../cheatsheet#crossplane-vs-uxp) for the full comparison.
 
@@ -104,7 +104,14 @@ If you want to leave it running through the rest of the workshop: good. Switch t
 
 ## 3.4 What just happened
 
-You installed a Kubernetes controller (Crossplane) that watches for a family of resources (Providers, XRDs, Compositions, MRs, XRs) and reconciles them. Right now it's watching nothing — the next module teaches it what to do.
+You installed a Kubernetes controller. The five Pods in `crossplane-system` are the Crossplane core controller plus its companions; together they're a long-running program that watches certain *kinds* — `Provider`, `Function`, `CompositeResourceDefinition` (XRD), `Composition`, and any composite-resource (XR) kinds you define — and runs a reconciliation loop on each one.
+
+Right now Crossplane is watching for those five built-in kinds but no instances of them exist yet, so the loop has nothing to do. In the next four modules you'll feed it work:
+
+- **Module 4** — apply a `Function` (a Composition's pluggable logic) and your first `XRD` + `Composition` + `XR`. Crossplane will react by creating a ConfigMap.
+- **Module 5** — a bigger XRD + Composition that fan out into a frontend + backend.
+- **Module 6** — modify the Composition; watch the change propagate.
+- **Module 7** — install a `Provider` and use it to manage a Helm release.
 
 ### Go deeper
 

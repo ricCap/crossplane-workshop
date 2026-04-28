@@ -20,6 +20,16 @@ So far, every resource you've composed has been a **plain Kubernetes object** �
 
 That's only half of Crossplane. The other half is **Providers**: packages that teach Crossplane to talk to *external* APIs — cloud SDKs, the Helm CLI, foreign Kubernetes clusters, anything with a Go SDK someone has wrapped. Each Provider ships its own custom kinds (managed resources) that Crossplane reconciles by calling the external API.
 
+### Why install a Provider when modules 4-6 didn't need one?
+
+Three real cases native composition can't reach:
+
+- **Anything outside Kubernetes' built-in API.** Functions can emit native kinds (Deployments, Services, ConfigMaps), but they can't talk to AWS or GCP or render a Helm chart. Those need a Provider that wraps the external SDK.
+- **Adopting an existing in-cluster resource you didn't create.** Composition functions create resources from scratch. `provider-kubernetes`'s `Object` MR with `managementPolicies: [Observe]` lets you take ownership of a resource someone else created, mirror its status, and only then start reconciling it.
+- **Targeting a different cluster or account.** A `ProviderConfig` can point at any kubeconfig or cloud credential, not just the one Crossplane is installed in. Multi-cluster and multi-account fleets ride on this.
+
+`provider-helm` is the friendliest example to start with — its external "API" is `helm install` against the same cluster you're already on, so you can ignore the cross-cluster and cloud-credential angles for now and focus on the Provider/ProviderConfig/MR shape.
+
 In this module you'll install [`provider-helm`](https://github.com/crossplane-contrib/provider-helm) — a Provider whose external "API" is just `helm install` against the same cluster — and use it to install the [podinfo](https://github.com/stefanprodan/podinfo) demo chart through Crossplane.
 
 ### The pieces — a quick recap
