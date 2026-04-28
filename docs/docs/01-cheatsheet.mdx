@@ -57,6 +57,14 @@ Crossplane resources tell you their state through `status.conditions`. The two y
 
 If `Ready=True` and `Synced=True`, you're done. If either is `False`, `kubectl describe` shows you why.
 
+### Controllers and the operator pattern
+
+A **controller** is a long-running Kubernetes program that watches resources of certain kinds and takes action when their declared state and actual state diverge. It runs in a loop: read the spec, compare to reality, **reconcile** (create / update / delete to match), repeat. This is the **operator pattern**.
+
+The Deployment controller you've used since day one of Kubernetes works this way: it sees a `Deployment` with `replicas: 3`, counts how many Pods exist, creates or deletes Pods to match. The Crossplane core controller is one more controller in the same family — its `spec` describes things *outside* the cluster (cloud resources, Helm releases) or things you've defined yourself with an XRD. Same loop, broader scope.
+
+When this workshop says "Crossplane reconciles" or "the provider watches", that's what's happening: a controller reading the spec you applied and making something real match it.
+
 ## 1.2 Tools worth installing
 
 You don't need any of these to finish the workshop — plain `kubectl` is enough. They make things nicer.
@@ -72,9 +80,14 @@ You don't need any of these to finish the workshop — plain `kubectl` is enough
 
 ### The big picture
 
-Crossplane turns any external API (cloud provider, SaaS, another Kubernetes cluster) into Kubernetes resources. You define what you want; a **Provider** watches those resources and makes reality match.
+**The problem Crossplane solves.** `kubectl apply` is great for a single team's manifests. But large platforms accumulate dozens of low-level objects (Deployments, Services, ConfigMaps, cloud IAM roles, DNS records, Helm releases) that have to be coordinated for any one user-facing thing — "an app", "a database", "a tenant environment". Crossplane lets you publish your team's *own API* — a single `Application` kind, a single `Database` kind — that fans out into all those low-level objects. Other teams consume your platform with one YAML file instead of dozens.
 
-On top of that, you can compose your own abstractions: `Application`, `Database`, `Environment`. You define the schema (**XRD**) and the recipe (**Composition**); users create instances (**XR**) and Crossplane fans them out into managed resources.
+**How it works.** Crossplane is a controller (see [§1.1 above](#controllers-and-the-operator-pattern)). It watches two kinds of inputs:
+
+1. **External-API resources via Providers.** A `Provider` package teaches Crossplane to talk to a specific external API — AWS, GCP, Helm, another Kubernetes cluster. You apply a `Bucket` or `Release` resource; the Provider's controller calls the external API to make it real.
+2. **Your own composite kinds via XRDs + Compositions.** You declare a new kind with an `XRD` (schema) and a `Composition` (recipe); users apply an `XR` (an instance of your kind), and Crossplane fans it out into the resources the recipe declares — either native Kubernetes objects directly (in v2) or external resources via Providers.
+
+You'll do the second of these in modules 4-6 of this workshop, then add a Provider in module 7.
 
 ### Core objects
 
