@@ -1,0 +1,163 @@
+---
+sidebar_position: 3
+title: provider-github against a real org
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# provider-github against a real org ⏱️ 20m
+
+<PairId />
+
+## 6.1 Before you start ⏱️ 3m
+
+Every provider you've used so far has acted on the same Kubernetes cluster — `provider-kubernetes` and `provider-helm` both terminate at this cluster's API server. **`provider-github`** is different: it talks to GitHub's REST/GraphQL API and reconciles real resources (repos, teams, branch protection rules) in a real GitHub organization.
+
+For this module the org is **[`riccap-demo-org`](https://github.com/riccap-demo-org)** — a sandbox set up so workshop participants can create real repositories without needing their own GitHub credentials. A single GitHub App is installed on the org and its credentials are pre-staged inside your vcluster, so you don't have to handle a token yourself.
+
+Two ground rules for the shared sandbox:
+
+- **Name everything `pair-<your-id>-<thing>`.** The App can write to any repo in the org, so the only thing keeping pairs from stepping on each other is the prefix convention. Repos that don't start with `pair-<your-id>-` belong to someone else.
+- **No deletes.** The App is intentionally not granted `delete_repo`, so a stray `kubectl delete repository.repo.github.upbound.io` will *orphan* the GitHub repo (Crossplane removes the MR; the repo lives on). That's by design — leftover repos get cleaned up out-of-band by the operator.
+
+You're about to: install `provider-github`, point a `ProviderConfig` at the pre-staged credential, create one `Repository` MR, and watch it appear on github.com.
+
+## 6.2 Confirm the credential is in place ⏱️ 2m
+
+The XDeveloperEnvironment Composition wires `sync.fromHost.secrets` on your vcluster so the operator-injected Secret on the management cluster is mirrored into your `crossplane-system` namespace. Confirm it's there:
+
+```bash
+kubectl -n crossplane-system get secret github-app-credentials
+```
+
+Expected output:
+
+```
+NAME                     TYPE     DATA   AGE
+github-app-credentials   Opaque   1      5m
+```
+
+The Secret has a single `credentials` key holding a JSON blob the upstream provider expects: `{"app_auth":[{"id":"…","installation_id":"…","pem_file":"…"}],"owner":"riccap-demo-org"}`. Don't dump the contents — it's a real private key.
+
+:::warning Missing the Secret?
+If the Secret isn't there, the operator hasn't run `task github:register` yet (or the host Secret in your `participant-<your-id>` namespace was removed). Flag it in the workshop chat — you can't proceed without it.
+:::
+
+## 6.3 Install the provider ⏱️ 5m
+
+### 1. Apply the `Provider` manifest
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-github
+spec:
+  package: xpkg.upbound.io/upbound/provider-github:v0.21.0
+EOF
+```
+
+Crossplane pulls the provider image and starts a Pod in `crossplane-system`. This takes 30–60 seconds.
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-github
+```
+
+Expected output:
+
+```
+NAME              INSTALLED   HEALTHY   PACKAGE
+provider-github   True        True      xpkg.upbound.io/upbound/provider-github:v0.21.0
+```
+
+### 2. Wire the `ProviderConfig` to the staged Secret
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: github.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: github-app-credentials
+      key: credentials
+EOF
+```
+
+The ProviderConfig points at the Secret you just confirmed in 6.2. The provider Pod reads the JSON blob, exchanges the App's PEM + installation ID for an installation token, and uses that token to talk to the GitHub API on behalf of `riccap-demo-org`.
+
+<ValidateCheck check="provider-github-installed" />
+
+When the tile turns green, the provider is installed and healthy.
+
+## 6.4 Create your first repo ⏱️ 7m
+
+### 1. Apply a `Repository` MR
+
+Substitute `<your-pair-id>` with your pair ID (the value the `<PairId />` block at the top of this page shows). Names that don't match `pair-<your-id>-*` will collide with other pairs' work — please stick to the convention.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: repo.github.upbound.io/v1alpha1
+kind: Repository
+metadata:
+  name: pair-<your-pair-id>-hello
+spec:
+  forProvider:
+    description: "Created by Crossplane from the workshop"
+    visibility: public
+    autoInit: true
+  providerConfigRef:
+    name: default
+EOF
+```
+
+### 2. Watch it reconcile
+
+```bash
+kubectl get repository.repo.github.upbound.io
+```
+
+Expected output (after ~10s):
+
+```
+NAME                       READY   SYNCED   EXTERNAL-NAME              AGE
+pair-<your-pair-id>-hello  True    True     pair-<your-pair-id>-hello  15s
+```
+
+Then open it in your browser:
+
+```
+https://github.com/riccap-demo-org/pair-<your-pair-id>-hello
+```
+
+The repo exists. You created a real GitHub resource through a Crossplane MR.
+
+### 3. Make a change
+
+Edit the `Repository` to add a topic, and watch GitHub reflect the change:
+
+```bash
+kubectl patch repository.repo.github.upbound.io pair-<your-pair-id>-hello \
+  --type merge -p '{"spec":{"forProvider":{"topics":["crossplane-workshop"]}}}'
+```
+
+Refresh the GitHub page — the topic appears. Same reconcile loop as every other Crossplane MR; the only difference is what's on the other side of the API.
+
+## 6.5 What just happened
+
+You proved that Crossplane MRs can drive a SaaS API the same way they drive Kubernetes resources. The mechanics — `Provider`, `ProviderConfig`, MR with a `forProvider` spec, Ready/Synced conditions — are identical. The only new thing is *where* the credential lives and *how* it got into your vcluster: the operator put it on the management cluster, vCluster's `sync.fromHost.secrets` mirrored it into `crossplane-system`, and your `ProviderConfig` referenced it from there.
+
+That same plumbing works for any provider that takes a Secret-based credential — AWS, GCP, Azure, Vault, Datadog, you name it.
+
+### Go deeper
+
+- [provider-upjet-github](https://github.com/crossplane-contrib/provider-upjet-github) — full list of resources (Team, Membership, BranchProtection, …) and ProviderConfig auth modes.
+- [GitHub App authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app) — what an installation token is, why it expires hourly, and how the provider refreshes it for you.
+- [vCluster `sync.fromHost.secrets`](https://www.vcluster.com/docs/configure/vcluster-yaml/sync/from-host/secrets) — the mapping syntax that put the credential in your namespace.

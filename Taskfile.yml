@@ -520,6 +520,98 @@ tasks:
         echo "Done. ${n} Secret(s) installed and syncer(s) restarted."
         echo "VCIs in p-default should reach Ready within ~30s."
 
+  github:register:
+    desc: |
+      Install the `github-app-credentials` Secret in every
+      `participant-*` namespace on the management cluster. The
+      XDeveloperEnvironment Composition wires `sync.fromHost.secrets`
+      on each pair's vCluster so this Secret is mirrored into the
+      pair's `crossplane-system` namespace, where the participant's
+      `provider-github` ProviderConfig reads it. Idempotent.
+
+      The credential is the GitHub App installed on
+      https://github.com/riccap-demo-org. Permissions are tightened
+      (no `delete_repo`, no `admin:org`) so a misbehaving pair cannot
+      blow up the shared sandbox; per-pair scoping is enforced by the
+      `pair-<id>-*` repo naming convention in the workshop module.
+
+      Required env vars:
+        GITHUB_APP_ID                Numeric App ID from the GitHub App
+                                     settings page.
+        GITHUB_APP_INSTALLATION_ID   Numeric installation ID for the App
+                                     on riccap-demo-org. Find it under
+                                     the App's "Installations" tab or in
+                                     the URL path /installations/<id>.
+        GITHUB_APP_PEM_FILE          Path to the App's private key (.pem
+                                     file generated when the App was
+                                     created). Never commit this file.
+
+      Optional env vars:
+        GITHUB_OWNER                 GitHub org the App is installed on.
+                                     Default: riccap-demo-org.
+
+      Secret shape per upbound provider-github docs (single `credentials`
+      key holding a JSON blob, PEM newlines escaped as \n):
+        {"app_auth":[{"id":"<id>","installation_id":"<id>","pem_file":"<pem-with-\\n>"}],
+         "owner":"<org>"}
+
+      Usage:
+        GITHUB_APP_ID=<id> \
+        GITHUB_APP_INSTALLATION_ID=<id> \
+        GITHUB_APP_PEM_FILE=/path/to/app.pem \
+          task github:register
+
+      Re-running is safe: the Secret is replaced in place. Affected
+      pair vCluster syncers pick up the change on their next reconcile
+      (no restart required — vcluster's fromHost sync watches the host
+      Secret).
+    vars:
+      GITHUB_OWNER: '{{.GITHUB_OWNER | default "riccap-demo-org"}}'
+    cmds:
+      - |
+        set -euo pipefail
+        [ -n "${GITHUB_APP_ID:-}" ] || {
+          echo "GITHUB_APP_ID env var required." >&2
+          exit 1
+        }
+        [ -n "${GITHUB_APP_INSTALLATION_ID:-}" ] || {
+          echo "GITHUB_APP_INSTALLATION_ID env var required." >&2
+          exit 1
+        }
+        [ -n "${GITHUB_APP_PEM_FILE:-}" ] || {
+          echo "GITHUB_APP_PEM_FILE env var required (path to .pem)." >&2
+          exit 1
+        }
+        [ -r "${GITHUB_APP_PEM_FILE}" ] || {
+          echo "GITHUB_APP_PEM_FILE not readable: ${GITHUB_APP_PEM_FILE}" >&2
+          exit 1
+        }
+
+        pairs=$(kubectl get ns -o name | sed 's|namespace/||' | grep '^participant-' || true)
+        [ -n "$pairs" ] || {
+          echo "No participant-* namespaces found. Either no XDeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
+          exit 1
+        }
+
+        # Build the JSON blob the upbound provider-github expects.
+        # PEM must be a non-multiline string with literal \n separators.
+        pem_escaped=$(awk '{printf "%s\\n", $0}' "${GITHUB_APP_PEM_FILE}")
+        credentials=$(printf '{"app_auth":[{"id":"%s","installation_id":"%s","pem_file":"%s"}],"owner":"%s"}' \
+          "${GITHUB_APP_ID}" "${GITHUB_APP_INSTALLATION_ID}" "${pem_escaped}" "{{.GITHUB_OWNER}}")
+
+        n=0
+        for ns in $pairs; do
+          kubectl -n "$ns" create secret generic github-app-credentials \
+            --from-literal=credentials="${credentials}" \
+            --dry-run=client -o yaml \
+            | kubectl apply -f - >/dev/null
+          echo "  ok: $ns"
+          n=$((n + 1))
+        done
+
+        echo "Done. ${n} Secret(s) installed (owner: {{.GITHUB_OWNER}})."
+        echo "Each pair vcluster mirrors this into crossplane-system/github-app-credentials via sync.fromHost."
+
   # ------------------------------------------------------------------
   # Verify
   # ------------------------------------------------------------------

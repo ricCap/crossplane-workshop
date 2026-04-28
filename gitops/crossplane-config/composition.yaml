@@ -84,6 +84,21 @@ spec:
                           enabled: true
                         ingresses:
                           enabled: false
+                      fromHost:
+                        # Mirror the GitHub App credential from the
+                        # vcluster's own host namespace
+                        # (participant-<pair>) into the vcluster's
+                        # crossplane-system. The host Secret is
+                        # provisioned out-of-band by
+                        # `task github:register` (see Taskfile.yml).
+                        # The leading "/" in the host key means "this
+                        # vcluster's own host namespace", so no
+                        # per-pair patching is needed.
+                        secrets:
+                          enabled: true
+                          mappings:
+                            byName:
+                              "/github-app-credentials": "crossplane-system/github-app-credentials"
                     exportKubeConfig:
                       server: placeholder
             patches:
