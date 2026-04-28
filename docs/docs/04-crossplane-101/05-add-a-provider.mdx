@@ -1,0 +1,273 @@
+---
+sidebar_position: 8
+title: Add a Provider
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Add a Provider ⏱️ 17m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 7.1 Before you start ⏱️ 3m
+
+So far, every resource you've composed has been a **plain Kubernetes object** — `ConfigMap`, `Deployment`, `Service`. Crossplane core itself was the controller that applied them. You never installed a Provider, and you didn't need one for that path.
+
+That's only half of Crossplane. The other half is **Providers**: packages that teach Crossplane to talk to *external* APIs — cloud SDKs, the Helm CLI, foreign Kubernetes clusters, anything with a Go SDK someone has wrapped. Each Provider ships its own custom kinds (managed resources) that Crossplane reconciles by calling the external API.
+
+In this module you'll install [`provider-helm`](https://github.com/crossplane-contrib/provider-helm) — a Provider whose external "API" is just `helm install` against the same cluster — and use it to install the [podinfo](https://github.com/stefanprodan/podinfo) demo chart through Crossplane.
+
+### The pieces — a quick recap
+
+You've now seen most of the components a Crossplane platform is built from. Three new ones land in this module: **Provider**, **ProviderConfig**, and **ClusterProviderConfig**. The `Scope` column splits a subtlety the v1 docs glossed over: a *defining* object (CRD, XRD) is itself cluster-scoped, but the kind it defines may be namespaced or cluster-scoped depending on its `spec.scope`.
+
+| Component | What it is | Who creates it | Object scope | Scope of the kind it defines / produces |
+|---|---|---|---|---|
+| **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. | Crossplane (auto-generated from an XRD); the cluster operator for built-ins | Cluster | `Namespaced` or `Cluster`, set in the CRD's `spec.scope` |
+| **XRD** | Composite Resource Definition — your declaration of a new Crossplane API. Applying an XRD makes Crossplane generate the matching CRD. | You (the platform author) | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster` (v1-compat with claims), set in `spec.scope` |
+| **XR** | Composite Resource — an instance of an XRD that triggers a Composition. | Platform users | Per the XRD — `Namespaced` in v2 by default | — |
+| **Composition** | The recipe. "When this XR exists, produce these resources." | You (the platform author) | Cluster | — |
+| **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state (`function-patch-and-transform`, …). | Function package author; you install it | Cluster (it's a Crossplane package, like a Provider) | — |
+| **MR** | Managed Resource — a Kubernetes representation of an external thing a Provider reconciles. | Crossplane (composed) or you (directly) | Per-Provider choice — most v2 providers ship namespaced variants in a `*.m.crossplane.io` API group alongside the legacy cluster-scoped kinds | — |
+| **Provider** ← *new this module* | A package teaching Crossplane to manage a class of external API (Helm, AWS, Kubernetes, …). | You install from a registry; Crossplane runs the controller | Cluster | — |
+| **ProviderConfig** ← *new this module* | Per-Provider runtime config (credentials, target endpoint). Namespaced flavor (in `*.m.crossplane.io` for providers that have caught up to v2). | You | Namespaced | — |
+| **ClusterProviderConfig** ← *new this module* | Per-Provider runtime config — v2's cluster-scoped flavor, shared across namespaces. | You | Cluster | — |
+
+### A Provider at runtime, in one picture
+
+```mermaid
+flowchart TB
+  user(["You"])
+  prov["Provider<br/>provider-helm:v1.2.0<br/>(package)"]
+  pod["Provider Pod<br/>(crossplane-system)"]
+  cpc["ClusterProviderConfig<br/>default"]
+  pc["ProviderConfig<br/>workshop-helm"]
+  rel["Release MR<br/>podinfo"]
+  helm[("OCI registry<br/>ghcr.io/stefanprodan/charts")]
+  cluster[("Kubernetes API<br/>(this cluster)")]
+
+  user -- "kubectl apply" --> prov
+  prov == "Crossplane installs" ==> pod
+  user -- "kubectl apply" --> cpc
+  user -- "kubectl apply" --> pc
+  user -- "kubectl apply" --> rel
+  rel -- "providerConfigRef" --> pc
+  pod == "watches" ==> rel
+  pod == "pulls chart" ==> helm
+  pod == "applies chart resources to" ==> cluster
+```
+
+A Provider is a package whose install spawns a long-running Pod (thick arrows: Crossplane-managed work). The Pod watches MRs of its kinds — `Release.helm.m.crossplane.io` here — and translates each one into calls against an external API (for `provider-helm` that "API" is the Helm SDK pulling charts and applying them to the cluster's own apiserver).
+
+You're about to: install a Provider, configure it (with both flavors of `ProviderConfig`), and apply one Managed Resource that installs a Helm chart.
+
+## 7.2 Install `provider-helm` ⏱️ 4m
+
+A Provider is just another Crossplane package. Apply the manifest, wait for it to go Healthy.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-helm
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-helm:v1.2.0
+EOF
+```
+
+Wait for the package to download and the controller pod to come up (~30 seconds):
+
+```bash
+kubectl wait --for=condition=Healthy provider/provider-helm --timeout=180s
+```
+
+Expected output:
+
+```
+provider.pkg.crossplane.io/provider-helm condition met
+```
+
+`v1.2.0` matters: it's the first stable release that ships the **v2 namespaced** ProviderConfig + Release kinds (the `helm.m.crossplane.io` group, with the `.m.` marking namespaced). v0.x versions only have the legacy cluster-scoped kinds; the rest of this module won't work on those.
+
+### Grant the provider permission to install charts
+
+`provider-helm` runs in `crossplane-system` as its own ServiceAccount, with no permissions by default. To install Helm charts into arbitrary namespaces, bind it to `cluster-admin`:
+
+```bash
+SA=$(kubectl get sa -n crossplane-system -o name | grep provider-helm | cut -d/ -f2)
+kubectl create clusterrolebinding provider-helm-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=crossplane-system:$SA
+```
+
+:::warning cluster-admin is workshop-grade
+You're handing the provider a very broad credential. In a real cluster you'd narrow it to the kinds and namespaces that *your* charts need (Deployment, Service, ConfigMap in a specific namespace, say). Your workshop cluster is throwaway, so the blast radius is zero — but the production-grade pattern is a `Role` + `RoleBinding`.
+:::
+
+## 7.3 Configure the provider ⏱️ 4m
+
+A `ProviderConfig` tells the provider *how* to authenticate to its external API. For `provider-helm` the "external API" is the cluster's own apiserver, and the provider uses `InjectedIdentity` — its own ServiceAccount token, no extra secret to manage.
+
+Crossplane v2 split `ProviderConfig` into two flavors:
+
+| Kind | Scope | Use when… |
+|---|---|---|
+| `ClusterProviderConfig` | Cluster | One config that any namespace can reference. The "default" config in a single-tenant cluster. |
+| `ProviderConfig` | Namespaced | One config per namespace, isolated from other tenants. The right pick when each team's helm charts target a different registry or use different credentials. |
+
+For this module you'll apply both — the cluster-scoped one for general use and a namespaced one to demonstrate the v2 isolation pattern.
+
+```bash
+kubectl create namespace workshop-helm
+kubectl apply -f - <<'EOF'
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: InjectedIdentity
+---
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: workshop-helm
+  namespace: workshop-helm
+spec:
+  credentials:
+    source: InjectedIdentity
+EOF
+```
+
+Verify:
+
+```bash
+kubectl get clusterproviderconfigs.helm.m.crossplane.io
+kubectl get providerconfigs.helm.m.crossplane.io -n workshop-helm
+```
+
+Expected output (abridged):
+
+```
+NAME      AGE
+default   2s
+
+NAME            AGE
+workshop-helm   2s
+```
+
+You now have two valid configs. The next step picks which one to use.
+
+## 7.4 Install a Helm chart through Crossplane ⏱️ 5m
+
+A `Release.helm.m.crossplane.io` is the namespaced **Managed Resource** kind `provider-helm` v1.2.0 ships. Each `Release` corresponds to one `helm install` — `forProvider` describes the chart and values, `providerConfigRef` points at the config the provider should use.
+
+Use the namespaced `ProviderConfig` you just applied:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: podinfo
+  namespace: workshop-helm
+spec:
+  forProvider:
+    chart:
+      name: podinfo
+      repository: oci://ghcr.io/stefanprodan/charts
+      version: "6.7.1"
+    namespace: workshop-helm
+    values:
+      replicaCount: 1
+  providerConfigRef:
+    kind: ProviderConfig
+    name: workshop-helm
+EOF
+```
+
+Two v2 details worth noticing:
+
+- **`providerConfigRef.kind` is required** in v2 — namespaced MRs can point at *either* a same-namespace `ProviderConfig` *or* a `ClusterProviderConfig`, so the kind has to be explicit. (If you change `kind: ProviderConfig` to `kind: ClusterProviderConfig` and `name: workshop-helm` to `name: default`, the Release will reconcile against the cluster-scoped config you also applied. Try it later if you're curious.)
+- **The chart pulls over OCI** (`oci://ghcr.io/stefanprodan/charts`). No `helm repo add` step happens here — `provider-helm` issues an OCI pull directly. This is the same protocol Helm 3.8+ supports natively.
+
+Watch the Release reconcile:
+
+```bash
+kubectl get release.helm.m.crossplane.io -n workshop-helm
+```
+
+Expected output:
+
+```
+NAME      CHART     VERSION   SYNCED   READY   STATE      REVISION   DESCRIPTION        AGE
+podinfo   podinfo   6.7.1     True     True    deployed   1          Install complete   30s
+```
+
+`Ready=True, STATE=deployed` means the chart is installed. The provider has run the equivalent of `helm install podinfo …` and recorded the release in cluster state.
+
+Confirm the workload is actually running:
+
+```bash
+kubectl get deploy,svc -n workshop-helm
+```
+
+Expected output:
+
+```
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/podinfo   1/1     1            1           45s
+
+NAME              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)             AGE
+service/podinfo   ClusterIP   10.43.x.x      <none>        9898/TCP,9999/TCP   45s
+```
+
+Hit the podinfo `/api/info` endpoint via a quick port-forward:
+
+```bash
+kubectl port-forward -n workshop-helm svc/podinfo 9898:9898 &
+sleep 2
+curl -s http://localhost:9898/api/info | head -c 200
+kill %1
+```
+
+Expected output (abridged):
+
+```json
+{
+  "hostname": "podinfo-…",
+  "version": "6.7.1",
+  "color": "#34577c",
+  "message": "greetings from podinfo v6.7.1",
+  …
+}
+```
+
+<ValidateCheck check="helm-release-ready" />
+
+When the tile turns green, Crossplane has installed a real Helm chart through a Provider. Same lifecycle contract as a `Hello` XR or an `Application` XR — `kubectl delete release podinfo -n workshop-helm` and the chart goes with it.
+
+## 7.5 What just happened
+
+You installed your first Provider. `provider-helm` extended Crossplane with a new managed-resource kind (`Release.helm.m.crossplane.io`); a `ClusterProviderConfig` and a `ProviderConfig` told the provider how to authenticate; one `Release` MR drove `helm install` against the cluster.
+
+The pattern is identical for every other Provider in the [Crossplane Marketplace](https://marketplace.upbound.io/) — `provider-aws-s3`, `provider-gcp-storage`, `provider-azure-storage`, `provider-kubernetes`, dozens more. The package name and the kinds change; the Provider → ProviderConfig → MR shape doesn't.
+
+You've now seen both halves of Crossplane:
+
+- **Composition with a function** (modules 4 + 5) — Crossplane core composes plain Kubernetes resources directly. No Provider needed.
+- **Provider with a managed resource** (this module) — a Provider package teaches Crossplane to manage an external API.
+
+Real platforms mix both. The 2xx track has a module on adopting *existing* in-cluster resources via [`provider-kubernetes`](https://github.com/crossplane-contrib/provider-kubernetes) — same Provider/ProviderConfig/MR shape, different superpower (`managementPolicies: [Observe]` to take ownership of resources someone else created).
+
+### Go deeper
+
+- [provider-helm README](https://github.com/crossplane-contrib/provider-helm) — every field on `Release.spec.forProvider`, including value patches and version-pinning strategies.
+- [Crossplane Marketplace](https://marketplace.upbound.io/) — find the Provider for your favourite cloud, SaaS, or in-cluster integration.
+- [Provider concepts (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/providers/) — package install lifecycle, version constraints, runtime configurations.

@@ -24,17 +24,20 @@ type Check func(ctx context.Context, client dynamic.Interface) (pass bool, detai
 
 // checks is the registry of all predefined check IDs.
 // Add new entries here; the HTTP handler looks up by ID automatically.
-// `provider-helm-installed` is kept in this map for future 201/301
-// tracks but is intentionally omitted from `orderedCheckIDs` and
-// `checkLabels` so it does not appear as a red tile during the core
-// path.
+// `provider-helm-installed`, `provider-kubernetes-installed`, and
+// `first-mr-ready` are kept in this map for future 2xx/3xx tracks
+// (provider-kubernetes adoption, provider-helm releases) but are
+// intentionally omitted from `orderedCheckIDs` and `checkLabels` so
+// they do not appear as red tiles during the core 101 path.
 var checks = map[string]Check{
 	"cluster-reachable":             checkClusterReachable,
 	"hello-pod":                     checkHelloPod,
 	"crossplane-installed":          checkCrossplaneInstalled,
+	"hello-xr-ready":                checkHelloXRReady,
+	"application-ready":             checkApplicationReady,
+	"helm-release-ready":            checkHelmReleaseReady,
 	"provider-kubernetes-installed": checkProviderKubernetesInstalled,
 	"first-mr-ready":                checkFirstMRReady,
-	"application-ready":             checkApplicationReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
 }
 
@@ -49,20 +52,20 @@ var orderedCheckIDs = []string{
 	"cluster-reachable",
 	"hello-pod",
 	"crossplane-installed",
-	"provider-kubernetes-installed",
-	"first-mr-ready",
+	"hello-xr-ready",
 	"application-ready",
+	"helm-release-ready",
 }
 
 // checkLabels maps a check ID to a human-readable column label used by
 // the dashboard. Missing entries fall back to the ID itself.
 var checkLabels = map[string]string{
-	"cluster-reachable":             "Cluster reachable",
-	"hello-pod":                     "Hello pod Running",
-	"crossplane-installed":          "Crossplane installed",
-	"provider-kubernetes-installed": "provider-kubernetes healthy",
-	"first-mr-ready":                "First MR ready",
-	"application-ready":             "Application Ready",
+	"cluster-reachable":    "Cluster reachable",
+	"hello-pod":            "Hello pod Running",
+	"crossplane-installed": "Crossplane installed",
+	"hello-xr-ready":       "First Composition (Hello XR)",
+	"application-ready":    "Application Ready",
+	"helm-release-ready":   "Helm Release Ready",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -258,6 +261,94 @@ func checkProviderHealthy(ctx context.Context, client dynamic.Interface, name st
 	}
 
 	return false, fmt.Sprintf("%s exists but no Healthy condition found in status.conditions", name), nil
+}
+
+// checkHelloXRReady looks for at least one Hello XR
+// (workshop.example.io/v1alpha1) with condition type=Ready, status=True
+// anywhere in the vcluster. This is the validator gate for the new
+// "first Composition" module: a participant who has applied an XRD,
+// a Composition, and a Hello XR — and granted Crossplane core RBAC to
+// compose ConfigMaps — should see this go Ready within seconds.
+func checkHelloXRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	hellosGVR := schema.GroupVersionResource{
+		Group:    "workshop.example.io",
+		Version:  "v1alpha1",
+		Resource: "hellos",
+	}
+
+	list, err := client.Resource(hellosGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Hello XRs: %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Hello XRs found in the cluster", nil
+	}
+
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] == "Ready" && cond["status"] == "True" {
+				return true, fmt.Sprintf("Hello %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			}
+		}
+	}
+
+	first := list.Items[0]
+	return false, fmt.Sprintf("Hello %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+}
+
+// checkHelmReleaseReady looks for at least one Release.helm.m.crossplane.io/v1beta1
+// (provider-helm v1.x's namespaced Managed Resource) with condition
+// type=Ready, status=True. This is the validator gate for the
+// "Add a Provider" module: a participant who has installed
+// `provider-helm`, applied a ProviderConfig, and applied a Release MR
+// pointing at a chart should see this go Ready within ~30s of the
+// chart's pods becoming Available.
+//
+// We only check the v2 namespaced kind on purpose. The legacy cluster-
+// scoped Release.helm.crossplane.io/v1beta1 kind still exists for
+// backwards-compat in v1.2.0 but the workshop's provider-installation
+// module pins participants to the namespaced flow.
+func checkHelmReleaseReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	releasesGVR := schema.GroupVersionResource{
+		Group:    "helm.m.crossplane.io",
+		Version:  "v1beta1",
+		Resource: "releases",
+	}
+
+	list, err := client.Resource(releasesGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Helm Releases (helm.m.crossplane.io): %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Helm Release MRs found in the cluster", nil
+	}
+
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] == "Ready" && cond["status"] == "True" {
+				return true, fmt.Sprintf("Release %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			}
+		}
+	}
+
+	first := list.Items[0]
+	return false, fmt.Sprintf("Release %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // checkApplicationReady looks for at least one Application claim
