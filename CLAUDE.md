@@ -1,1 +1,1 @@
-Always use AGENTS.md.
+Before doing anything else in this repo, read AGENTS.md end-to-end. It is the operational contract — branch naming, commit conventions, task workflow, style-guide pointer, release process. Do not act on conventions from memory; re-read AGENTS.md at the start of each session.
