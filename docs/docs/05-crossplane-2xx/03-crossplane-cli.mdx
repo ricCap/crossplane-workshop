@@ -1,0 +1,232 @@
+---
+sidebar_position: 3
+title: (Guided) Use the Crossplane CLI
+---
+
+import PairId from '@site/src/components/PairId';
+
+# (Guided) Use the Crossplane CLI ⏱️ 18m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 5.1 Before you start ⏱️ 3m
+
+The [Crossplane CLI](https://docs.crossplane.io/latest/cli/) is a single static binary that does most of the things `kubectl` cannot — preview a [Composition](../cheatsheet#core-objects) before you apply it, walk a live [XR](../cheatsheet#core-objects)'s resource tree, and validate manifests offline against a schema.
+
+In this module you'll exercise three subcommands:
+
+| Command | Answers |
+|---|---|
+| `crossplane render` | "What would my Composition produce for this XR?" — runs the pipeline locally without touching the cluster |
+| `crossplane beta trace` | "What did Composition actually create, and what's still pending?" — reads a live XR and prints its child tree |
+| `crossplane beta validate` | "Is this manifest structurally valid?" — checks an XR against an XRD's schema, fully offline |
+
+This module has **no validator tile**. The CLI runs on your laptop and the work it does (file output, local rendering) doesn't reach your workshop cluster, so there's no honest server-side signal to check. You'll know it worked when the commands print what they should.
+
+You're about to: install the binary, render the module-5 Composition against a sample XR, trace your live `wall-tile` Application, and validate a manifest offline.
+
+## 5.2 Install the CLI ⏱️ 2m
+
+The upstream installer auto-detects your CPU and downloads the latest stable release into the current directory:
+
+```bash
+curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | sh
+sudo mv crossplane /usr/local/bin/
+crossplane version
+```
+
+Expected output:
+
+```
+Client Version: v2.2.1
+Server Version: v2.2.0-up.5
+```
+
+(Versions may differ — anything `v2.x` covers the subcommands below. `Server Version` is read from your current kube-context's Crossplane install.)
+
+## 5.3 Preview a Composition with `render` ⏱️ 5m
+
+`crossplane render` runs your Composition's function pipeline against an XR locally and prints the resulting managed resources to stdout. It needs Docker on your laptop because it pulls and runs the function image. If Docker isn't available, skip ahead to [§5.4](#54-trace-a-live-xr-with-beta-trace-).
+
+### 1. Pull the XRD and Composition out of your cluster
+
+```bash
+kubectl get xrd applications.workshop.example.io -o yaml > xrd.yaml
+kubectl get composition applications.workshop.example.io -o yaml > composition.yaml
+```
+
+### 2. Write a render-friendly Function manifest
+
+`render` needs a `Function` manifest annotated with the runtime image to pull, separate from the cluster-side `Function` you applied in module 5:
+
+```bash
+cat <<'EOF' > function.yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+  annotations:
+    render.crossplane.io/runtime: Docker
+    render.crossplane.io/runtime-docker-image: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+EOF
+```
+
+### 3. Write a sample XR
+
+```bash
+cat <<'EOF' > xr.yaml
+apiVersion: workshop.example.io/v1alpha1
+kind: Application
+metadata:
+  name: render-demo
+  namespace: default
+spec:
+  message: "rendered, not applied"
+  color: "#a855f7"
+EOF
+```
+
+### 4. Render
+
+```bash
+crossplane render xr.yaml composition.yaml function.yaml
+```
+
+Expected output (abridged):
+
+```
+---
+apiVersion: workshop.example.io/v1alpha1
+kind: Application
+metadata:
+  name: render-demo
+  namespace: default
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: backend-deployment, frontend-configmap, ...'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: backend-deployment
+  generateName: render-demo-
+  labels:
+    crossplane.io/composite: render-demo
+  namespace: default
+spec:
+  forProvider:
+    manifest:
+      apiVersion: apps/v1
+      kind: Deployment
+      ...
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: frontend-configmap
+...
+```
+
+You're seeing the same five `Object` MRs the Composition would create if you applied this XR — without any of them landing in the cluster. The first block is the XR itself, with a synthetic `status.conditions` reporting `Unready` (nothing has reconciled yet — `render` doesn't talk to a cluster). Each subsequent block is one composed resource; the `composition-resource-name` annotation maps it back to the entry in your Composition's pipeline. This is the loop you'll spend most of your Composition-authoring time in.
+
+## 5.4 Trace a live XR with `beta trace` ⏱️ 5m
+
+`render` shows what the Composition *would* produce. `beta trace` shows what it *did* produce, against a live XR. List your Applications:
+
+```bash
+kubectl get applications.workshop.example.io -A
+```
+
+Then trace the one you applied in module 5:
+
+```bash
+crossplane beta trace application.workshop.example.io/wall-tile -n default
+```
+
+Expected output:
+
+```
+NAME                                         SYNCED   READY   STATUS
+Application/wall-tile (default)              True     True    Available
+├─ Object/wall-tile-168d13498528 (default)   True     True    Available
+├─ Object/wall-tile-508db5bb1b1c (default)   True     True    Available
+└─ Object/wall-tile-...                      True     True    Available
+```
+
+The composed `Object` names are auto-generated by Crossplane (XR name + a short random suffix), not the resource names from your Composition. To map a row back to the pipeline entry, run with `-o wide`:
+
+```bash
+crossplane beta trace application.workshop.example.io/wall-tile -n default -o wide
+```
+
+`-o wide` adds a `RESOURCE` column with the friendly name (`backend-deployment`, `frontend-configmap`, …) and the full reconcile message on each row. Use `-o dot` to pipe into Graphviz. When something is stuck, `beta trace` is faster than chasing `kubectl describe` through every composed resource by hand — every row carries the condition that's blocking it.
+
+## 5.5 Validate manifests offline with `beta validate` ⏱️ 3m
+
+`beta validate` checks a resource against a schema without a cluster. The schema can be an XRD (validating XRs against it), a Provider's CRDs (validating MRs), or a directory of either.
+
+Validate your sample XR against the XRD you pulled in §5.3:
+
+```bash
+crossplane beta validate xrd.yaml xr.yaml
+```
+
+Expected output:
+
+```
+[✓] workshop.example.io/v1alpha1, Kind=Application, render-demo validated successfully
+Total 1 resources: 0 missing schemas, 1 success cases, 0 failure cases
+```
+
+(The first run also prints `schemas does not exist, downloading: …` — `beta validate` caches the Crossplane schema bundle locally on first use.)
+
+Now break the XR — drop the required `message` field — and run again:
+
+```bash
+cp xr.yaml xr.yaml.bak
+sed -i.bak2 '/^  message:/d' xr.yaml
+crossplane beta validate xrd.yaml xr.yaml
+```
+
+Expected output:
+
+```
+[x] schema validation error workshop.example.io/v1alpha1, Kind=Application, render-demo : spec.message: Required value
+Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
+crossplane: error: cannot validate resources: could not validate all resources
+```
+
+`beta validate` exits non-zero on any failure — wire it into a pre-commit hook or CI step and your pipeline will refuse to ship a malformed XR. Restore the file (`mv xr.yaml.bak xr.yaml`) before you move on. You can also pipe `crossplane render … --include-full-xr` straight into `beta validate` for end-to-end checking — see the [command reference](https://docs.crossplane.io/latest/cli/command-reference/#beta-validate) for the full pattern.
+
+## 5.6 Going further
+
+The `xpkg` subcommands cover the authoring side of the CLI — building and publishing your own Configurations, Functions, and Providers as OCI packages. They're more involved than the trio above (registry credentials, image build), so they aren't part of this module, but each is one command:
+
+- [`crossplane xpkg init`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-init) — scaffold a new package directory from a template (`configuration-template`, `function-template-go`, `function-template-python`, `provider-template`, `provider-template-upjet`).
+- [`crossplane xpkg build`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-build) — package a directory of YAML into an OCI `.xpkg` image.
+- [`crossplane xpkg login`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-login) — authenticate to a package registry (`xpkg.crossplane.io`, `xpkg.upbound.io`, Docker Hub, etc.).
+- [`crossplane xpkg push`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-push) — publish a built `.xpkg` to a registry tag.
+
+If you want to take this further, scaffold a Configuration package from `configuration-template`, drop the XRD and Composition you used today into it, and `xpkg build` it locally — no push needed.
+
+## 5.7 What just happened
+
+You now have three lenses on a Composition: `render` for "what should this produce", `beta trace` for "what is it actually doing", and `beta validate` for "is the input even valid". Together they cover the inner debug loop you'd otherwise spend trying to read it out of the cluster.
+
+### Go deeper
+
+- [Crossplane CLI overview](https://docs.crossplane.io/latest/cli/) — install matrix and full subcommand list.
+- [`beta trace` reference](https://docs.crossplane.io/latest/cli/command-reference/#beta-trace) — output formats, package-revision filtering, connection-secret display.
+- [`xpkg init` reference](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-init) — every available template and what it scaffolds.
