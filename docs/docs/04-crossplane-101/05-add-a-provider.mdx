@@ -107,7 +107,7 @@ provider.pkg.crossplane.io/provider-helm condition met
 
 ### Grant the provider permission to install charts
 
-`provider-helm` runs in `crossplane-system` as its own ServiceAccount, with no permissions by default. To install Helm charts into arbitrary namespaces, bind it to `cluster-admin`:
+`provider-helm` is its own Pod with its own Kubernetes ServiceAccount; that SA's permissions are what limit which charts the provider can install and where. By default it has none. To install Helm charts into arbitrary namespaces, bind that SA to the built-in `cluster-admin` ClusterRole:
 
 ```bash
 SA=$(kubectl get sa -n crossplane-system -o name | grep provider-helm | cut -d/ -f2)
