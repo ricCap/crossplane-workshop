@@ -112,7 +112,7 @@ flowchart TB
   fn["function-patch-and-transform"]
 
   subgraph composed["Composed resources (default namespace)"]
-    direction LR
+    direction TB
     fcm["ConfigMap<br/>frontend"]
     fd["Deployment<br/>frontend / nginx"]
     fs["Service<br/>frontend :80"]
