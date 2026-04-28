@@ -10,6 +10,24 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 <PairId />
 
+:::note Running solo locally?
+The pre-staged credential below only exists on the Aruba workshop
+cluster. On a local solo cluster (k3d, no vcluster, no operator-staged
+Secret), use your own GitHub credentials instead: create a
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+scoped to your own account or an org you control, then create the
+Secret yourself:
+
+```bash
+kubectl -n crossplane-system create secret generic github-app-credentials \
+  --from-literal=credentials="{\"token\":\"<your-pat>\",\"owner\":\"<your-gh-username-or-org>\"}"
+```
+
+The rest of the module works unchanged — you just won't be writing into
+`riccap-demo-org`, you'll be writing into your own namespace on
+github.com. The `pair-<id>-*` naming convention doesn't apply.
+:::
+
 ## 6.1 Before you start ⏱️ 3m
 
 Every provider you've used so far has acted on the same Kubernetes cluster — `provider-kubernetes` and `provider-helm` both terminate at this cluster's API server. **`provider-github`** is different: it talks to GitHub's REST/GraphQL API and reconciles real resources (repos, teams, branch protection rules) in a real GitHub organization.
