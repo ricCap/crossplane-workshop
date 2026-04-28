@@ -11,9 +11,9 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 <PairId />
 
 :::note Running solo locally?
-The pre-staged credential below only exists on the Aruba workshop
-cluster. On a local solo cluster (k3d, no vcluster, no operator-staged
-Secret), use your own GitHub credentials instead. Create a
+The pre-staged credential below only exists on the managed workshop
+cluster. On a solo local cluster the operator hasn't staged anything
+for you, so use your own GitHub credentials instead. Create a
 [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
 with these settings:
 
@@ -48,7 +48,7 @@ github.com. The `pair-<id>-*` naming convention doesn't apply.
 
 Every provider you've used so far has acted on the same Kubernetes cluster — `provider-kubernetes` and `provider-helm` both terminate at this cluster's API server. **`provider-github`** is different: it talks to GitHub's REST/GraphQL API and reconciles real resources (repos, teams, branch protection rules) in a real GitHub organization.
 
-For this module the org is **[`riccap-demo-org`](https://github.com/riccap-demo-org)** — a sandbox set up so workshop participants can create real repositories without needing their own GitHub credentials. A single GitHub App is installed on the org and its credentials are pre-staged inside your vcluster, so you don't have to handle a token yourself.
+For this module the org is **[`riccap-demo-org`](https://github.com/riccap-demo-org)** — a sandbox set up so workshop participants can create real repositories without needing their own GitHub credentials. A single GitHub App is installed on the org and its credentials are pre-staged inside your workshop cluster, so you don't have to handle a token yourself.
 
 Two ground rules for the shared sandbox:
 
@@ -59,7 +59,7 @@ You're about to: install `provider-github`, point a `ProviderConfig` at the pre-
 
 ## 6.2 Confirm the credential is in place ⏱️ 2m
 
-The XDeveloperEnvironment Composition wires `sync.fromHost.secrets` on your vcluster so the operator-injected Secret on the management cluster is mirrored into your `crossplane-system` namespace. Confirm it's there:
+The operator has pre-staged the credential in your `crossplane-system` namespace. Confirm it's there:
 
 ```bash
 kubectl -n crossplane-system get secret github-app-credentials
@@ -75,7 +75,7 @@ github-app-credentials   Opaque   1      5m
 The Secret has a single `credentials` key holding a JSON blob the upstream provider expects: `{"app_auth":[{"id":"…","installation_id":"…","pem_file":"…"}],"owner":"riccap-demo-org"}`. Don't dump the contents — it's a real private key.
 
 :::warning Missing the Secret?
-If the Secret isn't there, the operator hasn't run `task github:register` yet (or the host Secret in your `participant-<your-id>` namespace was removed). Flag it in the workshop chat — you can't proceed without it.
+If the Secret isn't there, the operator hasn't staged the credential yet. Flag it in the workshop chat — you can't proceed without it.
 :::
 
 ## 6.3 Install the provider ⏱️ 5m
@@ -186,12 +186,9 @@ Refresh the GitHub page — the topic appears. Same reconcile loop as every othe
 
 ## 6.5 What just happened
 
-You proved that Crossplane MRs can drive a SaaS API the same way they drive Kubernetes resources. The mechanics — `Provider`, `ProviderConfig`, MR with a `forProvider` spec, Ready/Synced conditions — are identical. The only new thing is *where* the credential lives and *how* it got into your vcluster: the operator put it on the management cluster, vCluster's `sync.fromHost.secrets` mirrored it into `crossplane-system`, and your `ProviderConfig` referenced it from there.
-
-That same plumbing works for any provider that takes a Secret-based credential — AWS, GCP, Azure, Vault, Datadog, you name it.
+You proved that Crossplane MRs can drive a SaaS API the same way they drive Kubernetes resources. The mechanics — `Provider`, `ProviderConfig`, MR with a `forProvider` spec, Ready/Synced conditions — are identical. The only new thing is that the credential lives in a Secret your `ProviderConfig` references, instead of being implicit in a ServiceAccount token. That same shape works for any provider that takes a Secret-based credential — AWS, GCP, Azure, Vault, Datadog, you name it.
 
 ### Go deeper
 
 - [provider-upjet-github](https://github.com/crossplane-contrib/provider-upjet-github) — full list of resources (Team, Membership, BranchProtection, …) and ProviderConfig auth modes.
 - [GitHub App authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app) — what an installation token is, why it expires hourly, and how the provider refreshes it for you.
-- [vCluster `sync.fromHost.secrets`](https://www.vcluster.com/docs/configure/vcluster-yaml/sync/from-host/secrets) — the mapping syntax that put the credential in your namespace.
