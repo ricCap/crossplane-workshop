@@ -1,6 +1,9 @@
 ---
 sidebar_position: 2
 title: Crossplane Operations
+ai_edit: locked
+ai_edit_reviewed: 2026-04-28
+ai_edit_reviewer: ricCap
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -30,7 +33,19 @@ You're about to explore what each kind unlocks — no guided substeps, only poin
 
 ## 2.3 Hints
 
-- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Set the matching Helm value (see [upstream install docs](https://docs.crossplane.io/latest/software/install/)) on a cluster you control before any of these resources will reconcile.
+- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Re-run the install command from [module 3.1](../crossplane-101/install-crossplane) with the extra `args` value:
+
+  ```bash
+  helm upgrade --install crossplane crossplane-stable/universal-crossplane \
+    --version 2.2.0-up.5 \
+    --namespace crossplane-system --create-namespace \
+    --devel \
+    --set webui.enabled=true \
+    --set args='{"--enable-operations"}' \
+    --wait
+  ```
+
+  Until that flag is on, `Operation` / `CronOperation` / `WatchOperation` resources will sit unreconciled.
 - Read the three resource references end to end before authoring anything: [`Operation`](https://docs.crossplane.io/latest/operations/operation/), [`CronOperation`](https://docs.crossplane.io/latest/operations/cron-operation/), [`WatchOperation`](https://docs.crossplane.io/latest/operations/watch-operation/). Each ships a small worked example.
 - Operations reuse the same composition functions you encountered in module 3.4 — start by reading [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) and pick the simplest pipeline that produces the side effect you want.
 - Inspect what an Operation did with `kubectl get operations` and `kubectl describe operation <name>` — pipeline output and per-step conditions land on `.status`.
