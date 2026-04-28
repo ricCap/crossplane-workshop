@@ -89,11 +89,11 @@ kind: Provider
 metadata:
   name: provider-github
 spec:
-  package: xpkg.upbound.io/upbound/provider-github:v0.21.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.19.0
 EOF
 ```
 
-Crossplane pulls the provider image and starts a Pod in `crossplane-system`. This takes 30–60 seconds.
+The Provider resource is named `provider-github` (short, friendly) but the package itself is `provider-upjet-github` — the [crossplane-contrib upjet-based provider](https://github.com/crossplane-contrib/provider-upjet-github) that replaced the archived `provider-github`. Crossplane pulls the image and starts a Pod in `crossplane-system`. This takes 30–60 seconds.
 
 ```bash
 kubectl get provider.pkg.crossplane.io provider-github
@@ -103,7 +103,7 @@ Expected output:
 
 ```
 NAME              INSTALLED   HEALTHY   PACKAGE
-provider-github   True        True      xpkg.upbound.io/upbound/provider-github:v0.21.0
+provider-github   True        True      xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.19.0
 ```
 
 ### 2. Wire the `ProviderConfig` to the staged Secret
@@ -144,6 +144,7 @@ metadata:
   name: pair-<your-pair-id>-hello
 spec:
   forProvider:
+    name: pair-<your-pair-id>-hello
     description: "Created by Crossplane from the workshop"
     visibility: public
     autoInit: true
@@ -151,6 +152,8 @@ spec:
     name: default
 EOF
 ```
+
+`spec.forProvider.name` is the actual GitHub repo name and is required — the provider does *not* default it from `metadata.name`. Keep them the same here so there's only one identifier to track.
 
 ### 2. Watch it reconcile
 
