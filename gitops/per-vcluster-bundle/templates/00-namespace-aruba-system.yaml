@@ -1,0 +1,21 @@
+# aruba-system namespace inside the participant vcluster.
+# Holds the synced aruba-creds Secret (mirrored from the management
+# cluster's crossplane-system/aruba-creds via the Composition's
+# sync.fromHost.secrets mapping; see
+# gitops/crossplane-config/composition.yaml) and is the namespace
+# Kyverno's `aruba-secret-no-pod-mount` / `aruba-no-provider-exec`
+# policies (Track 3) protect.
+#
+# Sync wave -1: this namespace must exist before the ProviderConfig
+# (wave 1) — and ideally before the Secret materialises via
+# vcluster's host-to-vcluster sync, though that mapping just
+# silently waits for the namespace either way.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aruba-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+    workshop.example.io/component: aruba-system

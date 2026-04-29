@@ -1,0 +1,82 @@
+# Per-pair ApplicationSet that fans out the Aruba bundle
+# (gitops/per-vcluster-bundle/) into every registered participant
+# vcluster. Track 2 of #44.
+#
+# Generator: ArgoCD's `clusters` generator picks up Cluster Secrets
+# in the argocd namespace whose label `workshop.example.io/pair-id`
+# is set. Those Secrets are written by `task workshop:enable-aruba
+# PAIR=<id>` (registers the vcluster + immediately syncs the
+# bundle), NOT by the XDeveloperEnvironment Composition. That keeps
+# pair creation (automatic) and Aruba bundle sync (workshop owner's
+# explicit gate) cleanly separated.
+#
+# Sync policy is intentionally MANUAL:
+#  * `automated` is unset — the workshop owner triggers the per-pair
+#    sync via `task workshop:enable-aruba PAIR=<id>` (which wraps
+#    `argocd app sync aruba-bundle-<pair> --prune`) once the pair
+#    has finished module 3 (Crossplane install) and signalled
+#    readiness. This is the deliberate pacing mechanism for the
+#    workshop.
+#  * `selfHeal` is also off — if a participant breaks something
+#    in their bundle post-sync, they ask the owner rather than have
+#    ArgoCD silently revert their tinkering.
+#
+# Cleanup: when a pair file is removed from gitops/participant-xrs/,
+# the Composition deletes the vcluster + the Cluster Secret →
+# ApplicationSet drops the matching Application → cascade-delete
+# tears the bundle's resources down. `preserveResourcesOnDeletion`
+# left at default (false) so prune works.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: vcluster-aruba-bundle
+  namespace: argocd
+spec:
+  goTemplate: false
+  generators:
+    - clusters:
+        selector:
+          matchExpressions:
+            - key: workshop.example.io/pair-id
+              operator: Exists
+  template:
+    metadata:
+      name: 'aruba-bundle-{{name}}'
+    spec:
+      project: workshop
+      source:
+        repoURL: git@github.com:ricCap/crossplane-workshop.git
+        targetRevision: main
+        path: gitops/per-vcluster-bundle
+        helm:
+          # ArgoCD calls `helm dependency build` before render, so
+          # the kyverno sub-chart pinned in Chart.yaml is fetched at
+          # sync time. No need to commit the dependency tarball.
+          parameters:
+            - name: pairId
+              value: '{{name}}'
+      destination:
+        server: '{{server}}'
+        # Bundle resources land in their own namespaces (aruba-system,
+        # crossplane-system, kyverno-system) per their manifests; the
+        # Application's destination namespace is just the default
+        # creation context for any unscoped objects.
+        namespace: default
+      # Manual sync ONLY. No `automated` block. See header comment.
+      syncPolicy:
+        syncOptions:
+          # Helm sub-chart deps require this so ArgoCD doesn't
+          # confuse Kyverno's CRDs (declared by the dependency) with
+          # cluster-scoped resources it should manage at the parent
+          # Application level.
+          - ServerSideApply=true
+          # Lets the namespace template's metadata.name = aruba-system
+          # take effect even though the namespace doesn't exist when
+          # the Application is first created.
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m

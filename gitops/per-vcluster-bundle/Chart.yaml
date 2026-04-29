@@ -1,0 +1,39 @@
+# Workshop "Aruba bundle" — what gets installed inside each
+# participant vcluster once the workshop owner runs
+# `task workshop:enable-aruba PAIR=<id>`.
+#
+# A Helm chart, not because we need templating sophistication, but so
+# the per-pair `pairId` value can be passed via ArgoCD's
+# ApplicationSet -> Helm parameters substitution. ArgoCD calls
+# `helm dependency build` at sync time, so the kyverno dependency is
+# pulled fresh from the chart repo per sync.
+#
+# Track 2 of #44. Authored together with
+# gitops/apps/vcluster-aruba-bundle.yaml (the ApplicationSet that
+# spawns one Application of this chart per registered participant
+# vcluster).
+
+apiVersion: v2
+name: aruba-bundle
+description: |
+  Aruba Crossplane provider + ProviderConfig + namespace + Kyverno
+  + per-pair ConfigMap. Applied to every participant vcluster by the
+  workshop's per-pair ApplicationSet, gated on a manual sync by the
+  workshop owner.
+type: application
+version: 0.1.0
+# `appVersion` tracks the provider-arubacloud OCI image tag we ship.
+# Keep in sync with the `image` value in values.yaml; bump together
+# when the upstream provider cuts a new release.
+appVersion: "v0.2.0-workshop"
+
+# Kyverno is installed via dependency. ArgoCD pulls the chart at
+# sync time, renders it alongside our templates, applies everything
+# in one Application. Versions worth tracking:
+#  https://github.com/kyverno/kyverno/releases
+# Keep this pin conservative — Kyverno's CRD shape is the contract
+# our policy YAMLs depend on.
+dependencies:
+  - name: kyverno
+    version: "3.4.4"
+    repository: "https://kyverno.github.io/kyverno/"

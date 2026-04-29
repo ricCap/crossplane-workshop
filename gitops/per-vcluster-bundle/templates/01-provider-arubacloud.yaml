@@ -1,0 +1,28 @@
+# provider-arubacloud package, installed inside the participant
+# vcluster. Crossplane's package controller (which the participant
+# already installed in module 3) pulls the OCI image and registers
+# the Aruba MR CRDs.
+#
+# Image pinned to v0.2.0-workshop, which carries:
+#   - The patched `Read` semantics required by upjet
+#     (https://github.com/ricCap/terraform-provider-arubacloud/pull/1).
+#   - controller-runtime logger wired
+#     (closes ricCap/provider-arubacloud#3).
+#   - CRD `required` arrays propagated from TF schema
+#     (closes ricCap/provider-arubacloud#4).
+#   - Consistent Kind capitalization (Database, ContainerRegistry,
+#     BlockStorage, DBaaS, SecurityGroup, etc. —
+#     closes ricCap/provider-arubacloud#5).
+#
+# Sync wave 0: needs the namespace, but doesn't depend on anything
+# else in this bundle. ProviderConfig (wave 1) waits on this.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-arubacloud
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+spec:
+  package: {{ .Values.provider.package | quote }}
