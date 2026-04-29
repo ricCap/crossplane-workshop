@@ -346,6 +346,55 @@ tasks:
 
         echo "ghcr pull secret provisioned in namespace {{.DOCS_NS}}"
 
+  bootstrap:aruba-cloud-credentials:
+    desc: |
+      Install the shared Aruba Cloud API key as a Secret on the
+      management cluster. The XDeveloperEnvironment Composition's
+      vcluster Helm Release projects this Secret into every per-pair
+      vcluster's `aruba-system` namespace via `sync.fromHost.secrets`,
+      so the participant-side Aruba provider (installed by the
+      ApplicationSet bundle, see #44 / Track 2) reads a single shared
+      key. Workshop owner runs this once at workshop setup; rotation =
+      re-run.
+
+      Distinct from `bootstrap:repo-credentials-aruba` — that task
+      manages the GitHub deploy key that the Aruba-hosted ArgoCD uses
+      to pull this repo. THIS task manages the Aruba *cloud* API key
+      that the upjet-based provider uses to provision DBaaS / VPCs /
+      etc. Two completely different credentials.
+
+      Set ARUBA_API_KEY + ARUBA_API_SECRET env vars, or be prompted
+      interactively. Idempotent — re-running upserts the Secret.
+    run: once
+    cmds:
+      - |
+        set -euo pipefail
+
+        if [ -z "${ARUBA_API_KEY:-}" ]; then
+          read -s -p "ARUBA_API_KEY: " ARUBA_API_KEY
+          echo
+        fi
+        if [ -z "${ARUBA_API_SECRET:-}" ]; then
+          read -s -p "ARUBA_API_SECRET: " ARUBA_API_SECRET
+          echo
+        fi
+
+        [ -n "${ARUBA_API_KEY}" ]    || { echo "ARUBA_API_KEY cannot be empty"; exit 1; }
+        [ -n "${ARUBA_API_SECRET}" ] || { echo "ARUBA_API_SECRET cannot be empty"; exit 1; }
+
+        # provider-arubacloud expects the credentials Secret to hold a
+        # `credentials` key whose value is a JSON object with `api_key`
+        # and `api_secret` (matches the underlying Terraform provider's
+        # provider-block schema; see provider-arubacloud#6).
+        kubectl create namespace crossplane-system 2>/dev/null || true
+        kubectl create secret generic aruba-creds \
+          --namespace crossplane-system \
+          --from-literal=credentials="$(printf '{"api_key":"%s","api_secret":"%s"}' "${ARUBA_API_KEY}" "${ARUBA_API_SECRET}")" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        echo "aruba-creds Secret provisioned in crossplane-system on management cluster"
+        echo "(per-pair vclusters pick it up automatically via sync.fromHost.secrets once their Aruba bundle is synced)"
+
   bootstrap:envoy-gateway:
     desc: Install Envoy Gateway (Gateway API controller) via OCI Helm chart.
     run: once
