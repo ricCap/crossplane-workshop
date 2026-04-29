@@ -817,15 +817,70 @@ tasks:
         task pairs:upload-kubeconfigs
         task pairs:qr
 
-      Required env vars: PLATFORM_ACCESS_KEY (see
-      pairs:issue-kubeconfigs).
-
       Usage:
-        PLATFORM_ACCESS_KEY=<key> task pairs:distribute
+        task pairs:distribute
     cmds:
       - task: pairs:issue-kubeconfigs
       - task: pairs:upload-kubeconfigs
       - task: pairs:qr
+
+  pairs:cleanup:
+    desc: |
+      Tear down everything `pairs:distribute` produced: revoke the
+      per-pair AccessKey CRDs on the management cluster, purge the
+      remote folder rclone uploaded to, and delete the local
+      `out/` directory. Each step is best-effort — missing
+      AccessKeys, an empty Drive folder, or no `out/` are all OK.
+
+      Optional env vars (must match what `pairs:distribute` was run
+      with):
+        RCLONE_REMOTE   Default: gdrive
+        RCLONE_FOLDER   Default: workshop-kubeconfigs
+
+      Usage:
+        task pairs:cleanup
+    vars:
+      RCLONE_REMOTE: '{{.RCLONE_REMOTE | default "gdrive"}}'
+      RCLONE_FOLDER: '{{.RCLONE_FOLDER | default "workshop-kubeconfigs"}}'
+    cmds:
+      - |
+        set -euo pipefail
+
+        # Revoke per-pair AccessKeys. Skip silently if kubectl can't
+        # reach a cluster (e.g. cluster already torn down).
+        if kubectl version --request-timeout=2s >/dev/null 2>&1; then
+          for f in gitops/participant-xrs/*.yaml; do
+            pair=$(basename "$f" .yaml)
+            kubectl delete accesskey.storage.loft.sh "kubeconfig-${pair}" --ignore-not-found >/dev/null
+            echo "  revoked: kubeconfig-${pair}"
+          done
+        else
+          echo "  skip: no reachable cluster — AccessKeys (if any) live with the cluster."
+        fi
+
+        # Purge the remote folder. Skip if rclone or the remote is
+        # missing.
+        if command -v rclone >/dev/null 2>&1 \
+            && rclone listremotes 2>/dev/null | grep -q "^{{.RCLONE_REMOTE}}:$"; then
+          if rclone lsd "{{.RCLONE_REMOTE}}:" 2>/dev/null | grep -q " {{.RCLONE_FOLDER}}$"; then
+            rclone purge "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}" --quiet
+            echo "  purged: {{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/"
+          else
+            echo "  skip: {{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/ not found"
+          fi
+        else
+          echo "  skip: rclone not installed or remote '{{.RCLONE_REMOTE}}' not configured."
+        fi
+
+        # Remove local artefacts.
+        if [ -d out ]; then
+          rm -rf out
+          echo "  removed: out/"
+        else
+          echo "  skip: no out/ directory."
+        fi
+
+        echo "Done."
 
   # ------------------------------------------------------------------
   # Verify
