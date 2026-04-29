@@ -1,0 +1,29 @@
+# Aruba ProviderConfig — tells provider-arubacloud which credentials
+# to use when reconciling MRs in this vcluster.
+#
+# `secretRef.namespace: aruba-system` + `name: aruba-creds` matches
+# the destination of the host->vcluster Secret mirror set up in the
+# XDeveloperEnvironment Composition (see Track 1, PR #78). The
+# Secret holds a JSON object with `api_key` and `api_secret` keys —
+# the format the upjet-based provider expects per the underlying
+# Terraform provider's schema (ricCap/provider-arubacloud#6, fixed
+# in v0.2.0-workshop).
+#
+# Sync wave 1: must be applied AFTER the Provider package's CRDs are
+# registered. The wave value is one greater than the Provider's;
+# ArgoCD's wave-based ordering retries until the CRDs exist.
+apiVersion: arubacloud.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: aruba-system
+      name: aruba-creds
+      key: credentials

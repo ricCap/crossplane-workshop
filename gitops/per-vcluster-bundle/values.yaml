@@ -1,0 +1,42 @@
+# Default values for the aruba-bundle chart.
+# The ApplicationSet (gitops/apps/vcluster-aruba-bundle.yaml)
+# overrides `pairId` per pair via Helm parameters at sync time.
+# Other values are tuned here.
+
+# Pair id — overridden by ApplicationSet from `{{name}}` (the
+# participant vcluster's name as registered in ArgoCD's Cluster
+# Secret). Used by:
+#  * the workshop-pair-id ConfigMap (consumed by Kyverno policies in
+#    Track 3 to enforce the per-pair name prefix on Aruba MRs).
+#  * naming any pair-scoped resource the bundle creates.
+pairId: ""
+
+# provider-arubacloud OCI image. The workshop's release pinning
+# story (Track 0.4 / `task release`) bumps this when the upstream
+# provider ships a new tag.
+provider:
+  package: ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+
+# Kyverno sub-chart values. Workshop-tuned: keep the running
+# footprint small (each per-pair vcluster runs its own copy).
+kyverno:
+  # Disable the parts a workshop vcluster doesn't need. Most
+  # workshop policies are simple admission validations; the cleanup
+  # controller and the reports controller are overhead.
+  cleanupController:
+    enabled: false
+  reportsController:
+    enabled: false
+  # Single replica everything — the workshop's per-pair
+  # ResourceQuota (4Gi memory after #33's uplift) cannot afford the
+  # default 3-replica admission/background controllers.
+  admissionController:
+    replicas: 1
+  backgroundController:
+    replicas: 1
+  # CRDs install with the chart by default; keep it.
+  features:
+    admissionReports:
+      enabled: false
+    backgroundScan:
+      enabled: false

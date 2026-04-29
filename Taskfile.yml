@@ -968,6 +968,147 @@ tasks:
         echo "Done."
 
   # ------------------------------------------------------------------
+  # Workshop-day operations
+  #
+  # Tasks the workshop owner runs *during* the workshop, in response
+  # to per-pair signals (e.g. a pair finishes module 3 and asks for
+  # cloud access). Distinct from `bootstrap:*` (one-time cluster
+  # setup) and `pairs:*` (pre-event kubeconfig distribution).
+  # ------------------------------------------------------------------
+
+  workshop:enable-aruba:
+    desc: |
+      Register a participant vcluster with ArgoCD and sync the Aruba
+      bundle (gitops/per-vcluster-bundle/) into it. Workshop owner
+      runs this once per pair when the pair has finished module 3
+      (Crossplane install) and is ready for module 4
+      (Aruba managed resources).
+
+      Idempotent: re-running upserts the ArgoCD Cluster Secret and
+      re-syncs the bundle.
+
+      Steps:
+        1. Wait for the participant vcluster's pod to be Ready.
+        2. Build an ArgoCD Cluster Secret in the argocd namespace,
+           sourced from the vcluster Helm chart's `vc-<pair>` Secret
+           in `participant-<pair>` (which carries the cluster's CA
+           cert + client cert/key). Labels it
+           `workshop.example.io/pair-id: <pair>` so the
+           ApplicationSet's `clusters` generator picks it up.
+        3. Wait for the ApplicationSet to instantiate
+           `aruba-bundle-<pair>` Application.
+        4. `argocd app sync aruba-bundle-<pair> --prune` — syncs the
+           bundle (Aruba provider + ProviderConfig + Kyverno + pair-id
+           ConfigMap + Track 3 policies) into the participant
+           vcluster.
+
+      Usage: task workshop:enable-aruba PAIR=fancy-lemon
+    requires:
+      vars: [PAIR]
+    cmds:
+      - |
+        set -euo pipefail
+        PAIR="{{.PAIR}}"
+        HOST_NS="participant-${PAIR}"
+        VC_SECRET="vc-${PAIR}"
+        CLUSTER_SECRET="cluster-${PAIR}"
+
+        echo "==> 1/4 wait for participant vcluster pod"
+        kubectl wait --for=condition=Ready pod \
+          -l app=vcluster -n "${HOST_NS}" --timeout=300s
+
+        echo "==> 2/4 (re)create ArgoCD Cluster Secret for ${PAIR}"
+        # Pull the vcluster's CA + client cert/key from the
+        # well-known Secret the vcluster Helm chart writes. The
+        # `data` fields are already base64-encoded (which is exactly
+        # what ArgoCD's Cluster Secret config payload wants).
+        CA=$(kubectl -n "${HOST_NS}" get secret "${VC_SECRET}" \
+          -o jsonpath='{.data.certificate-authority}')
+        CERT=$(kubectl -n "${HOST_NS}" get secret "${VC_SECRET}" \
+          -o jsonpath='{.data.client-certificate}')
+        KEY=$(kubectl -n "${HOST_NS}" get secret "${VC_SECRET}" \
+          -o jsonpath='{.data.client-key}')
+
+        # ArgoCD reaches the participant vcluster via in-cluster DNS
+        # at the vcluster Service. Hostname matches the Service name
+        # the Composition's Helm Release creates: `<pairId>` in
+        # `participant-<pairId>`.
+        SERVER_URL="https://${PAIR}.${HOST_NS}:443"
+
+        # ArgoCD's Cluster Secret schema:
+        # https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
+        CONFIG_JSON=$(printf '{"tlsClientConfig":{"insecure":false,"caData":"%s","certData":"%s","keyData":"%s"}}' \
+          "${CA}" "${CERT}" "${KEY}")
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${CLUSTER_SECRET}
+          namespace: {{.ARGOCD_NS}}
+          labels:
+            argocd.argoproj.io/secret-type: cluster
+            workshop.example.io/pair-id: ${PAIR}
+        type: Opaque
+        stringData:
+          name: ${PAIR}
+          server: ${SERVER_URL}
+          config: |
+            ${CONFIG_JSON}
+        EOF
+
+        echo "==> 3/4 wait for ApplicationSet to spawn aruba-bundle-${PAIR}"
+        # ApplicationSet reconciles ~5s after seeing the new Cluster
+        # Secret; allow a generous deadline.
+        for _ in $(seq 1 30); do
+          if kubectl -n {{.ARGOCD_NS}} get application "aruba-bundle-${PAIR}" >/dev/null 2>&1; then
+            break
+          fi
+          sleep 2
+        done
+        kubectl -n {{.ARGOCD_NS}} get application "aruba-bundle-${PAIR}" >/dev/null
+
+        echo "==> 4/4 sync aruba-bundle-${PAIR} (this is the manual gate)"
+        # `--prune` so removing things from the bundle in this repo
+        # cleans up in the vcluster on the next sync. Default
+        # syncPolicy on the ApplicationSet is manual; this command is
+        # the workshop owner's explicit go-ahead.
+        argocd app sync "aruba-bundle-${PAIR}" --prune
+
+        echo ""
+        echo "${PAIR} can now `kubectl apply` Aruba managed resources."
+
+  workshop:enable-aruba:all:
+    desc: |
+      Run `workshop:enable-aruba` for every discovered participant.
+      Picks up the pair list from `gitops/participant-xrs/*.yaml`
+      filenames (each filename is `<pairId>.yaml`).
+
+      Failures on individual pairs do NOT halt the loop — each pair
+      gets its own attempt and the summary at the end reports
+      successes vs. failures so you can re-run for the failed ones.
+    cmds:
+      - |
+        set -uo pipefail
+        SUCCESS=()
+        FAILED=()
+        for f in gitops/participant-xrs/*.yaml; do
+          [ -e "$f" ] || continue
+          PAIR=$(basename "$f" .yaml)
+          echo "================ ${PAIR} ================"
+          if task workshop:enable-aruba PAIR="${PAIR}"; then
+            SUCCESS+=("${PAIR}")
+          else
+            FAILED+=("${PAIR}")
+          fi
+        done
+        echo ""
+        echo "==> summary"
+        echo "  succeeded: ${SUCCESS[*]:-(none)}"
+        echo "  failed:    ${FAILED[*]:-(none)}"
+        [ ${#FAILED[@]} -eq 0 ]
+
+  # ------------------------------------------------------------------
   # Verify
   # ------------------------------------------------------------------
 

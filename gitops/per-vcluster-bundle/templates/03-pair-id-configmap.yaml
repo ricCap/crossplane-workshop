@@ -1,0 +1,38 @@
+# workshop-pair-id ConfigMap — exposes this participant vcluster's
+# pair id to in-cluster consumers, primarily Kyverno policies (Track
+# 3 of #44) that need to enforce the `<pairId>-` name prefix
+# convention on Aruba MRs.
+#
+# Value is templated by the ApplicationSet (gitops/apps/
+# vcluster-aruba-bundle.yaml) from the cluster name — the
+# participant vcluster's name as registered in ArgoCD's Cluster
+# Secret. (Plain-English instead of literal Go-template syntax
+# because Helm processes the whole file as a template before any
+# YAML parsing, including the contents of YAML comments.)
+#
+# Lives in kyverno-system because Kyverno's policy engine looks up
+# external context from the same namespace it runs in. Keeping the
+# ConfigMap here also keeps it inside the namespace participants
+# don't have routine access to (Kyverno self-protection policy will
+# guard the namespace; Track 3).
+{{/*
+Fail-fast guard: the ApplicationSet always passes pairId. If
+someone renders the chart standalone without it, surface the
+misuse immediately rather than producing an empty-string
+ConfigMap that quietly breaks every Kyverno policy.
+*/}}
+{{- if not .Values.pairId -}}
+{{- fail "values.pairId must be set (the ApplicationSet passes it via helm.parameters with name=pairId)" -}}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-pair-id
+  namespace: kyverno-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+    workshop.example.io/component: pair-id-configmap
+data:
+  pairId: {{ .Values.pairId | quote }}
