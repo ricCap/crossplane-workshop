@@ -23,3 +23,7 @@ docs/.docusaurus/
 /validator/validator
 
 .playwright-mcp
+
+# Per-pair kubeconfigs / shareable URLs / QR codes produced by
+# `task pairs:distribute`. Contain bearer tokens — never commit.
+/out/

@@ -147,17 +147,19 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 ## Required tools
 
-`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.31.0), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional.
+`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.31.0), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional. For per-pair kubeconfig distribution (`task pairs:distribute`) you also need `rclone` (with a configured remote — see below) and `qrencode`.
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
 ## External credential bootstrap
 
-Two operator-injected Secrets live alongside the GitOps-managed state.
-Both follow the same pattern: the Taskfile target reads sensitive
-material from env vars, writes the Secret into every `participant-*`
-namespace, and the per-pair vCluster picks it up. Neither secret is in
-git.
+Three operator-injected credentials live alongside the GitOps-managed
+state. The first two follow the same pattern: the Taskfile target
+reads sensitive material from env vars, writes the Secret into every
+`participant-*` namespace, and the per-pair vCluster picks it up. The
+third is per-pair *outbound* state — files dropped under `out/` and
+distributed to participants via a shared link. Nothing is committed
+to git.
 
 ### `vcluster-platform-api-key` (Loft Platform syncer)
 
@@ -213,6 +215,66 @@ can technically write to any repo in the org, so the convention is the
 only thing keeping pairs from stepping on each other. Cleaning up
 leftover repos is an out-of-band operator task; do not loosen the App
 scope to enable in-workshop deletes.
+
+### Per-pair kubeconfigs (`pairs:distribute`)
+
+Participants do not log into the vCluster Platform UI. Instead, each
+pair gets a kubeconfig file with a per-pair Loft Platform access key
+embedded as a bearer token, distributed via a shareable link encoded
+as a QR code on the workshop Miro board.
+
+The flow is split across three Taskfile targets, with an umbrella
+that runs them in order:
+
+```
+task pairs:distribute
+```
+
+What each step does:
+
+- `pairs:issue-kubeconfigs` — for every file under
+  `gitops/participant-xrs/`, mints (or rotates) an `AccessKey`
+  (`accesskeys.storage.loft.sh`) named `kubeconfig-<pair>` for the
+  pair's Loft `User`, then renders `out/kubeconfigs/<pair>.yaml`
+  with the key embedded as a bearer token. The kubeconfig server
+  URL points at the Platform proxy path for that pair's
+  `VirtualClusterInstance`. Auth uses
+  `vcluster platform create accesskey --in-cluster`, which talks
+  through the current kubectl context — no operator login or
+  `PLATFORM_ACCESS_KEY` required for this step. **Re-running rotates
+  every pair's key — previously-issued kubeconfigs stop working
+  immediately.** That's a feature, not a bug: it's how you revoke
+  after the workshop.
+- `pairs:upload-kubeconfigs` — `rclone copy out/kubeconfigs/` to a
+  configured remote (default: a Drive remote called `gdrive` set up
+  via `rclone config`), then collects per-file shareable URLs into
+  `out/urls.txt`. URLs auto-expire after `RCLONE_LINK_EXPIRE`
+  (default `24h`) on backends that support TTL (Drive does).
+- `pairs:qr` — encodes each URL into `out/qr/<pair>.png`. Operator
+  drags these onto the workshop Miro board.
+
+Optional env vars:
+
+- `PLATFORM_HOST` (default `https://platform.testdomain-riccap.it`),
+  `PLATFORM_PROJECT` (default `default`) — used as the kubeconfig
+  server URL host/path.
+- `RCLONE_REMOTE` (default `gdrive`), `RCLONE_FOLDER` (default
+  `workshop-kubeconfigs`), `RCLONE_LINK_EXPIRE` (default `24h`).
+
+One-time prereq: run `rclone config` interactively to create the
+`gdrive` remote (Google Drive, scope `drive.file` is enough — that
+limits rclone's reach to files it created). After that, the task is
+non-interactive.
+
+**Rotating a single pair.** No dedicated target; just re-run the full
+issue step (it rotates everyone). For 10-pair workshops the cost is
+negligible. If targeted rotation ever becomes painful, add a
+`pair:reissue-kubeconfig PAIR=<id>` shim.
+
+**No password machinery.** The `User` resource composed by
+[`gitops/crossplane-config/composition.yaml`](gitops/crossplane-config/composition.yaml)
+deliberately has no `passwordRef` — interactive login is disabled.
+Do not reintroduce a password Secret; access keys are the auth path.
 
 ## Out of scope
 

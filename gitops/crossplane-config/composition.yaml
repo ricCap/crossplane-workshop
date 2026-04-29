@@ -344,9 +344,13 @@ spec:
 
 
     # --- Step 2: Platform user (go-templating) ---
-    # Generates a non-guessable password (SHA256 of pair ID + salt,
-    # truncated to 24 chars) and creates a Platform User + password
-    # Secret so participants can log in and download their kubeconfig.
+    # Creates a Platform User per pair and registers the pair's
+    # vcluster as an external VirtualClusterInstance with the User as
+    # owner. The User has NO password — participants do not log into
+    # the Platform UI. Authentication is via per-pair OwnedAccessKeys
+    # minted out-of-band by `task pairs:issue-kubeconfigs`, embedded
+    # in the kubeconfig handed to each pair. See AGENTS.md
+    # §"Per-pair kubeconfig issuance".
     - step: platform-user
       functionRef:
         name: function-go-templating
@@ -357,25 +361,6 @@ spec:
         inline:
           template: |
             {{ $pairId := .observed.composite.resource.spec.pairId }}
-            {{ $password := printf "%s:crossplane-workshop-2026:platform-access" $pairId | sha256sum | trunc 24 }}
-            ---
-            apiVersion: kubernetes.crossplane.io/v1alpha2
-            kind: Object
-            metadata:
-              name: platform-password-{{ $pairId }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: platform-password
-            spec:
-              forProvider:
-                manifest:
-                  apiVersion: v1
-                  kind: Secret
-                  metadata:
-                    name: loft-user-secret-{{ $pairId }}
-                    namespace: vcluster-platform
-                  type: Opaque
-                  data:
-                    password: {{ $password | b64enc }}
             ---
             apiVersion: kubernetes.crossplane.io/v1alpha2
             kind: Object
@@ -394,10 +379,6 @@ spec:
                     displayName: {{ $pairId }}
                     username: {{ $pairId }}
                     subject: {{ $pairId }}
-                    passwordRef:
-                      secretName: loft-user-secret-{{ $pairId }}
-                      secretNamespace: vcluster-platform
-                      key: password
             ---
             apiVersion: kubernetes.crossplane.io/v1alpha2
             kind: Object

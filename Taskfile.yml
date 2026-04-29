@@ -613,6 +613,221 @@ tasks:
         echo "Each pair vcluster mirrors this into crossplane-system/github-app-credentials via sync.fromHost."
 
   # ------------------------------------------------------------------
+  # Per-pair kubeconfig issuance + distribution
+  # ------------------------------------------------------------------
+
+  pairs:issue-kubeconfigs:
+    desc: |
+      Mint a per-pair Loft Platform access key and render a kubeconfig
+      for every pair under `gitops/participant-xrs/`. Output:
+      `out/kubeconfigs/<pair>.yaml`. Idempotent: re-running rotates
+      every pair's access key (the previously-issued kubeconfig stops
+      working).
+
+      The kubeconfig points at the Platform proxy URL for the pair's
+      VirtualClusterInstance and embeds the access key as a bearer
+      token, so participants only need `kubectl` — no `vcluster` CLI
+      install required.
+
+      Auth: uses `vcluster platform create accesskey --in-cluster`,
+      which talks directly to the Loft API server through the current
+      kubectl context. No `PLATFORM_ACCESS_KEY` or login required —
+      just point your kubeconfig at the management cluster.
+
+      Optional env vars (sensible defaults):
+        PLATFORM_HOST           https://platform.testdomain-riccap.it
+                                (used as the kubeconfig server URL host)
+        PLATFORM_PROJECT        default
+
+      Usage:
+        task pairs:issue-kubeconfigs
+    vars:
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform.testdomain-riccap.it"}}'
+      PLATFORM_PROJECT: '{{.PLATFORM_PROJECT | default "default"}}'
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p out/kubeconfigs
+
+        n=0
+        for f in gitops/participant-xrs/*.yaml; do
+          pair=$(basename "$f" .yaml)
+
+          # Rotate: delete any existing access key with this name, then
+          # mint a new one. Loft stores access keys as
+          # `accesskeys.storage.loft.sh` CRDs (cluster-scoped) in the
+          # management cluster; the CLI has no `delete accesskey` so
+          # we go via kubectl. Naming convention: `kubeconfig-<pair>`
+          # for traceability. --ignore-not-found makes first run (no
+          # prior key) idempotent.
+          kubectl delete accesskey.storage.loft.sh "kubeconfig-${pair}" --ignore-not-found >/dev/null 2>&1 || true
+
+          # Mint. The CLI prints the bare access-key value to stdout
+          # (single line, ~64 alphanumeric chars). --in-cluster
+          # bypasses the Platform API and creates the AccessKey CRD
+          # via the kubectl context, so we don't need to log in. If
+          # the output format changes upstream, this parsing is the
+          # place to fix.
+          token=$(vcluster platform create accesskey "kubeconfig-${pair}" \
+            --user "${pair}" \
+            --display-name "Workshop kubeconfig ${pair}" \
+            --in-cluster 2>/dev/null | tr -d '[:space:]')
+          if ! echo "${token}" | grep -qE '^[A-Za-z0-9]{32,}$'; then
+            echo "Failed to parse access key from CLI output for ${pair}:" >&2
+            echo "${token}" >&2
+            exit 1
+          fi
+
+          # Render the kubeconfig. server URL = Platform proxy path
+          # for this pair's VCI in the configured project (matches the
+          # URL `vcluster platform connect vcluster` would generate).
+          cat > "out/kubeconfigs/${pair}.yaml" <<EOF
+        apiVersion: v1
+        kind: Config
+        clusters:
+          - name: ${pair}
+            cluster:
+              server: {{.PLATFORM_HOST}}/kubernetes/project/{{.PLATFORM_PROJECT}}/virtualcluster/${pair}
+        contexts:
+          - name: ${pair}
+            context:
+              cluster: ${pair}
+              user: ${pair}
+              namespace: default
+        current-context: ${pair}
+        users:
+          - name: ${pair}
+            user:
+              token: ${token}
+        EOF
+          chmod 600 "out/kubeconfigs/${pair}.yaml"
+          echo "  ok: ${pair} → out/kubeconfigs/${pair}.yaml"
+          n=$((n + 1))
+        done
+
+        echo "Done. ${n} kubeconfig(s) issued under out/kubeconfigs/."
+        echo "Distribute via: task pairs:upload-kubeconfigs && task pairs:qr"
+
+  pairs:upload-kubeconfigs:
+    desc: |
+      Upload the per-pair kubeconfigs in `out/kubeconfigs/` to a
+      shared object store via `rclone` and capture the resulting
+      shareable URLs to `out/urls.txt`. Defaults to a Google Drive
+      remote — operator must have run `rclone config` once
+      interactively to set up Drive OAuth.
+
+      The shareable URL contains a high-entropy file ID (~190 bits on
+      Drive), so leaking the URL is the only way someone outside the
+      workshop can reach the kubeconfig. URLs auto-expire after the
+      duration set by RCLONE_LINK_EXPIRE (default 24h) on backends
+      that support it.
+
+      Optional env vars:
+        RCLONE_REMOTE       rclone remote name. Default: gdrive.
+        RCLONE_FOLDER       Path within the remote. Default:
+                            workshop-kubeconfigs.
+        RCLONE_LINK_EXPIRE  Duration the shareable URL stays valid
+                            (Go duration syntax). Default: 24h.
+
+      Usage:
+        task pairs:upload-kubeconfigs
+    vars:
+      RCLONE_REMOTE: '{{.RCLONE_REMOTE | default "gdrive"}}'
+      RCLONE_FOLDER: '{{.RCLONE_FOLDER | default "workshop-kubeconfigs"}}'
+      RCLONE_LINK_EXPIRE: '{{.RCLONE_LINK_EXPIRE | default "24h"}}'
+    cmds:
+      - |
+        set -euo pipefail
+        command -v rclone >/dev/null || {
+          echo "rclone not found. Install via 'brew install rclone' (or your package manager)." >&2
+          echo "After install, run 'rclone config' once to set up the '{{.RCLONE_REMOTE}}' remote." >&2
+          exit 1
+        }
+        rclone listremotes 2>/dev/null | grep -q "^{{.RCLONE_REMOTE}}:$" || {
+          echo "rclone remote '{{.RCLONE_REMOTE}}' not configured." >&2
+          echo "Run 'rclone config' to set it up (recommended: Google Drive scope = drive.file)." >&2
+          exit 1
+        }
+        [ -d out/kubeconfigs ] && [ -n "$(ls -A out/kubeconfigs 2>/dev/null)" ] || {
+          echo "out/kubeconfigs/ is empty. Run 'task pairs:issue-kubeconfigs' first." >&2
+          exit 1
+        }
+
+        # Mirror the local directory to the remote folder. --update
+        # avoids re-uploading unchanged files but in practice every
+        # `issue-kubeconfigs` run rotates the token, so every file is
+        # new content.
+        rclone copy out/kubeconfigs/ "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/" --quiet
+
+        # Capture per-file shareable URLs. `rclone link --expire`
+        # works on backends with TTL support (Drive, Box). On
+        # backends without it, the flag is ignored — link still
+        # works but never expires; document accordingly.
+        : > out/urls.txt
+        for kc in out/kubeconfigs/*.yaml; do
+          pair=$(basename "$kc" .yaml)
+          url=$(rclone link --expire "{{.RCLONE_LINK_EXPIRE}}" "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/${pair}.yaml")
+          printf 'pair=%s url=%s\n' "${pair}" "${url}" >> out/urls.txt
+          echo "  ok: ${pair} → ${url}"
+        done
+
+        echo "Done. URLs written to out/urls.txt."
+        echo "Next: task pairs:qr"
+
+  pairs:qr:
+    desc: |
+      Encode each per-pair shareable URL from `out/urls.txt` as a PNG
+      QR code under `out/qr/`. Operator drags these onto the workshop
+      Miro board so each pair can scan their own.
+
+      Usage:
+        task pairs:qr
+    cmds:
+      - |
+        set -euo pipefail
+        command -v qrencode >/dev/null || {
+          echo "qrencode not found. Install via 'brew install qrencode' (or your package manager)." >&2
+          exit 1
+        }
+        [ -f out/urls.txt ] && [ -s out/urls.txt ] || {
+          echo "out/urls.txt is empty or missing. Run 'task pairs:upload-kubeconfigs' first." >&2
+          exit 1
+        }
+
+        mkdir -p out/qr
+        n=0
+        while IFS= read -r line; do
+          pair=$(echo "${line}" | sed -n 's/^pair=\([^ ]*\) .*/\1/p')
+          url=$(echo "${line}" | sed -n 's/^pair=[^ ]* url=\(.*\)$/\1/p')
+          [ -n "${pair}" ] && [ -n "${url}" ] || continue
+          qrencode -o "out/qr/${pair}.png" -s 10 -m 2 "${url}"
+          echo "  ok: ${pair} → out/qr/${pair}.png"
+          n=$((n + 1))
+        done < out/urls.txt
+
+        echo "Done. ${n} QR code(s) under out/qr/. Drag onto the workshop Miro."
+
+  pairs:distribute:
+    desc: |
+      Umbrella for the everyday workshop-day flow: mint per-pair
+      access keys + kubeconfigs, upload to the shared remote, and
+      generate the QR codes for the Miro board. Equivalent to:
+
+        task pairs:issue-kubeconfigs
+        task pairs:upload-kubeconfigs
+        task pairs:qr
+
+      Required env vars: PLATFORM_ACCESS_KEY (see
+      pairs:issue-kubeconfigs).
+
+      Usage:
+        PLATFORM_ACCESS_KEY=<key> task pairs:distribute
+    cmds:
+      - task: pairs:issue-kubeconfigs
+      - task: pairs:upload-kubeconfigs
+      - task: pairs:qr
+
+  # ------------------------------------------------------------------
   # Verify
   # ------------------------------------------------------------------
 
