@@ -105,6 +105,63 @@ Behaviour rules:
 - **The lock is enforced.** A `PreToolUse` hook ([`.claude/hooks/check-ai-edit-lock.sh`](.claude/hooks/check-ai-edit-lock.sh), wired in [`.claude/settings.json`](.claude/settings.json)) blocks `Edit`/`Write` on locked MDX files and returns the rules above to the agent. So this is not a polite request — it's a guardrail.
 - **What to lock.** Pages that have been carefully shaped by the instructor and where AI edits have caused regressions or drift in the past. Do *not* lock pages that are still being drafted; the lock is a contract that the page is finished.
 
+## Localization
+
+The workshop is delivered in Italian (Road to CND Italy 2026), but **English under `docs/docs/` is the source of truth**. Italian is a pure machine-translated mirror, regenerated whenever English changes. Don't edit Italian files standalone — they exist solely as translations of a specific English revision.
+
+### Layout
+
+- `docs/docs/` — English source. Authoritative. Edit this.
+- `docs/i18n/it/docusaurus-plugin-content-docs/current/` — Italian translation. Path mirrors `docs/docs/` exactly.
+- `docs/i18n/it/docusaurus-theme-classic/` — translated theme strings (footer copyright with the auto-translation disclaimer, navbar item labels). The disclaimer lives in the footer copyright string on every Italian page; participants who switch via the navbar locale dropdown see it immediately.
+
+### The frontmatter contract
+
+Every translated MDX carries:
+
+```yaml
+translation_source_commit: <full SHA of the commit that last touched the English file at translation time>
+```
+
+The CI workflow [`.github/workflows/i18n-sync.yml`](.github/workflows/i18n-sync.yml) runs `node docs/scripts/check-i18n-sync.js` on every PR. It fails when:
+
+- an English file has no matching translation;
+- a translation's `translation_source_commit` differs from the English file's latest commit (i.e. English changed and the translation wasn't refreshed);
+- a translation has no English source (orphan).
+
+A failing run prints the English `git diff` since the stored SHA so the next contributor (or AI) can see exactly what to translate.
+
+### Workflow when English changes
+
+1. Edit the English MDX as usual.
+2. `task docs:i18n:check` — lists every locale file that's now out of sync.
+3. `task docs:i18n:diff FILE=docs/docs/<path>` — prints the English diff for that file. (Omit `FILE=` to dump diffs for every out-of-sync file.)
+4. Apply the equivalent edit to the Italian file under `docs/i18n/it/docusaurus-plugin-content-docs/current/<same path>`. Claude can do this in the same session — read the diff, edit the Italian MDX in place, preserve MDX components, frontmatter, and links unchanged.
+5. `task docs:i18n:bump FILE=docs/docs/<path>` — rewrites the Italian file's `translation_source_commit` to the English file's new latest commit.
+6. Commit the English edit, the Italian update, and the bumped frontmatter together.
+
+### Adding a new English page
+
+1. Create the MDX under `docs/docs/<...>` and commit it.
+2. Create the matching Italian translation under `docs/i18n/it/docusaurus-plugin-content-docs/current/<same path>`, including the `translation_source_commit` frontmatter set to the new commit's SHA. (Or, if you can't translate it in the same PR, add the path to [`docs/i18n/.translation-backlog`](docs/i18n/.translation-backlog) — a deliberate, reviewable decision.)
+3. `task docs:i18n:check` should pass.
+
+The English-side `ai_edit: locked` lock does **not** carry over to translations. Italian files are by design machine-rewritten when English changes, so they don't take the lock.
+
+### The translation backlog
+
+[`docs/i18n/.translation-backlog`](docs/i18n/.translation-backlog) is a list of English paths (relative to `docs/docs/`) that the sync check skips. It exists because the i18n framework was bootstrapped with one translated module (`00-intro.mdx`) and the rest are translated incrementally — the backlog records what's still pending.
+
+- When you add an Italian translation for a backlogged file, **remove its line from the backlog in the same commit**.
+- When you delete or rename an English file, also remove (or update) its line — the check fails on stale entries.
+- A backlogged file is invisible to `task docs:i18n:check` and `task docs:i18n:diff`. Once removed from the backlog it becomes enforced.
+
+The end state is an empty backlog file (or no backlog file at all).
+
+### Adding a new locale
+
+Add the locale to `i18n.locales` in [docs/docusaurus.config.js](docs/docusaurus.config.js), to `language` in the search-local theme options, to `LOCALES` in [docs/scripts/check-i18n-sync.js](docs/scripts/check-i18n-sync.js), and create the parallel `docs/i18n/<locale>/...` tree (theme strings + a per-file translation of every English MDX with the `translation_source_commit` set). CI will then enforce the new locale just like Italian.
+
 ## GitOps discipline
 
 Do not `kubectl apply` against the management cluster outside the documented bootstrap tasks. Once `task bootstrap:all` has run, ArgoCD owns cluster state — out-of-band changes will be reverted by `selfHeal: true`.

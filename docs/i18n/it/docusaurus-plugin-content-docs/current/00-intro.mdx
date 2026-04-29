@@ -1,0 +1,63 @@
+---
+sidebar_position: 1
+slug: /
+title: Introduzione
+translation_source_commit: 4f2ebe7de4bec380cd63f6e109ecfb73648493f3
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Benvenuti al workshop di Crossplane ⏱️ 5m
+
+Nelle prossime tre ore installerai [Crossplane](https://crossplane.io), lo userai per comporre la tua API Kubernetes e aggiungerai un Provider che può gestire software esterno ai kind nativi di Kubernetes. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR e Provider — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
+
+**Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `Application` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
+
+## Com'è strutturato il workshop
+
+La sidebar a sinistra elenca i moduli in ordine di lettura. Il gruppo **Crossplane 101** è la spina dorsale guidata — ogni coppia lo attraversa. I gruppi 2XX / 3XX / 4XX e il gruppo Journeys sono percorsi opzionali (choose-your-own-adventure) per dopo il 101 e non sono coperti durante il workshop dal vivo.
+
+| Sezione | Modulo | Tipo | ⏱️ |
+|---|---|---|---|
+| | Introduzione | contenuto | 5m |
+| | Cheatsheet | riferimento | — |
+| | Connetti il tuo cluster | task | 10m |
+| Crossplane 101 | Installa Crossplane | task | 15m |
+| Crossplane 101 | La tua prima Composition | task | 12m |
+| Crossplane 101 | Definisci un'Application | task | 30m |
+| Crossplane 101 | Modifica la tua Application | task | 20m |
+| Crossplane 101 | Aggiungi un Provider | task | 17m |
+| | Conclusioni | contenuto | 5m |
+
+I **moduli task** (Connetti il tuo cluster, più tutto Crossplane 101) seguono lo stesso ritmo: una breve introduzione, poi i passi pratici, poi un controllo di validazione. L'Introduzione, il Cheatsheet e le Conclusioni sono **moduli di contenuto**: si leggono e si va avanti.
+
+Il **Cheatsheet** è una pagina di riferimento. Tienilo aperto in una seconda scheda — è il modo più veloce per controllare cos'è un XRD o una Composition senza uscire dal modulo corrente. Contiene anche una breve [§1.1 sottosezione "Controller e l'operator pattern"](./cheatsheet#controllers-and-the-operator-pattern) che vale la pena leggere una volta prima del modulo 3, soprattutto se "controller" e "loop di riconciliazione" sono termini nuovi per te.
+
+Se stai facendo questo workshop sul tuo laptop, fuori dalla sessione dal vivo, salta prima a [Setup locale solo (k3d)](./solo-local-setup).
+
+## Come funziona la validazione
+
+Ogni modulo task termina con un **bottone di check**. Cliccandolo, il validator del workshop ispeziona il tuo cluster e conferma che il passo abbia funzionato. Verde significa che puoi proseguire; rosso arriva con un messaggio diagnostico così sai cosa correggere.
+
+Stai lavorando in coppia. Inserisci il tuo **pair ID** — la frase che il tuo istruttore ti ha consegnato, tipo `fancy-lemon` — una sola volta, e ogni check di ogni modulo lo userà:
+
+<PairId />
+
+Il pair ID viene salvato nel browser, quindi puoi chiudere la scheda e tornare. Per cambiarlo, clicca **change** sopra.
+
+:::note Stai lavorando in solo, in locale?
+Il tuo pair ID è automaticamente `local`. Il widget sopra lo accetterà; nessun handoff dall'istruttore necessario. Continua.
+:::
+
+### Provalo ora
+
+Il bottone qui sotto esegue il tuo primo check. Chiede al validator di elencare i namespace nel cluster del workshop — uno smoke test che conferma che il pair ID corrisponda a un cluster vivo e che l'infrastruttura del workshop riesca a raggiungerlo.
+
+<ValidateCheck check="cluster-reachable" />
+
+Se la tile diventa verde, sei pronto per Connetti il tuo cluster. Se diventa rossa, ricontrolla il pair ID che ti ha dato l'istruttore e chiedigli di verificare che il cluster sia su prima di andare avanti.
+
+## Pronto?
+
+Apri il [Cheatsheet](./cheatsheet) in una seconda scheda (ci tornerai spesso) e poi vai a [Connetti il tuo cluster](./connect-to-cluster).

@@ -1,0 +1,38 @@
+# Translation backlog — English paths (relative to docs/docs/) that don't
+# yet have an Italian translation. The CI sync check skips these.
+#
+# When you add a translation under
+#     docs/i18n/it/docusaurus-plugin-content-docs/current/<path>
+# remove the matching line from this file in the same commit.
+#
+# When you create a new English page, either translate it in the same PR
+# or add the path here (a deliberate decision, visible in code review).
+#
+# The framework PR landed with 00-intro.mdx translated as a worked
+# example; the rest of the modules will be translated incrementally
+# ahead of the workshop. See AGENTS.md §Localization.
+
+01-cheatsheet.mdx
+02-connect-to-cluster.mdx
+04-crossplane-101/01-install-crossplane.mdx
+04-crossplane-101/02-first-composition.mdx
+04-crossplane-101/03-define-application.mdx
+04-crossplane-101/04-modify-application.mdx
+04-crossplane-101/05-add-a-provider.mdx
+05-crossplane-2xx/01-overview.mdx
+05-crossplane-2xx/02-operations.mdx
+05-crossplane-2xx/03-crossplane-cli.mdx
+05-crossplane-2xx/04-provider-setup-pattern.mdx
+06-crossplane-3xx/01-overview.mdx
+06-crossplane-3xx/02-configurations.mdx
+06-crossplane-3xx/03-provider-github.mdx
+06-crossplane-3xx/04-provider-aws.mdx
+06-crossplane-3xx/05-provider-gcp.mdx
+06-crossplane-3xx/06-provider-azure.mdx
+07-crossplane-4xx/01-overview.mdx
+08-journeys/01-overview.mdx
+08-journeys/02-microservice-templates.mdx
+08-journeys/03-infrastructure-management.mdx
+08-journeys/04-process-automation.mdx
+90-wrap-up.mdx
+99-solo-local-setup.mdx

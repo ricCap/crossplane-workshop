@@ -151,6 +151,42 @@ tasks:
       - npm run start
 
   # ------------------------------------------------------------------
+  # Localization (i18n)
+  #
+  # English under docs/docs/ is the source of truth. Each translated
+  # file under docs/i18n/<locale>/docusaurus-plugin-content-docs/current/
+  # carries `translation_source_commit: <SHA>` in its frontmatter — the
+  # commit SHA of the English file at translation time. The CI workflow
+  # `.github/workflows/i18n-sync.yml` runs `docs:i18n:check` on every
+  # PR. See AGENTS.md §Localization for the full workflow.
+  # ------------------------------------------------------------------
+
+  docs:i18n:check:
+    desc: "Verify every English doc has an in-sync translation in every locale."
+    cmds:
+      - node docs/scripts/check-i18n-sync.js
+
+  docs:i18n:diff:
+    desc: |
+      Print the English `git diff` for every out-of-sync translation
+      (or just one, if FILE=docs/docs/<path> is given). Use this to see
+      what changed in English since the last translation.
+    cmds:
+      - node docs/scripts/check-i18n-sync.js --diff {{if .FILE}}FILE={{.FILE}}{{end}}
+
+  docs:i18n:bump:
+    desc: |
+      Mark a translation as up-to-date with English. Rewrites
+      `translation_source_commit` in the locale file(s) for FILE to the
+      latest commit touching docs/docs/<FILE>. Run after you've applied
+      the diff to the translation. Requires FILE=docs/docs/<path>.
+    preconditions:
+      - sh: '[ -n "{{.FILE}}" ]'
+        msg: "FILE=docs/docs/<path> is required"
+    cmds:
+      - node docs/scripts/check-i18n-sync.js --bump FILE={{.FILE}}
+
+  # ------------------------------------------------------------------
   # Bootstrap (shared by Phase 1 and Phase 2)
   # ------------------------------------------------------------------
 
