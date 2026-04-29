@@ -85,20 +85,32 @@ spec:
                         ingresses:
                           enabled: false
                       fromHost:
-                        # Mirror the GitHub App credential from the
-                        # vcluster's own host namespace
-                        # (participant-<pair>) into the vcluster's
-                        # crossplane-system. The host Secret is
-                        # provisioned out-of-band by
-                        # `task github:register` (see Taskfile.yml).
-                        # The leading "/" in the host key means "this
-                        # vcluster's own host namespace", so no
-                        # per-pair patching is needed.
+                        # Two host->vcluster Secret mirrors:
+                        #
+                        # 1. github-app-credentials — sourced from
+                        #    this vcluster's own host namespace
+                        #    (participant-<pair>), provisioned
+                        #    out-of-band by `task github:register`.
+                        #    Leading "/" shorthand = "this vcluster's
+                        #    own host namespace", so no per-pair
+                        #    patching is needed.
+                        #
+                        # 2. aruba-creds — sourced from the management
+                        #    cluster's `crossplane-system` namespace,
+                        #    a single shared Aruba API key provisioned
+                        #    out-of-band by
+                        #    `task bootstrap:aruba-cloud-credentials`.
+                        #    The destination namespace (aruba-system)
+                        #    is created by the per-vcluster ArgoCD
+                        #    bundle (Track 2 of #44); the secret
+                        #    appears in the vcluster only after that
+                        #    bundle is synced.
                         secrets:
                           enabled: true
                           mappings:
                             byName:
                               "/github-app-credentials": "crossplane-system/github-app-credentials"
+                              "crossplane-system/aruba-creds": "aruba-system/aruba-creds"
                     exportKubeConfig:
                       server: placeholder
             patches:
