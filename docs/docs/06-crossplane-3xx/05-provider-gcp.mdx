@@ -1,0 +1,258 @@
+---
+sidebar_position: 5
+title: provider-gcp against your own Google Cloud project
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# provider-gcp against your own Google Cloud project ⏱️ 35m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same flow. The credential lives in your local cluster's `crossplane-system` namespace either way. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+:::warning Not yet end-to-end tested
+This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh Google Cloud project from sign-up through `kubectl get bucket SYNCED=True` yet**. GCP console flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
+:::
+
+## 6.1 Before you start ⏱️ 3m
+
+In the AWS module you saw the same `Provider` → `ProviderConfig` → MR shape work against AWS's REST API. **`provider-gcp-storage`** does the same for Google Cloud Storage. Costs land on your bill, not the workshop's.
+
+GCP differs from AWS in two ways that matter here:
+
+- **Projects are the unit of isolation.** Resources don't live "in your account" — they live in a *project*. You'll create one specifically for this module.
+- **Service accounts replace IAM users.** GCP authenticates programs with service-account JSON keys. The Secret you'll feed Crossplane is one of those JSON blobs.
+
+You're about to: sign up for Google Cloud, create a project, mint a service-account JSON key with `roles/storage.admin`, install [`provider-gcp-storage`](https://marketplace.upbound.io/providers/upbound/provider-gcp-storage) on your workshop cluster, wire a `ClusterProviderConfig`, and create one `Bucket` MR.
+
+The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it.
+
+## 6.2 Create the account ⏱️ ~15m
+
+### 1. Sign up
+
+Go to [cloud.google.com/free](https://cloud.google.com/free) and click **Get started for free**. You'll need:
+
+- A Google account.
+- A credit card (Google verifies it; the Free Tier and the $300 first-90-days credit are both genuinely free).
+- A phone number for verification.
+
+You'll land in the GCP console with a default project named **My First Project**. Don't use it — make a clean one in the next step.
+
+### 2. Create a project
+
+In the console top bar, project picker → **NEW PROJECT**.
+
+- **Project name**: `crossplane-workshop`
+- **Project ID**: GCP auto-generates one (e.g. `crossplane-workshop-471302`); copy it down — you'll need it shortly. The ID is permanent and globally unique; the name you can change later.
+- **Organization / Location**: leave as **No organization** unless you already have one.
+
+Click **CREATE**, wait ~10s, then switch to the new project from the picker.
+
+### 3. Set a billing alert
+
+Console hamburger menu → **Billing** → **Budgets & alerts** → **CREATE BUDGET**.
+
+- **Scope**: this project only.
+- **Amount**: $1 (lower than any real-world charge — you'll get an email if anything starts costing money).
+- **Actions**: 50%, 90%, 100% thresholds — email yourself.
+
+### 4. Enable the Storage API
+
+GCP services are off by default; you have to opt each one in.
+
+```bash
+# Or use the console: APIs & Services → Enable APIs and services → search "Cloud Storage" → Enable.
+gcloud services enable storage.googleapis.com --project=<your-project-id>
+```
+
+If you don't have `gcloud` installed, the console UI works the same. Without this step, the bucket-create call returns `Error 403: ... has not been used in project ... before or it is disabled`.
+
+### What's free
+
+Cloud Storage's "always free" tier gives you **5 GB-month** of standard storage in a US region (`US-WEST1`, `US-CENTRAL1`, or `US-EAST1`), 5 000 Class A operations and 50 000 Class B per month, **forever**, regardless of the 90-day credit. The single empty bucket this module creates uses none of that. **Delete it when you're done** — `roles/storage.admin` lets you do it from the same MR.
+
+## 6.3 Mint a credential ⏱️ 7m
+
+You'll create a service account, give it `roles/storage.admin`, generate a JSON key, and feed it to Crossplane.
+
+### 1. Create the service account
+
+```bash
+gcloud iam service-accounts create crossplane-workshop \
+  --project=<your-project-id> \
+  --display-name="Crossplane workshop"
+```
+
+(The console UI for the same: **IAM & Admin** → **Service Accounts** → **CREATE SERVICE ACCOUNT**.)
+
+### 2. Grant `roles/storage.admin` on the project
+
+```bash
+gcloud projects add-iam-policy-binding <your-project-id> \
+  --member="serviceAccount:crossplane-workshop@<your-project-id>.iam.gserviceaccount.com" \
+  --role="roles/storage.admin"
+```
+
+`roles/storage.admin` is broad — fine for a throwaway workshop credential, too broad for production. The hardening exercise is in §6.6.
+
+### 3. Generate a JSON key
+
+```bash
+gcloud iam service-accounts keys create /tmp/gcp-creds.json \
+  --iam-account=crossplane-workshop@<your-project-id>.iam.gserviceaccount.com
+```
+
+This writes a JSON blob holding the service account's private key. Treat it like a password.
+
+### 4. Apply it as a Secret
+
+```bash
+kubectl create secret generic gcp-creds \
+  -n crossplane-system \
+  --from-file=credentials=/tmp/gcp-creds.json
+```
+
+Then delete the local copy:
+
+```bash
+rm /tmp/gcp-creds.json
+```
+
+Confirm the Secret landed:
+
+```bash
+kubectl get secret gcp-creds -n crossplane-system
+```
+
+Expected output:
+
+```
+NAME        TYPE     DATA   AGE
+gcp-creds   Opaque   1      3s
+```
+
+## 6.4 Install the provider ⏱️ 5m
+
+### 1. Apply the `Provider` manifest
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-gcp-storage
+spec:
+  package: xpkg.upbound.io/upbound/provider-gcp-storage:v2.5.3
+EOF
+```
+
+Like the AWS provider, the GCP provider is published as a **family** — one small package per service. `provider-gcp-storage` pulls in `provider-family-gcp` automatically.
+
+### 2. Watch it become Healthy
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-gcp-storage
+```
+
+Expected output (after ~60s):
+
+```
+NAME                   INSTALLED   HEALTHY   PACKAGE
+provider-gcp-storage   True        True      xpkg.upbound.io/upbound/provider-gcp-storage:v2.5.3
+```
+
+<ValidateCheck check="provider-gcp-installed" />
+
+When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile GCS MRs.
+
+## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 5m
+
+### 1. Wire a `ClusterProviderConfig` to the Secret
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: gcp.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  projectID: <your-project-id>
+  credentials:
+    source: Secret
+    secretRef:
+      name: gcp-creds
+      namespace: crossplane-system
+      key: credentials
+EOF
+```
+
+`spec.projectID` is the GCP-specific bit: every MR you create through this config will live in that project. The `gcp.m.upbound.io` API group is the v2-namespaced version (the `.m.` infix marks it).
+
+### 2. Create one `Bucket` MR
+
+GCS bucket names, like S3, are **globally unique across all of GCP**. Substitute `<your-pair-id>`:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: storage.gcp.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: pair-<your-pair-id>-hello
+  namespace: default
+spec:
+  forProvider:
+    location: US
+    forceDestroy: true
+    uniformBucketLevelAccess: true
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default
+EOF
+```
+
+`location: US` is a multi-region; combined with `Standard` storage class (the default), it qualifies for the always-free tier in the `US-WEST1`/`US-CENTRAL1`/`US-EAST1` single-region buckets only — a multi-region bucket costs a few cents/GB-month. The empty bucket itself costs nothing; only stored objects do. `forceDestroy: true` lets the deletion in §6.5.4 succeed even if the bucket has objects in it.
+
+### 3. Watch it reconcile
+
+```bash
+kubectl get bucket.storage.gcp.m.upbound.io -A
+```
+
+Expected output (after ~10s):
+
+```
+NAMESPACE   NAME                       SYNCED   READY   EXTERNAL-NAME              AGE
+default     pair-<your-pair-id>-hello  True     True    pair-<your-pair-id>-hello  12s
+```
+
+Then open the GCP console → **Cloud Storage** → **Buckets**. Your bucket is there, in `us` multi-region. You created a real GCP resource through a Crossplane MR.
+
+### 4. Clean up
+
+When you're done, delete the MR — Crossplane will delete the bucket on the GCP side too:
+
+```bash
+kubectl delete bucket.storage.gcp.m.upbound.io pair-<your-pair-id>-hello
+```
+
+Verify the bucket is gone from the GCS console. Then either delete the service account or rotate its key — the credential you minted in §6.3 has full Storage admin on your project.
+
+## 6.6 What just happened
+
+Same `Provider` → `ProviderConfig` → MR shape, applied against GCP. The only GCP-specific piece is `spec.projectID` on the `ClusterProviderConfig` — Crossplane needed it because GCP scopes everything by project.
+
+Two natural follow-ups:
+
+- **Tighten the IAM scope.** `roles/storage.admin` is broad; the production-grade move is a custom role granting only `storage.buckets.create`, `storage.buckets.delete`, `storage.buckets.update` and binding it at the project level. The provider will manage hundreds of buckets with that custom role and never need wider rights.
+- **Compose around it.** Wrap `Bucket` (and its siblings `BucketIAMPolicy`, `BucketObject`) in an XR like `XBucket` so platform users get an encrypted, retention-policied, uniform-access bucket from a single line of YAML.
+
+### Go deeper
+
+- [`provider-upjet-gcp`](https://github.com/crossplane-contrib/provider-upjet-gcp) — full source, every GCP service the family supports, release notes.
+- [Crossplane Marketplace — GCP Storage provider](https://marketplace.upbound.io/providers/upbound/provider-gcp-storage) — version index, schema browser, all available CRDs.
+- [GCP Free Tier reference](https://cloud.google.com/free/docs/free-cloud-features) — always-free vs. $300-credit, per-service breakdown.

@@ -13,5 +13,10 @@ Medium-difficulty pointer-driven tasks for pairs comfortable with providers and 
 |---|---|---|
 | [Package as a Configuration](./configurations) | 15m | Bundle the XRDs and Compositions you wrote in 101 into a versioned OCI artifact (a `Configuration` package), pin its provider/function dependencies, push it to a registry, install it on a fresh cluster with a single `kubectl apply`. |
 | [provider-github against a real org](./provider-github) | 20m | Install `provider-github`, wire it to a pre-staged GitHub App (or your own fine-grained PAT in solo mode), and reconcile a real `Repository` in the shared `riccap-demo-org` sandbox. |
+| [provider-aws against your own AWS account](./provider-aws) | 35m | Sign up for AWS free tier, mint an IAM user with S3 access, install `provider-aws-s3`, wire a `ClusterProviderConfig`, and create one S3 `Bucket` MR. |
+| [provider-gcp against your own Google Cloud project](./provider-gcp) | 35m | Sign up for Google Cloud, create a project, mint a service account with `roles/storage.admin`, install `provider-gcp-storage`, and create one GCS `Bucket` MR. |
+| [provider-azure against your own Azure subscription](./provider-azure) | 35m | Sign up for Azure, create a resource group, mint a service principal scoped to it, install `provider-azure-storage`, and create one Storage `Account` MR. |
 
-More tasks land here as they're authored. Section roadmap (per the [style guide](../)): cloud-provider managed resources, the secrets stack, status functions, drift remediation strategies, and other "you've got the basics — here's how production looks" topics.
+More tasks land here as they're authored. Section roadmap (per the [style guide](../)): the secrets stack, status functions, drift remediation strategies, and other "you've got the basics — here's how production looks" topics.
+
+The full catalogue of providers (with current versions and schema browsers) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)**. The three cloud-provider modules above pin specific versions to keep their commands reproducible; check the marketplace when you want a newer release or a different service in the same family.
