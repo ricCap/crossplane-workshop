@@ -14,6 +14,10 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same commands, same flow. The credential lives in your local cluster's `crossplane-system` namespace either way. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
+:::warning Not yet end-to-end tested
+This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh AWS account from sign-up through `kubectl get bucket SYNCED=True` yet**. AWS console flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
+:::
+
 ## 6.1 Before you start ⏱️ 3m
 
 Every provider you've used in 101 reconciles against either the workshop cluster's own apiserver (`provider-kubernetes`) or its Helm runtime (`provider-helm`). **`provider-aws-s3`** is different: it talks to AWS's REST API and reconciles real S3 buckets in *your* AWS account. Costs land on your bill, not the workshop's.

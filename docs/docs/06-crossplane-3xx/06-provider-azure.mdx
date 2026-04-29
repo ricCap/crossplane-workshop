@@ -14,6 +14,10 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same commands, same flow. The credential lives in your local cluster's `crossplane-system` namespace either way. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
+:::warning Not yet end-to-end tested
+This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh Azure subscription from sign-up through `kubectl get account SYNCED=True` yet**. Azure Portal flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
+:::
+
 ## 6.1 Before you start ⏱️ 3m
 
 You've now seen the same `Provider` → `ProviderConfig` → MR shape work against AWS and GCP. **`provider-azure-storage`** is the Azure version. Costs land on your bill, not the workshop's.
