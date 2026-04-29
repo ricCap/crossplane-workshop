@@ -59,8 +59,8 @@ const button = {
   padding: '6px 14px',
   border: 'none',
   borderRadius: '6px',
-  background: '#2563eb',
-  color: 'white',
+  background: 'var(--ifm-color-primary)',
+  color: '#fff',
   fontWeight: 600,
   cursor: 'pointer',
   font: 'inherit',
@@ -68,10 +68,10 @@ const button = {
 
 const presetButton = (active) => ({
   padding: '6px 12px',
-  border: '1px solid #d1d5db',
+  border: '1px solid var(--ifm-color-emphasis-300)',
   borderRadius: '6px',
-  background: active ? '#1f2937' : '#fff',
-  color: active ? '#fff' : '#1f2937',
+  background: active ? 'var(--ifm-color-emphasis-800)' : 'var(--ifm-background-surface-color)',
+  color: active ? 'var(--ifm-background-surface-color)' : 'var(--ifm-color-emphasis-800)',
   fontWeight: 600,
   cursor: 'pointer',
   font: 'inherit',
@@ -82,7 +82,7 @@ const resetLink = {
   padding: '6px 10px',
   border: 'none',
   background: 'transparent',
-  color: '#2563eb',
+  color: 'var(--ifm-link-color)',
   cursor: 'pointer',
   font: 'inherit',
   textDecoration: 'underline',
@@ -96,10 +96,10 @@ const tileWrap = {
 
 const tileStyle = ({ w, h }) => ({
   boxSizing: 'border-box',
-  border: '1px solid #e5e7eb',
+  border: '1px solid var(--ifm-color-emphasis-300)',
   borderRadius: '8px',
   overflow: 'hidden',
-  background: '#fff',
+  background: 'var(--ifm-background-surface-color)',
   display: 'flex',
   flexDirection: 'column',
   width: `${w}px`,
@@ -113,30 +113,32 @@ const tileLabel = {
   padding: '6px 10px',
   fontSize: '0.85rem',
   fontWeight: 600,
-  borderBottom: '1px solid #e5e7eb',
-  background: '#f9fafb',
+  borderBottom: '1px solid var(--ifm-color-emphasis-300)',
+  background: 'var(--ifm-color-emphasis-100)',
 };
 
 const tileFrame = {
   width: '100%',
   flex: 1,
   border: 'none',
-  background: '#fff',
+  // Iframe paints its own background; transparent lets the tile's
+  // surface colour show through during loading in either theme.
+  background: 'transparent',
 };
 
 const empty = {
   padding: '2rem',
   textAlign: 'center',
-  color: '#6b7280',
-  border: '1px dashed #d1d5db',
+  color: 'var(--ifm-color-emphasis-700)',
+  border: '1px dashed var(--ifm-color-emphasis-300)',
   borderRadius: '8px',
 };
 
 const error = {
   padding: '1rem',
-  color: '#991b1b',
-  background: '#fee2e2',
-  border: '1px solid #fecaca',
+  color: 'var(--ifm-color-danger-contrast-foreground)',
+  background: 'var(--ifm-color-danger-contrast-background)',
+  border: '1px solid var(--ifm-color-danger)',
   borderRadius: '8px',
 };
 

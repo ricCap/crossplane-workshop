@@ -1,10 +1,22 @@
 /* Minimal custom CSS — Docusaurus requires this file to exist. */
 :root {
-  --ifm-color-primary: #2563eb;
-  --ifm-color-primary-dark: #1d4ed8;
-  --ifm-color-primary-darker: #1e40af;
-  --ifm-color-primary-darkest: #1e3a8a;
-  --ifm-color-primary-light: #3b82f6;
-  --ifm-color-primary-lighter: #60a5fa;
-  --ifm-color-primary-lightest: #93c5fd;
+  --ifm-color-primary: #02a688;
+  --ifm-color-primary-dark: #02957a;
+  --ifm-color-primary-darker: #028c73;
+  --ifm-color-primary-darkest: #02745f;
+  --ifm-color-primary-light: #03b898;
+  --ifm-color-primary-lighter: #1aceb0;
+  --ifm-color-primary-lightest: #4ddec2;
+
+  /* Body links (and other text-on-white uses of "primary") need >= 4.5:1
+     contrast — the brand #02a688 only hits ~3.4:1, so route inline links
+     through the darker shade while leaving chrome on the brand colour. */
+  --ifm-link-color: var(--ifm-color-primary-darker);
+  --ifm-link-hover-color: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] {
+  /* On the dark background the brand colour is fine for links (~6:1). */
+  --ifm-link-color: var(--ifm-color-primary-light);
+  --ifm-link-hover-color: var(--ifm-color-primary-lighter);
 }

@@ -12,5 +12,6 @@ Medium-difficulty pointer-driven tasks for pairs comfortable with providers and 
 | Module | ⏱️ | Topic |
 |---|---|---|
 | [Package as a Configuration](./configurations) | 15m | Bundle the XRDs and Compositions you wrote in 101 into a versioned OCI artifact (a `Configuration` package), pin its provider/function dependencies, push it to a registry, install it on a fresh cluster with a single `kubectl apply`. |
+| [provider-github against a real org](./provider-github) | 20m | Install `provider-github`, wire it to a pre-staged GitHub App (or your own fine-grained PAT in solo mode), and reconcile a real `Repository` in the shared `riccap-demo-org` sandbox. |
 
 More tasks land here as they're authored. Section roadmap (per the [style guide](../)): cloud-provider managed resources, the secrets stack, status functions, drift remediation strategies, and other "you've got the basics — here's how production looks" topics.

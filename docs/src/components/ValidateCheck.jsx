@@ -43,12 +43,16 @@ const chipStyle = {
   userSelect: 'none',
 };
 
+// Use Infima's per-status contrast palette: --ifm-color-{x}-contrast-background
+// and -contrast-foreground are defined for both light and dark themes by
+// Docusaurus, so the chip stays legible in either mode without us reasoning
+// about it. IDLE falls back to neutral emphasis tokens.
 const colors = {
-  [STATUS.IDLE]:    { bg: '#e5e7eb', fg: '#374151' },
-  [STATUS.LOADING]: { bg: '#dbeafe', fg: '#1e40af' },
-  [STATUS.PASS]:    { bg: '#d1fae5', fg: '#065f46' },
-  [STATUS.FAIL]:    { bg: '#fee2e2', fg: '#991b1b' },
-  [STATUS.ERROR]:   { bg: '#fef3c7', fg: '#92400e' },
+  [STATUS.IDLE]:    { bg: 'var(--ifm-color-emphasis-200)', fg: 'var(--ifm-color-emphasis-800)' },
+  [STATUS.LOADING]: { bg: 'var(--ifm-color-info-contrast-background)',    fg: 'var(--ifm-color-info-contrast-foreground)' },
+  [STATUS.PASS]:    { bg: 'var(--ifm-color-success-contrast-background)', fg: 'var(--ifm-color-success-contrast-foreground)' },
+  [STATUS.FAIL]:    { bg: 'var(--ifm-color-danger-contrast-background)',  fg: 'var(--ifm-color-danger-contrast-foreground)' },
+  [STATUS.ERROR]:   { bg: 'var(--ifm-color-warning-contrast-background)', fg: 'var(--ifm-color-warning-contrast-foreground)' },
 };
 
 const labels = {
@@ -110,7 +114,8 @@ export default function ValidateCheck({ check, pairId: propPairId }) {
         <pre style={{
           marginTop: '0.5rem',
           padding: '0.5rem 0.75rem',
-          background: '#f9fafb',
+          background: 'var(--ifm-color-emphasis-100)',
+          color: 'var(--ifm-font-color-base)',
           borderLeft: `4px solid ${fg}`,
           borderRadius: '4px',
           fontSize: '0.8rem',
