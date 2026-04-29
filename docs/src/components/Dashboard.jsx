@@ -22,7 +22,7 @@ const headerLeft = {
 };
 
 const lastUpdated = {
-  color: '#6b7280',
+  color: 'var(--ifm-color-emphasis-700)',
   fontSize: '0.9rem',
 };
 
@@ -35,8 +35,8 @@ const button = {
   padding: '6px 14px',
   border: 'none',
   borderRadius: '6px',
-  background: '#2563eb',
-  color: 'white',
+  background: 'var(--ifm-color-primary)',
+  color: '#fff',
   fontWeight: 600,
   cursor: 'pointer',
   font: 'inherit',
@@ -44,15 +44,15 @@ const button = {
 
 const buttonSecondary = {
   ...button,
-  background: '#e5e7eb',
-  color: '#111827',
+  background: 'var(--ifm-color-emphasis-200)',
+  color: 'var(--ifm-font-color-base)',
 };
 
 const tableWrap = {
-  border: '1px solid #e5e7eb',
+  border: '1px solid var(--ifm-color-emphasis-300)',
   borderRadius: '8px',
   overflow: 'auto',
-  background: '#fff',
+  background: 'var(--ifm-background-surface-color)',
 };
 
 const table = {
@@ -63,8 +63,8 @@ const table = {
 
 const thBase = {
   padding: '10px 12px',
-  borderBottom: '1px solid #e5e7eb',
-  background: '#f9fafb',
+  borderBottom: '1px solid var(--ifm-color-emphasis-300)',
+  background: 'var(--ifm-color-emphasis-100)',
   fontWeight: 600,
   whiteSpace: 'nowrap',
 };
@@ -75,7 +75,7 @@ const thStepCol = {
   position: 'sticky',
   left: 0,
   zIndex: 2,
-  background: '#f9fafb',
+  background: 'var(--ifm-color-emphasis-100)',
   minWidth: '260px',
 };
 
@@ -87,7 +87,7 @@ const thPair = {
 
 const tdBase = {
   padding: '10px 12px',
-  borderBottom: '1px solid #f3f4f6',
+  borderBottom: '1px solid var(--ifm-color-emphasis-200)',
   verticalAlign: 'middle',
 };
 
@@ -96,14 +96,15 @@ const stepCell = {
   textAlign: 'left',
   position: 'sticky',
   left: 0,
-  background: '#fff',
+  background: 'var(--ifm-background-surface-color)',
   fontWeight: 500,
   whiteSpace: 'nowrap',
 };
 
 const stepCellActive = {
   ...stepCell,
-  background: '#eff6ff',
+  // Tinted brand wash, kept faint enough to read on light or dark.
+  background: 'color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-surface-color))',
 };
 
 const stepNumber = {
@@ -113,8 +114,8 @@ const stepNumber = {
   lineHeight: '26px',
   textAlign: 'center',
   borderRadius: '999px',
-  background: '#2563eb',
-  color: 'white',
+  background: 'var(--ifm-color-primary)',
+  color: '#fff',
   fontWeight: 700,
   fontSize: '0.8rem',
   marginRight: '10px',
@@ -132,15 +133,15 @@ const chipBase = {
   borderRadius: '999px',
   fontSize: '0.78rem',
   fontWeight: 600,
-  color: 'white',
+  color: '#fff',
   minWidth: '48px',
   textAlign: 'center',
   cursor: 'help',
 };
 
-const chipPass = { ...chipBase, background: '#16a34a' };
-const chipFail = { ...chipBase, background: '#dc2626' };
-const chipUnknown = { ...chipBase, background: '#9ca3af' };
+const chipPass = { ...chipBase, background: 'var(--ifm-color-success)' };
+const chipFail = { ...chipBase, background: 'var(--ifm-color-danger)' };
+const chipUnknown = { ...chipBase, background: 'var(--ifm-color-emphasis-500)' };
 
 const pairHeader = {
   display: 'flex',
@@ -159,7 +160,7 @@ const progressTrack = {
   width: '72px',
   height: '6px',
   borderRadius: '3px',
-  background: '#e5e7eb',
+  background: 'var(--ifm-color-emphasis-300)',
   position: 'relative',
   overflow: 'hidden',
 };
@@ -167,21 +168,21 @@ const progressTrack = {
 const progressFill = (pct, done) => ({
   width: `${pct}%`,
   height: '100%',
-  background: done ? '#16a34a' : '#2563eb',
+  background: done ? 'var(--ifm-color-success)' : 'var(--ifm-color-primary)',
   borderRadius: '3px',
   transition: 'width 300ms ease',
 });
 
 const stageLabel = {
   fontSize: '0.75rem',
-  color: '#6b7280',
+  color: 'var(--ifm-color-emphasis-700)',
   fontWeight: 600,
 };
 
 const detailsPanel = {
   padding: '12px 16px',
-  background: '#f9fafb',
-  borderBottom: '1px solid #f3f4f6',
+  background: 'var(--ifm-color-emphasis-100)',
+  borderBottom: '1px solid var(--ifm-color-emphasis-200)',
   fontSize: '0.86rem',
 };
 
@@ -197,11 +198,11 @@ const detailsList = {
 const detailsLabel = {
   fontWeight: 600,
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  color: '#374151',
+  color: 'var(--ifm-color-emphasis-800)',
 };
 
 const detailsText = {
-  color: '#4b5563',
+  color: 'var(--ifm-color-emphasis-700)',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
 };
@@ -209,16 +210,16 @@ const detailsText = {
 const empty = {
   padding: '2rem',
   textAlign: 'center',
-  color: '#6b7280',
-  border: '1px dashed #d1d5db',
+  color: 'var(--ifm-color-emphasis-700)',
+  border: '1px dashed var(--ifm-color-emphasis-300)',
   borderRadius: '8px',
 };
 
 const errorBox = {
   padding: '0.75rem 1rem',
-  color: '#991b1b',
-  background: '#fee2e2',
-  border: '1px solid #fecaca',
+  color: 'var(--ifm-color-danger-contrast-foreground)',
+  background: 'var(--ifm-color-danger-contrast-background)',
+  border: '1px solid var(--ifm-color-danger)',
   borderRadius: '8px',
   marginBottom: '1rem',
 };
