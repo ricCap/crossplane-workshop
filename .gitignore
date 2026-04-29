@@ -27,3 +27,11 @@ docs/.docusaurus/
 # Per-pair kubeconfigs / shareable URLs / QR codes produced by
 # `task pairs:distribute`. Contain bearer tokens — never commit.
 /out/
+
+# Helm chart dependencies in the per-vcluster bundle. Chart.lock
+# pins the upstream chart's version (and SHA), so ArgoCD's
+# `helm dependency build` re-fetches the same bytes at sync time.
+# Vendoring the unpacked tarball adds binary noise to git history
+# without improving reproducibility — same pattern every other
+# chart in this repo uses (reference via `repoURL`, don't vendor).
+gitops/per-vcluster-bundle/charts/
