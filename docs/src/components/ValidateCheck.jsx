@@ -88,12 +88,33 @@ export default function ValidateCheck({ check, pairId: propPairId }) {
       const res = await fetch(`/api/checks/${encodeURIComponent(pairId)}/${encodeURIComponent(check)}`, {
         method: 'POST',
       });
+      if (!res.ok) {
+        setStatus(STATUS.ERROR);
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          setDetails(
+            `Validator service unreachable (HTTP ${res.status}). ` +
+            `In dev, start it with \`task dev:validator\` and click again. ` +
+            `In the workshop cluster, the validator may be restarting — wait ~30s and retry.`
+          );
+        } else {
+          setDetails(`Validator returned HTTP ${res.status}. Try again, or check the validator logs.`);
+        }
+        return;
+      }
       const data = await res.json();
       setStatus(data.pass ? STATUS.PASS : STATUS.FAIL);
       setDetails(data.details ?? '');
     } catch (err) {
       setStatus(STATUS.ERROR);
-      setDetails(String(err));
+      if (err instanceof TypeError) {
+        setDetails(
+          'Cannot reach validator. ' +
+          'In dev, start it with `task dev:validator` and click again. ' +
+          'In the workshop cluster, the validator may be temporarily down — retry in a moment.'
+        );
+      } else {
+        setDetails(String(err));
+      }
     }
   }, [pairId, check]);
 

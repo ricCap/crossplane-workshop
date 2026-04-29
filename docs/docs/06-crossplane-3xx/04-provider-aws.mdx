@@ -1,0 +1,240 @@
+---
+sidebar_position: 4
+title: provider-aws against your own AWS account
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# provider-aws against your own AWS account ⏱️ 35m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same flow. The credential lives in your local cluster's `crossplane-system` namespace either way. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 6.1 Before you start ⏱️ 3m
+
+Every provider you've used in 101 reconciles against either the workshop cluster's own apiserver (`provider-kubernetes`) or its Helm runtime (`provider-helm`). **`provider-aws-s3`** is different: it talks to AWS's REST API and reconciles real S3 buckets in *your* AWS account. Costs land on your bill, not the workshop's.
+
+You'll keep the blast radius small by:
+
+- Creating an **IAM user** scoped to S3 — not your root account credentials.
+- Picking a region with no existing buckets (so you can find and delete the test bucket later).
+- Setting a **billing alert** before you create anything that costs money.
+
+You're about to: sign up for AWS, mint an IAM user with S3 access, install [`provider-aws-s3`](https://marketplace.upbound.io/providers/upbound/provider-aws-s3) on your workshop cluster, wire a `ClusterProviderConfig` to a credentials Secret, and create one `Bucket` MR. The bucket appears in the AWS console.
+
+The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it. You'll come back when you want EC2, RDS, IAM, Lambda, or any of the other ~150 AWS services Upbound publishes families for.
+
+## 6.2 Create the account ⏱️ ~15m
+
+### 1. Sign up
+
+Go to [aws.amazon.com/free](https://aws.amazon.com/free) and click **Create a Free Account**. You'll need:
+
+- An email address that isn't already an AWS root account.
+- A credit card (AWS verifies it with a $1 hold; the Free Tier itself is genuinely free for the services in scope below).
+- A phone number for SMS / voice verification.
+
+Pick the **Basic Support — Free** plan when asked. You don't need anything paid for this module.
+
+### 2. Set a billing alert
+
+A forgotten resource is the #1 way people get a surprise AWS bill. Before you create anything:
+
+1. From the AWS console, top-right account menu → **Billing and Cost Management**.
+2. **Billing preferences** → enable **Receive AWS Free Tier alerts** and **Receive Billing alerts**. Save.
+3. **Budgets** → **Create budget** → **Use a template (simplified)** → **Zero spend budget**. Email yourself when actual spend exceeds $0.01.
+
+You'll get an email the first time anything you forget to delete starts costing money.
+
+### 3. Pick a region
+
+Top-right of the console, next to your account name. Pick **eu-west-1 (Ireland)** for this module — the Free Tier is region-agnostic, but using one consistent region makes cleanup easier later. Your bucket will live wherever you create it; the IAM user you mint next is global.
+
+### What's free
+
+S3 Standard's Free Tier gives you 5 GB of storage, 20 000 GET requests, and 2 000 PUT requests per month for the first 12 months. The single empty bucket this module creates uses none of that. After 12 months, the bucket still exists — it just starts costing pennies. **Delete it when you're done with the workshop content.**
+
+## 6.3 Mint a credential ⏱️ 7m
+
+You'll create an IAM user with **only** S3 access, and give Crossplane its access key.
+
+### 1. Create the IAM user
+
+In the AWS console, search **IAM** → **Users** → **Create user**.
+
+- **User name**: `crossplane-workshop`
+- **Provide user access to the AWS Management Console**: leave **unchecked**. The user is for API access only.
+- **Permissions options**: **Attach policies directly** → tick **AmazonS3FullAccess**.
+
+`AmazonS3FullAccess` is broad — fine for a throwaway workshop credential, too broad for production. The hardening exercise is in §6.6.
+
+### 2. Generate an access key
+
+Open the user you just created → **Security credentials** tab → **Create access key**.
+
+- **Use case**: **Application running outside AWS**.
+- Acknowledge the recommendation, click **Next**, then **Create access key**.
+- Copy the **Access key ID** and **Secret access key**. The secret is shown **once** — close the tab and it's gone forever.
+
+### 3. Format the credential as the AWS shared-credentials file
+
+`provider-aws-s3` reads credentials in the standard AWS CLI format. Write it to a temp file:
+
+```bash
+cat <<EOF > /tmp/aws-creds
+[default]
+aws_access_key_id = <your-access-key-id>
+aws_secret_access_key = <your-secret-access-key>
+EOF
+```
+
+### 4. Apply it as a Secret
+
+```bash
+kubectl create secret generic aws-creds \
+  -n crossplane-system \
+  --from-file=credentials=/tmp/aws-creds
+```
+
+Then delete the temp file:
+
+```bash
+rm /tmp/aws-creds
+```
+
+Confirm the Secret landed:
+
+```bash
+kubectl get secret aws-creds -n crossplane-system
+```
+
+Expected output:
+
+```
+NAME        TYPE     DATA   AGE
+aws-creds   Opaque   1      3s
+```
+
+## 6.4 Install the provider ⏱️ 5m
+
+### 1. Apply the `Provider` manifest
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-s3
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.5.3
+EOF
+```
+
+Upbound publishes the AWS provider as a **family** — one small package per AWS service (S3, EC2, RDS, …) that all share a single auth provider package. Installing `provider-aws-s3` pulls in the family's `provider-family-aws` automatically. Fewer CRDs in your cluster than the old monolithic `provider-aws`.
+
+### 2. Watch it become Healthy
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-aws-s3
+```
+
+Expected output (after ~60s):
+
+```
+NAME              INSTALLED   HEALTHY   PACKAGE
+provider-aws-s3   True        True      xpkg.upbound.io/upbound/provider-aws-s3:v2.5.3
+```
+
+<ValidateCheck check="provider-aws-installed" />
+
+When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile S3 MRs.
+
+## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 5m
+
+### 1. Wire a `ClusterProviderConfig` to the Secret
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: aws-creds
+      namespace: crossplane-system
+      key: credentials
+EOF
+```
+
+The `aws.m.upbound.io` API group is the v2-namespaced version (the `.m.` infix marks it). The matching `ClusterProviderConfig` is cluster-scoped, so namespaced MRs from any namespace can reference it as `name: default`.
+
+### 2. Create one `Bucket` MR
+
+S3 bucket names are **globally unique** across all of AWS — no two accounts can have the same bucket name in the same region. Substitute `<your-pair-id>` with your own pair ID and pick something nobody else will have used (the `<your-pair-id>` prefix takes care of most collisions):
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: pair-<your-pair-id>-hello
+  namespace: default
+spec:
+  forProvider:
+    region: eu-west-1
+    tags:
+      Name: workshop-pair-<your-pair-id>
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default
+EOF
+```
+
+`providerConfigRef.kind` is required for namespaced MRs in v2 — it tells the provider whether to look for a same-namespace `ProviderConfig` or a cluster-scoped `ClusterProviderConfig`. You're pointing at the cluster-scoped one you just applied.
+
+### 3. Watch it reconcile
+
+```bash
+kubectl get bucket.s3.aws.m.upbound.io -A
+```
+
+Expected output (after ~10s):
+
+```
+NAMESPACE   NAME                       SYNCED   READY   EXTERNAL-NAME              AGE
+default     pair-<your-pair-id>-hello  True     True    pair-<your-pair-id>-hello  12s
+```
+
+Then open the AWS console → **S3** → **General purpose buckets**. Your bucket is there, in `eu-west-1`, with the `Name` tag you set. You created a real AWS resource through a Crossplane MR.
+
+### 4. Clean up
+
+When you're done, delete the MR — Crossplane will delete the bucket on the AWS side too:
+
+```bash
+kubectl delete bucket.s3.aws.m.upbound.io pair-<your-pair-id>-hello
+```
+
+Verify the bucket is gone from the S3 console. Then either delete the IAM user or rotate its access key — the credential you minted in §6.3 has full S3 access on your account, so don't leave it sitting in your shell history.
+
+## 6.6 What just happened
+
+You proved that the same `Provider` → `ProviderConfig` → MR shape you used for `provider-helm` in 101 works against AWS unchanged. The only thing that varies is what's on the other side of the API.
+
+Two natural follow-ups:
+
+- **Tighten the IAM scope.** `AmazonS3FullAccess` is fine for a demo; for production, a custom policy granting only `s3:CreateBucket`, `s3:DeleteBucket`, `s3:PutBucketTagging` on a wildcarded bucket prefix is the actual least-privilege shape. The provider can manage hundreds of buckets with such a policy and never need root-level rights.
+- **Compose around it.** Wrap `Bucket` (and its sibling `BucketAcl`, `BucketPolicy`, `BucketServerSideEncryptionConfiguration`) in an XR like `XBucket` so platform users get an opinionated, encrypted-by-default bucket from a single line of YAML. That's the same pattern you used in 101 module 5 to wrap `Release.helm.m.crossplane.io`.
+
+### Go deeper
+
+- [`provider-upjet-aws`](https://github.com/crossplane-contrib/provider-upjet-aws) — full source, every AWS service the family supports, release notes.
+- [Crossplane Marketplace — AWS S3 provider](https://marketplace.upbound.io/providers/upbound/provider-aws-s3) — version index, schema browser, all available CRDs.
+- [AWS Free Tier reference](https://aws.amazon.com/free/) — what's free, for how long, and the always-free vs. 12-month split.

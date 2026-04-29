@@ -1,0 +1,278 @@
+---
+sidebar_position: 6
+title: provider-azure against your own Azure subscription
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# provider-azure against your own Azure subscription ⏱️ 35m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same flow. The credential lives in your local cluster's `crossplane-system` namespace either way. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 6.1 Before you start ⏱️ 3m
+
+You've now seen the same `Provider` → `ProviderConfig` → MR shape work against AWS and GCP. **`provider-azure-storage`** is the Azure version. Costs land on your bill, not the workshop's.
+
+Azure differs from the other two in three ways that matter here:
+
+- **Subscriptions are the unit of billing.** You'll create one when you sign up. All resources you manage with this credential live inside it.
+- **Resource Groups are the unit of organization.** Every resource (storage account, VM, network) must live inside a resource group. You'll create one with the `az` CLI before applying the Storage Account MR — keeping the MR focused on one thing.
+- **Service principals replace IAM users / service accounts.** The credential blob is a JSON document holding `clientId`, `clientSecret`, `tenantId`, and `subscriptionId` — minted by `az ad sp create-for-rbac` in one command.
+
+You're about to: sign up for Azure, create a resource group, mint a service principal scoped to that resource group, install [`provider-azure-storage`](https://marketplace.upbound.io/providers/upbound/provider-azure-storage), wire a `ClusterProviderConfig`, and create one Storage `Account` MR.
+
+The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it.
+
+## 6.2 Create the account ⏱️ ~15m
+
+### 1. Sign up
+
+Go to [azure.microsoft.com/free](https://azure.microsoft.com/free) and click **Start free**. You'll need:
+
+- A Microsoft account (a personal one works — it doesn't need to be tied to an org).
+- A credit card (Microsoft verifies it; the free $200 credit and 12-month free services are genuinely free).
+- A phone number for verification.
+
+You'll land in the Azure Portal with one **Azure subscription 1** by default. Note its **Subscription ID** — you'll need it shortly. Find it under **Subscriptions** in the portal search bar.
+
+### 2. Set a billing alert
+
+Portal search bar → **Cost Management + Billing** → **Cost alerts** → **+ Add** → **Budget**.
+
+- **Scope**: your subscription.
+- **Amount**: $1 — low enough that any forgotten resource trips the alert.
+- **Alert conditions**: 80%, 100% of budget; email yourself.
+
+### 3. Install the `az` CLI (skip if you already have it)
+
+```bash
+# macOS
+brew install azure-cli
+
+# Linux
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+```
+
+Then log in:
+
+```bash
+az login
+az account set --subscription <your-subscription-id>
+```
+
+`az login` opens your browser to authenticate. After this, your `az` commands run against the chosen subscription.
+
+### 4. Create a resource group
+
+```bash
+az group create --name crossplane-workshop --location westeurope
+```
+
+`westeurope` is a low-latency region for most of Europe; pick whatever's closest to you ([the full list](https://azure.microsoft.com/en-us/explore/global-infrastructure/geographies/) is in the Azure docs). Names are global within your subscription; you'll reference this group by name in the MR.
+
+### What's free
+
+Azure's free tier: **5 GB** of LRS hot blob storage and **20 000 read / 10 000 write** transactions per month, for the first 12 months. The empty Storage Account this module creates uses none of that. **Delete the resource group when you're done** — that cascades-deletes the Storage Account inside it in a single command.
+
+## 6.3 Mint a credential ⏱️ 7m
+
+You'll create a service principal scoped **only to the resource group** you just made, format the credential blob, and feed it to Crossplane.
+
+### 1. Create the service principal
+
+```bash
+az ad sp create-for-rbac \
+  --name crossplane-workshop \
+  --role Contributor \
+  --scopes /subscriptions/<your-subscription-id>/resourceGroups/crossplane-workshop \
+  --output json
+```
+
+Output (one line, formatted here for readability):
+
+```json
+{
+  "appId": "00000000-0000-0000-0000-000000000000",
+  "displayName": "crossplane-workshop",
+  "password": "<client-secret>",
+  "tenant": "11111111-1111-1111-1111-111111111111"
+}
+```
+
+The `password` field is the only one shown once — Azure will not let you retrieve it again. Copy the whole blob into a scratch buffer.
+
+`Contributor` scoped to one resource group is the *least* you can give the provider for it to create + delete a Storage Account. It can't touch anything outside that resource group.
+
+### 2. Format the credential blob
+
+`provider-azure-storage` reads a JSON document with four specific fields. Build it:
+
+```bash
+cat <<EOF > /tmp/azure-creds.json
+{
+  "clientId": "<appId from above>",
+  "clientSecret": "<password from above>",
+  "tenantId": "<tenant from above>",
+  "subscriptionId": "<your-subscription-id>"
+}
+EOF
+```
+
+### 3. Apply it as a Secret
+
+```bash
+kubectl create secret generic azure-creds \
+  -n crossplane-system \
+  --from-file=credentials=/tmp/azure-creds.json
+```
+
+Then delete the local copy:
+
+```bash
+rm /tmp/azure-creds.json
+```
+
+Confirm the Secret landed:
+
+```bash
+kubectl get secret azure-creds -n crossplane-system
+```
+
+Expected output:
+
+```
+NAME          TYPE     DATA   AGE
+azure-creds   Opaque   1      3s
+```
+
+## 6.4 Install the provider ⏱️ 5m
+
+### 1. Apply the `Provider` manifest
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-azure-storage
+spec:
+  package: xpkg.upbound.io/upbound/provider-azure-storage:v2.5.4
+EOF
+```
+
+Like AWS and GCP, the Azure provider is published as a **family** — one small package per service. `provider-azure-storage` pulls in `provider-family-azure` (which provides the auth/`ProviderConfig` CRDs) automatically.
+
+### 2. Watch it become Healthy
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-azure-storage
+```
+
+Expected output (after ~60s):
+
+```
+NAME                     INSTALLED   HEALTHY   PACKAGE
+provider-azure-storage   True        True      xpkg.upbound.io/upbound/provider-azure-storage:v2.5.4
+```
+
+<ValidateCheck check="provider-azure-installed" />
+
+When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile Storage MRs.
+
+## 6.5 Apply a ProviderConfig and create one Storage Account ⏱️ 5m
+
+### 1. Wire a `ClusterProviderConfig` to the Secret
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: azure.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: azure-creds
+      namespace: crossplane-system
+      key: credentials
+EOF
+```
+
+The `azure.m.upbound.io` API group is the v2-namespaced version (the `.m.` infix marks it). The provider reads `clientId`, `clientSecret`, `tenantId`, and `subscriptionId` from the JSON blob in the Secret you applied in §6.3.
+
+### 2. Create one Storage `Account` MR
+
+Storage Account names are **globally unique across all of Azure** *and* must be 3–24 lowercase alphanumeric characters (no hyphens, no underscores). Substitute `<your-pair-id>` (lowercase, no special characters) and pick a short suffix nobody else will have used:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: storage.azure.m.upbound.io/v1beta1
+kind: Account
+metadata:
+  name: pair-<your-pair-id>-hello
+  namespace: default
+spec:
+  forProvider:
+    accountTier: Standard
+    accountReplicationType: LRS
+    location: westeurope
+    resourceGroupName: crossplane-workshop
+    minTlsVersion: TLS1_2
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default
+EOF
+```
+
+`spec.forProvider.resourceGroupName` ties the account to the resource group you created with `az group create` in §6.2. `accountReplicationType: LRS` (locally-redundant storage) is the cheapest option and the one the free tier covers. `minTlsVersion: TLS1_2` is the production-grade default — leave it on.
+
+The Storage Account name here (`pair-<your-pair-id>-hello`) is also the global Azure DNS name — you'll be able to reach it at `https://pair<your-pair-id>hello.blob.core.windows.net/` (Azure strips the hyphens for the DNS form). If the name is taken, the MR will fail; pick a different suffix.
+
+### 3. Watch it reconcile
+
+Provisioning a Storage Account takes longer than an S3 bucket — Azure is wiring up DNS, SSL, geo-replication metadata, and a few other things. Expect 1–3 minutes:
+
+```bash
+kubectl get account.storage.azure.m.upbound.io -A -w
+```
+
+Expected output once it's done:
+
+```
+NAMESPACE   NAME                       SYNCED   READY   EXTERNAL-NAME                                                                               AGE
+default     pair-<your-pair-id>-hello  True     True    /subscriptions/.../resourceGroups/crossplane-workshop/providers/Microsoft.Storage/...        2m
+```
+
+Then open the Azure Portal → search **Storage accounts** → click your account name. You'll see it sitting inside `crossplane-workshop`. You created a real Azure resource through a Crossplane MR.
+
+### 4. Clean up
+
+When you're done, delete the resource group — Azure cascades the delete to the Storage Account, and Crossplane will mark the MR's external resource as gone:
+
+```bash
+kubectl delete account.storage.azure.m.upbound.io pair-<your-pair-id>-hello
+az group delete --name crossplane-workshop --yes
+```
+
+Then either delete the service principal or rotate its secret — `az ad sp delete --id <appId>` removes it.
+
+## 6.6 What just happened
+
+Same `Provider` → `ProviderConfig` → MR shape, applied against Azure. The Azure-specific bits are: Resource Groups (the parent container), service principals (the credential), and a globally-unique storage account name doubling as DNS.
+
+Two natural follow-ups:
+
+- **Tighten the role.** `Contributor` scoped to one resource group is fine for a demo; production deployments use a custom role with only the storage actions the provider needs (`Microsoft.Storage/storageAccounts/*`), still scoped to one or more resource groups.
+- **Compose around it.** Wrap `Account` (and its siblings `Container`, `Blob`, `ManagementPolicy`) in an XR like `XBucket` so platform users get an opinionated, encrypted, lifecycle-managed account from one line of YAML — same shape as the [`XApplication`](../crossplane-101/define-application) you wrote in 101 module 4.
+
+### Go deeper
+
+- [`provider-upjet-azure`](https://github.com/crossplane-contrib/provider-upjet-azure) — full source, every Azure service the family supports, release notes.
+- [Crossplane Marketplace — Azure Storage provider](https://marketplace.upbound.io/providers/upbound/provider-azure-storage) — version index, schema browser, all available CRDs.
+- [Azure Free Account FAQ](https://azure.microsoft.com/en-us/free/free-account-faq/) — what's free, what isn't, and how the $200 credit interacts with the 12-month services.

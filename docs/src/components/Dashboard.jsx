@@ -251,13 +251,30 @@ export default function Dashboard() {
     inFlight.current = true;
     try {
       const res = await fetch('/api/dashboard');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          throw new Error(
+            `validator service unreachable (HTTP ${res.status}). ` +
+            `In dev, start it with \`task dev:validator\` and reload. ` +
+            `In the workshop cluster, this usually means the validator pod is restarting — wait ~30s and try again.`
+          );
+        }
+        throw new Error(`validator returned HTTP ${res.status}`);
+      }
       const payload = await res.json();
       setData(payload);
       setLastUpdatedAt(new Date());
       setErr(null);
     } catch (e) {
-      setErr(e.message || String(e));
+      if (e instanceof TypeError) {
+        setErr(
+          'cannot reach validator. ' +
+          'In dev, start it with `task dev:validator` and reload. ' +
+          'In the workshop cluster, the validator may be temporarily down — refresh in a moment.'
+        );
+      } else {
+        setErr(e.message || String(e));
+      }
     } finally {
       inFlight.current = false;
     }
@@ -303,7 +320,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {err && <div style={errorBox}>Could not load dashboard: {err}</div>}
+      {err && (
+        <div style={errorBox}>
+          <strong>Dashboard unavailable.</strong> {err}
+        </div>
+      )}
 
       {data === null && !err && <div style={empty}>Loading dashboard…</div>}
 

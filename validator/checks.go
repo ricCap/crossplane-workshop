@@ -24,12 +24,10 @@ type Check func(ctx context.Context, client dynamic.Interface) (pass bool, detai
 
 // checks is the registry of all predefined check IDs.
 // Add new entries here; the HTTP handler looks up by ID automatically.
-// `provider-helm-installed`, `provider-kubernetes-installed`,
-// `first-mr-ready`, and `provider-github-installed` are kept in this
-// map for future 2xx/3xx tracks (provider-kubernetes adoption,
-// provider-helm releases, the GitHub provider module) but are
-// intentionally omitted from `orderedCheckIDs` and `checkLabels` so
-// they do not appear as red tiles during the core 101 path.
+// Every check in this map must also appear in `orderedCheckIDs` and
+// `checkLabels` so it shows up on the dashboard — that invariant is
+// enforced by `TestOrderedCheckIDs_AllResolve` and
+// `TestCheckLabels_AllResolve` in checks_test.go.
 var checks = map[string]Check{
 	"cluster-reachable":             checkClusterReachable,
 	"hello-pod":                     checkHelloPod,
@@ -41,6 +39,9 @@ var checks = map[string]Check{
 	"first-mr-ready":                checkFirstMRReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
 	"provider-github-installed":     checkProviderGithubInstalled,
+	"provider-aws-installed":        checkProviderAWSInstalled,
+	"provider-gcp-installed":        checkProviderGCPInstalled,
+	"provider-azure-installed":      checkProviderAzureInstalled,
 }
 
 // orderedCheckIDs lists the checks in the order participants are expected
@@ -57,17 +58,31 @@ var orderedCheckIDs = []string{
 	"hello-xr-ready",
 	"application-ready",
 	"helm-release-ready",
+	"provider-kubernetes-installed",
+	"provider-helm-installed",
+	"first-mr-ready",
+	"provider-github-installed",
+	"provider-aws-installed",
+	"provider-gcp-installed",
+	"provider-azure-installed",
 }
 
 // checkLabels maps a check ID to a human-readable column label used by
 // the dashboard. Missing entries fall back to the ID itself.
 var checkLabels = map[string]string{
-	"cluster-reachable":    "Cluster reachable",
-	"hello-pod":            "Hello pod Running",
-	"crossplane-installed": "Crossplane installed",
-	"hello-xr-ready":       "First Composition (Hello XR)",
-	"application-ready":    "Application Ready",
-	"helm-release-ready":   "Helm Release Ready",
+	"cluster-reachable":             "Cluster reachable",
+	"hello-pod":                     "Hello pod Running",
+	"crossplane-installed":          "Crossplane installed",
+	"hello-xr-ready":                "First Composition (Hello XR)",
+	"application-ready":             "Application Ready",
+	"helm-release-ready":            "Helm Release Ready",
+	"provider-kubernetes-installed": "provider-kubernetes Healthy",
+	"provider-helm-installed":       "provider-helm Healthy",
+	"first-mr-ready":                "First MR Ready",
+	"provider-github-installed":     "provider-github Healthy",
+	"provider-aws-installed":        "provider-aws-s3 Healthy",
+	"provider-gcp-installed":        "provider-gcp-storage Healthy",
+	"provider-azure-installed":      "provider-azure-storage Healthy",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -222,7 +237,6 @@ func checkFirstMRReady(ctx context.Context, client dynamic.Interface) (bool, str
 }
 
 // checkProviderHelmInstalled asserts that Provider/provider-helm is Healthy.
-// Kept for future 201/301 tracks — not currently on the dashboard path.
 func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	return checkProviderHealthy(ctx, client, "provider-helm")
 }
@@ -236,6 +250,24 @@ func checkProviderKubernetesInstalled(ctx context.Context, client dynamic.Interf
 // Used by module 06-crossplane-3xx/03-provider-github.
 func checkProviderGithubInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	return checkProviderHealthy(ctx, client, "provider-github")
+}
+
+// checkProviderAWSInstalled asserts that Provider/provider-aws-s3 is Healthy.
+// Used by module 06-crossplane-3xx/04-provider-aws.
+func checkProviderAWSInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-aws-s3")
+}
+
+// checkProviderGCPInstalled asserts that Provider/provider-gcp-storage is Healthy.
+// Used by module 06-crossplane-3xx/05-provider-gcp.
+func checkProviderGCPInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-gcp-storage")
+}
+
+// checkProviderAzureInstalled asserts that Provider/provider-azure-storage is Healthy.
+// Used by module 06-crossplane-3xx/06-provider-azure.
+func checkProviderAzureInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-azure-storage")
 }
 
 // checkProviderHealthy looks up a Crossplane Provider by name and walks its
