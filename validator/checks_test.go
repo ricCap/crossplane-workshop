@@ -29,6 +29,17 @@ func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
 		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}:   "ObjectList",
 		{Group: "kubernetes.m.crossplane.io", Version: "v1alpha1", Resource: "objects"}: "ObjectList",
 		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "applications"}: "ApplicationList",
+		// Kyverno + Aruba MR list-kinds for the Track 5 validator
+		// checks added with #44's per-vcluster bundle. Both
+		// cluster-scoped and namespaced (.m.) flavours of every
+		// curated Aruba Kind, since checkArubaMRReady walks both.
+		{Group: "kyverno.io", Version: "v1", Resource: "clusterpolicies"}:                                       "ClusterPolicyList",
+		{Group: "database.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "databases"}:                "DatabaseList",
+		{Group: "database.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "databases"}:              "DatabaseList",
+		{Group: "containerregistry.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"}:   "ContainerRegistryList",
+		{Group: "containerregistry.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"}: "ContainerRegistryList",
+		{Group: "blockstorage.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:        "BlockStorageList",
+		{Group: "blockstorage.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:      "BlockStorageList",
 	}
 	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, gvrToListKind, objs...)
 }
@@ -374,6 +385,126 @@ func TestUnstructuredNestedString_WrongType(t *testing.T) {
 	_, ok, _ := unstructuredNestedString(obj, "status", "phase")
 	if ok {
 		t.Fatal("expected ok=false when value is not a string")
+	}
+}
+
+// --- checkArubaProviderInstalled -----------------------------------------
+
+func TestCheckArubaProviderInstalled_Healthy(t *testing.T) {
+	p := u("pkg.crossplane.io/v1", "Provider", "", "provider-arubacloud", []map[string]interface{}{
+		cond("Healthy", "True", "HealthyPackageRevision", "healthy"),
+	})
+	client := newFakeClient(t, p)
+	pass, details, err := checkArubaProviderInstalled(context.Background(), client)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pass {
+		t.Fatalf("expected pass=true, got details=%q", details)
+	}
+}
+
+func TestCheckArubaProviderInstalled_Missing(t *testing.T) {
+	client := newFakeClient(t)
+	pass, _, _ := checkArubaProviderInstalled(context.Background(), client)
+	if pass {
+		t.Fatal("expected pass=false when provider-arubacloud is not installed")
+	}
+}
+
+// --- checkArubaPoliciesPresent -------------------------------------------
+
+func TestCheckArubaPoliciesPresent_AllPresent(t *testing.T) {
+	objs := make([]runtime.Object, 0, len(expectedArubaClusterPolicies))
+	for _, name := range expectedArubaClusterPolicies {
+		objs = append(objs, u("kyverno.io/v1", "ClusterPolicy", "", name, nil))
+	}
+	client := newFakeClient(t, objs...)
+	pass, details, err := checkArubaPoliciesPresent(context.Background(), client)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pass {
+		t.Fatalf("expected pass=true with all 12 policies; got %q", details)
+	}
+}
+
+func TestCheckArubaPoliciesPresent_Missing(t *testing.T) {
+	// One policy missing — the check should report exactly which one.
+	objs := make([]runtime.Object, 0, len(expectedArubaClusterPolicies)-1)
+	for _, name := range expectedArubaClusterPolicies[:len(expectedArubaClusterPolicies)-1] {
+		objs = append(objs, u("kyverno.io/v1", "ClusterPolicy", "", name, nil))
+	}
+	client := newFakeClient(t, objs...)
+	pass, details, _ := checkArubaPoliciesPresent(context.Background(), client)
+	if pass {
+		t.Fatal("expected pass=false when one policy is missing")
+	}
+	missingName := expectedArubaClusterPolicies[len(expectedArubaClusterPolicies)-1]
+	if !strings.Contains(details, missingName) {
+		t.Fatalf("expected details to mention missing policy %q, got %q", missingName, details)
+	}
+}
+
+func TestCheckArubaPoliciesPresent_NoneInstalled(t *testing.T) {
+	// Simulates Kyverno not yet running — empty cluster, no policies at
+	// all. checkArubaPoliciesPresent should return pass=false, details
+	// listing every expected policy as missing.
+	client := newFakeClient(t)
+	pass, _, _ := checkArubaPoliciesPresent(context.Background(), client)
+	if pass {
+		t.Fatal("expected pass=false when no policies exist")
+	}
+}
+
+// --- checkArubaMRReady ----------------------------------------------------
+
+func TestCheckArubaMRReady_Database_Ready(t *testing.T) {
+	db := u("database.arubacloud.crossplane.io/v1alpha1", "Database", "", "fancy-lemon-mysql", []map[string]interface{}{
+		cond("Ready", "True", "Available", "running"),
+	})
+	client := newFakeClient(t, db)
+	pass, details, err := checkArubaMRReady(context.Background(), client)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pass {
+		t.Fatalf("expected pass=true, got %q", details)
+	}
+}
+
+func TestCheckArubaMRReady_BlockStorage_Ready(t *testing.T) {
+	bs := u("blockstorage.arubacloud.crossplane.io/v1alpha1", "BlockStorage", "", "fancy-lemon-disk", []map[string]interface{}{
+		cond("Ready", "True", "Available", "available"),
+	})
+	client := newFakeClient(t, bs)
+	pass, _, _ := checkArubaMRReady(context.Background(), client)
+	if !pass {
+		t.Fatal("expected pass=true when a BlockStorage is Ready")
+	}
+}
+
+func TestCheckArubaMRReady_NotReady(t *testing.T) {
+	db := u("database.arubacloud.crossplane.io/v1alpha1", "Database", "", "fancy-lemon-mysql", []map[string]interface{}{
+		cond("Ready", "False", "Creating", "still provisioning"),
+	})
+	client := newFakeClient(t, db)
+	pass, details, _ := checkArubaMRReady(context.Background(), client)
+	if pass {
+		t.Fatal("expected pass=false when Aruba MR exists but isn't Ready")
+	}
+	if !strings.Contains(details, "fancy-lemon-mysql") {
+		t.Fatalf("expected details to name the not-ready resource; got %q", details)
+	}
+}
+
+func TestCheckArubaMRReady_NoMRsNoCRDs(t *testing.T) {
+	// Empty cluster — Aruba bundle never synced, no CRDs registered.
+	// The check should return pass=false with a friendly "not yet" message.
+	client := newFakeClient(t)
+	pass, _, _ := checkArubaMRReady(context.Background(), client)
+	if pass {
+		t.Fatal("expected pass=false when no Aruba MR CRDs are registered")
 	}
 }
 
