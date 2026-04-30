@@ -269,11 +269,27 @@ spec:
                         # default for limitsCpu never fires.
                         limits.cpu: "6"
                         limits.memory: 8Gi
+                        # ephemeral-storage caps — closes the node-disk
+                        # DoS vector (#80). Without these, a pod can
+                        # `dd` into emptyDir until kubelet evicts at
+                        # node level, taking other pairs on the node
+                        # down with it. The LimitRange below defaults
+                        # missing per-container fields so this quota's
+                        # admission gate doesn't reject pods that ship
+                        # without explicit ephemeral-storage requests.
+                        requests.ephemeral-storage: 5Gi
+                        limits.ephemeral-storage: 10Gi
                         pods: "30"
                         services: "20"
                         configmaps: "30"
                         secrets: "50"
                         persistentvolumeclaims: "5"
+                        # PVC size cap (#82) — the count cap above
+                        # only stops "5 × 100Gi PVCs" if we also bound
+                        # the aggregate. Total fits inside a single
+                        # 20Gi node disk slice, well below any
+                        # reasonable Aruba node size.
+                        requests.storage: 20Gi
             patches:
               - type: CombineFromComposite
                 combine:
@@ -341,9 +357,19 @@ spec:
                           defaultRequest:
                             cpu: 25m
                             memory: 32Mi
+                            # Defaults for the ephemeral-storage caps
+                            # added to the ResourceQuota above (#80).
+                            # Most workshop containers don't write to
+                            # ephemeral disk; the ones that do
+                            # (UXP Apollo init, helm-release pods)
+                            # need a few hundred MiB at most. 64Mi
+                            # request × ~30 pods = ~2Gi, leaves
+                            # headroom under the 5Gi requests cap.
+                            ephemeral-storage: 64Mi
                           default:
                             cpu: 200m
                             memory: 192Mi
+                            ephemeral-storage: 512Mi
             patches:
               - type: CombineFromComposite
                 combine:
