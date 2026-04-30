@@ -1,0 +1,54 @@
+---
+sidebar_position: 90
+title: Conclusioni
+translation_source_commit: 134f6e161aed90d95f656ffc4056a585a44dbfc5
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Conclusioni ⏱️ 5m
+
+<PairId />
+
+Tre ore fa avevi un kubeconfig e nessuno stato nel cluster. Ora hai:
+
+| Modulo | Cosa hai costruito |
+|---|---|
+| Connetti il tuo cluster | Un `kubectl` funzionante che punta al tuo cluster del workshop |
+| Installa Crossplane | Crossplane in esecuzione in `crossplane-system` |
+| Provider e prima MR | `provider-kubernetes` installato che gestisce un `Object` |
+| Definisci un'Application | Un XRD `Application` + Composition + un XR che si compone in cinque risorse reali |
+| Modifica la tua Application | Una modifica della Composition che ha rimodellato il frontend senza toccare l'XR |
+
+Quest'ultimo punto è quello che vale la pena portarsi a casa. **Una modifica della Composition ha rimodellato risorse reali senza che il consumatore facesse nulla.** È il primitivo su cui sono costruite le piattaforme reali.
+
+## 7.1 Dove andare adesso
+
+### Prossimi passi pratici
+
+- **Installa un provider cloud.** [`provider-aws-family`](https://github.com/crossplane-contrib/provider-aws-family), [`provider-gcp`](https://github.com/crossplane-contrib/provider-gcp) o [`provider-azure`](https://github.com/crossplane-contrib/provider-azure) ti danno infrastruttura reale invece di `ConfigMap`. Stessa forma XRD/Composition che già conosci.
+- **Prova un'altra composition function.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) o [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) ti tirano fuori dalle patch YAML verso una composition programmatica vera.
+- **Guarda piattaforme nel mondo reale.** Il [Marketplace di Upbound](https://marketplace.upbound.io/) e il [repo di esempi di Crossplane](https://github.com/crossplane/crossplane/tree/main/cluster/test/e2e/manifests) mostrano come sono fatte le composition di produzione.
+
+### Concetti che non abbiamo coperto
+
+Il workshop ha tenuto lo scope stretto di proposito. I grandi argomenti che abbiamo saltato:
+
+- **Claim vs. XR** — il pattern v1. Si vede ancora in repo più vecchi; coperto nel [Cheatsheet §1.3](./cheatsheet#claims-vs-xrs--why-this-workshop-skips-claims).
+- **Operations** — il costrutto più recente di Crossplane per lavoro imperativo one-shot (migrazioni, riparazioni). [Documentazione Operations](https://docs.crossplane.io/latest/concepts/operations/).
+- **Gestione dei package** — i package `Configuration` ti permettono di spedire il tuo XRD + Composition insieme come una sola unità installabile. [Documentazione Configuration packages](https://docs.crossplane.io/latest/concepts/packages/).
+- **Policy e ValidatingAdmissionPolicy.** Gli XR di Crossplane funzionano con l'ecosistema admission di Kubernetes; puoi metterli in gate, mutarli e applicare regole a livello d'organizzazione.
+
+## 7.2 Feedback
+
+Due minuti di feedback da te oggi modellano la prossima edizione di questo workshop. Compila quel che riesci, salta il resto.
+
+**[Apri il form di feedback](https://example.com/workshop-feedback)** *(il tuo istruttore condividerà l'URL reale in chat)*
+
+Anonimo. Nessuna risposta sbagliata. Se una cosa si è rotta o una cosa ha fatto click, vogliamo saperlo.
+
+## 7.3 Grazie
+
+Grazie per aver passato un pomeriggio su questo. Lascia il tuo cluster acceso quanto vuoi — sperimenta, rompi cose, torna fra una settimana. Lo [Slack di Crossplane](https://slack.crossplane.io) è amichevole e i maintainer ci passano del tempo.
+
+Ci vediamo al prossimo.

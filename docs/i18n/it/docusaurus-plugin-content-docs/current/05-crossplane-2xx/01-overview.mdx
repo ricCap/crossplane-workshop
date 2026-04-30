@@ -1,0 +1,19 @@
+---
+sidebar_position: 1
+title: Panoramica
+translation_source_commit: 892098abb83af9201eb4adc6b6cc539aaa8ad9e9
+---
+
+# Crossplane 2XX — Panoramica
+
+Task choose-your-own-adventure per le coppie che hanno finito Crossplane 101. Un mix di walkthrough guidati ed esplorazioni open-ended — scegli il modulo che corrisponde a ciò che vuoi imparare dopo.
+
+## Moduli disponibili
+
+| Modulo | Forma | Argomento |
+|---|---|---|
+| [Crossplane Operations](./operations) | spunti open-ended | Pipeline imperative: `Operation` (one-shot), `CronOperation` (schedulata), `WatchOperation` (event-driven). Quando il loop dichiarativo non è lo strumento giusto — backup, rotazioni, fan-out, drift detection. |
+| [(Guidato) Usa la CLI Crossplane](./crossplane-cli) | guidato, ⏱️ 18m | Anteprima, trace e validazione delle Composition con il binario `crossplane` — `render`, `beta trace`, `beta validate`, più puntatori ai comandi di authoring `xpkg`. |
+| [Pattern di setup di un Provider](./provider-setup-pattern) | riferimento | La forma che ogni Provider segue: install + ProviderConfig + MR. Copre `ClusterProviderConfig` vs `ProviderConfig`, auth via Secret vs cloud-native, pinning della versione e famiglie di provider. Da leggere prima dei moduli cloud-provider [3xx](../crossplane-3xx/overview). |
+
+Altri task atterrano qui mentre vengono scritti. Roadmap della sezione (per la [style guide](../) — il documento vivo della forma del workshop): provider extra, composition function di contrib, publishing OCI, status function e adozione di risorse esistenti in-cluster via `provider-kubernetes` (tracciato nella [issue #64](https://github.com/ricCap/crossplane-workshop/issues/64)).

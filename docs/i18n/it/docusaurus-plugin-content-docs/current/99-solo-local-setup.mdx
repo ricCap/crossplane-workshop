@@ -1,0 +1,103 @@
+---
+sidebar_position: 9
+title: Setup locale solo (k3d)
+translation_source_commit: 3c643170cc3a983115a26181f4ab7688a7961915
+---
+
+# Eseguire il workshop sul tuo laptop
+
+Il workshop principale gira su un cluster condiviso dove ogni coppia ottiene una sandbox isolata. Se vuoi percorrere Connetti-il-tuo-cluster e il track **Crossplane 101** per conto tuo — fuori dal workshop dal vivo, senza infrastruttura condivisa — questa pagina è la ricetta completa. Tutto gira in un singolo cluster [k3d](https://k3d.io) sulla tua macchina.
+
+Non serve clonare questo repo. Ogni manifest è scaricato da URL pubblici; ogni immagine è scaricata da registry pubblici.
+
+## Prerequisiti
+
+| Tool | Hint per l'installazione |
+|---|---|
+| [Docker](https://docs.docker.com/get-docker/) | `brew install --cask docker` su macOS (o meglio, Docker Desktop)|
+| [kubectl](https://kubernetes.io/docs/tasks/tools/) | `brew install kubernetes-cli` |
+| [helm](https://helm.sh/docs/intro/install/) | `brew install helm` |
+| [k3d](https://k3d.io/#installation) | `brew install k3d` |
+
+> Puoi usare qualunque installazione kubernetes locale (minikube/kind/...). Attento solo ai conflitti di load balancer.
+
+
+Tutto qui. Crossplane non è un prerequisito — installarlo è il primo modulo di Crossplane 101.
+
+## 1. Crea il cluster
+
+```bash
+k3d cluster create crossplane-workshop-solo \
+  -p "8080:80@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:0"
+```
+
+Due flag che vale la pena spiegare. `-p "8080:80@loadbalancer"` inoltra la porta 8080 del tuo host al ServiceLB del cluster, che è dove Envoy Gateway termina il traffico. `--k3s-arg "--disable=traefik@server:0"` spegne l'ingress controller traefik incluso in k3s — il workshop instrada attraverso Envoy Gateway (Gateway API), e due controller che si contendono la porta 80 finiscono col farti ottenere la pagina 404 di traefik invece dei docs. Quando il cluster è su, `kubectl cluster-info` dovrebbe mostrare un context `k3d-crossplane-workshop-solo`.
+
+## 2. Installa Envoy Gateway
+
+Il routing del workshop è [Gateway API](https://gateway-api.sigs.k8s.io)-nativo e non usa Ingress:
+
+```bash
+helm install eg oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.4.0 \
+  --namespace envoy-gateway-system --create-namespace \
+  --wait
+```
+
+## 3. Installa docs + wall + validator
+
+Un solo `kubectl apply` installa:
+1. il sito Docusaurus (questo)
+2. il sidecar validator
+3. un listener `Gateway` sulla porta 80
+4. degli HTTPRoute che espongono `/` → docs, `/team/local/` → il frontend che creerai nel modulo Definisci-un'Application, e `/team/local/api/` → il suo backend
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml
+```
+
+Aspetta che il pod docs salga:
+
+```bash
+kubectl wait --for=condition=Available deploy/docs -n docs --timeout=180s
+```
+
+## 4. Apri il workshop
+
+Visita [http://localhost:8080/](http://localhost:8080/). Dovresti atterrare sulla stessa pagina che stai leggendo ora, servita dal tuo cluster k3d.
+
+## 5. Fai i moduli
+
+Segui Connetti-il-tuo-cluster, poi i moduli di Crossplane 101, in ordine. Due differenze rispetto al flusso del workshop dal vivo:
+
+- **Nessun download di kubeconfig.** Sei già sul cluster su cui girano i moduli — `kubectl config current-context` è `k3d-crossplane-workshop-solo`.
+- **Il tuo pair ID è `local`.** Il validator riporta una sola coppia sintetica chiamata `local`, e la tile del wall su `/team/local/` è collegata ai Service frontend + backend che l'XR `Application` del modulo Definisci-un'Application crea nel namespace `default`.
+
+Il pulsante di validazione di ogni modulo valuterà contro il tuo cluster k3d e diventerà verde man mano che procedi.
+
+## 6. Pulizia
+
+```bash
+k3d cluster delete crossplane-workshop-solo
+```
+
+## Cosa manca di proposito
+
+- **Isolamento da sandbox.** Sei sia operator che partecipante; se fai `kubectl delete ns crossplane-system`, ti rompi il setup da solo. Nel workshop dal vivo, la sandbox di ogni coppia significa che un errore è isolato.
+- **GitOps.** Il percorso solo applica YAML grezzo. Nessun loop di sync, nessun self-heal — se vuoi che le modifiche restino, ri-applica i manifest.
+- **TLS.** Il traffico è plain HTTP su localhost:8080.
+
+## Troubleshooting
+
+**`k3d cluster create` fallisce con "port 8080 already allocated"**
+: Un altro processo è bound sulla 8080 del tuo host. Fermalo, oppure scegli una porta host diversa (ad es. `-p "18080:80@loadbalancer"` e visita `http://localhost:18080/`). Usa la stessa porta nel browser.
+
+**`helm install eg …` fallisce con "cannot pull OCI chart"**
+: Docker Hub mette rate-limit ai pull OCI anonimi. Autenticati con `docker login` (qualunque account Docker Hub gratuito va bene) e riprova.
+
+**Il wall non mostra tile / `/api/pairs` ritorna un array vuoto**
+: La env var `VALIDATOR_SOLO` non è impostata. Se hai applicato il manifest sopra, questo non dovrebbe succedere; ricontrolla con `kubectl get deploy docs -n docs -o yaml | grep -A1 VALIDATOR_SOLO`.
+
+**`/team/local/` ritorna 404 prima che tu abbia finito il modulo Definisci-un'Application**
+: Atteso. I Service `frontend` e `backend` non esistono ancora — l'XR `Application` in quel modulo li crea. Una volta che l'XR diventa Ready, la route inizia a funzionare senza ulteriori azioni da parte tua.

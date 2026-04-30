@@ -1,0 +1,197 @@
+---
+sidebar_position: 3
+title: provider-github sul tuo account GitHub
+translation_source_commit: 5d19639b60689918e2223ddfa3a43d9de558a9f4
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# provider-github sul tuo account GitHub ⏱️ 20m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+La credenziale pre-iniettata qui sotto esiste solo sul cluster del
+workshop gestito. Su un cluster solo locale l'operatore non ha messo
+nulla per te, quindi usa le tue credenziali GitHub. Crea un
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+con queste impostazioni:
+
+- **Resource owner**: il tuo account, oppure un'org che controlli
+- **Repository access**: "All repositories" (più semplice) oppure scegli i
+  repo specifici che lascerai gestire a Crossplane
+- **Repository permissions**: `Contents: Read and write`,
+  `Administration: Read and write`, `Metadata: Read-only` (auto-selezionato)
+- **Expiration**: quanto ti senti comodo; 7–30 giorni bastano e avanzano
+  per una camminata da workshop
+
+`Administration: Read and write` è ciò che permette al provider di creare e
+cancellare risorse `Repository`; `Contents` copre tutto ciò che ci sta dentro
+(branch, file, regole di branch-protection). Senza `Administration` la
+MR `Repository` riconcilierà a `Synced=False` con un 403 dall'API GitHub.
+
+Poi crea il Secret a mano, sostituendo `<your-pat>` con il token e
+`<owner>` con il tuo username GitHub o org:
+
+```bash
+kubectl -n crossplane-system create secret generic github-app-credentials \
+  --from-literal=credentials='{"token":"<your-pat>","owner":"<owner>"}'
+```
+
+Il resto del modulo funziona invariato — semplicemente non scriverai dentro
+`riccap-demo-org`, scriverai dentro il tuo namespace su
+github.com. La convenzione di naming `pair-<id>-*` non si applica.
+:::
+
+## 6.1 Prima di iniziare ⏱️ 3m
+
+Ogni provider che hai usato finora ha agito sullo stesso cluster Kubernetes — `provider-kubernetes` e `provider-helm` terminano entrambi sull'API server di questo cluster. **`provider-github`** è diverso: parla con l'API REST/GraphQL di GitHub e riconcilia risorse reali (repo, team, regole di branch protection) in una vera organizzazione GitHub.
+
+Per questo modulo l'org è **[`riccap-demo-org`](https://github.com/riccap-demo-org)** — una sandbox preparata in modo che i partecipanti del workshop possano creare repository veri senza dover usare le proprie credenziali GitHub. Una singola GitHub App è installata sull'org e le sue credenziali sono pre-iniettate dentro il tuo cluster del workshop, così non devi maneggiare un token tu.
+
+Due regole di base per la sandbox condivisa:
+
+- **Chiama tutto `pair-<your-id>-<thing>`.** L'App può scrivere su qualunque repo nell'org, quindi l'unica cosa che impedisce alle coppie di pestarsi i piedi è la convenzione del prefisso. I repo che non iniziano con `pair-<your-id>-` appartengono a qualcun altro.
+- **Niente cancellazioni.** L'App di proposito non ha il permesso `delete_repo`, quindi un `kubectl delete repository.repo.github.upbound.io` distratto *orfanerà* il repo GitHub (Crossplane rimuove la MR; il repo continua a vivere). È voluto — i repo lasciati in giro vengono ripuliti fuori banda dall'operatore.
+
+Stai per: installare `provider-github`, puntare un `ProviderConfig` alla credenziale pre-iniettata, creare una MR `Repository`, e guardarla apparire su github.com.
+
+## 6.2 Conferma che la credenziale ci sia ⏱️ 2m
+
+L'operatore ha pre-iniettato la credenziale nel tuo namespace `crossplane-system`. Conferma che ci sia:
+
+```bash
+kubectl -n crossplane-system get secret github-app-credentials
+```
+
+Output atteso:
+
+```
+NAME                     TYPE     DATA   AGE
+github-app-credentials   Opaque   1      5m
+```
+
+Il Secret ha una singola chiave `credentials` che contiene un blob JSON che il provider upstream si aspetta: `{"app_auth":[{"id":"…","installation_id":"…","pem_file":"…"}],"owner":"riccap-demo-org"}`. Non stamparne il contenuto — è una vera private key.
+
+:::warning Manca il Secret?
+Se il Secret non c'è, l'operatore non ha ancora messo la credenziale. Segnalalo nella chat del workshop — non puoi proseguire senza.
+:::
+
+## 6.3 Installa il provider ⏱️ 5m
+
+### 1. Applica il manifest del `Provider`
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-github
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.19.0
+EOF
+```
+
+La risorsa Provider si chiama `provider-github` (corto, amichevole) ma il package vero e proprio è `provider-upjet-github` — il [provider crossplane-contrib basato su upjet](https://github.com/crossplane-contrib/provider-upjet-github) che ha rimpiazzato il `provider-github` archiviato. Crossplane scarica l'immagine e fa partire un Pod in `crossplane-system`. Ci mette 30–60 secondi.
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-github
+```
+
+Output atteso:
+
+```
+NAME              INSTALLED   HEALTHY   PACKAGE
+provider-github   True        True      xpkg.crossplane.io/crossplane-contrib/provider-upjet-github:v0.19.0
+```
+
+### 2. Cabla il `ProviderConfig` al Secret pre-iniettato
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: github.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: github-app-credentials
+      key: credentials
+EOF
+```
+
+Il ProviderConfig punta al Secret che hai appena confermato in 6.2. Il Pod del provider legge il blob JSON, scambia il PEM dell'App + l'installation ID per un installation token, e usa quel token per parlare con l'API GitHub per conto di `riccap-demo-org`.
+
+<ValidateCheck check="provider-github-installed" />
+
+Quando la tile diventa verde, il provider è installato e healthy.
+
+## 6.4 Crea il tuo primo repo ⏱️ 7m
+
+### 1. Applica una MR `Repository`
+
+Sostituisci `<your-pair-id>` con il tuo pair ID (il valore che il blocco `<PairId />` in cima a questa pagina mostra). I nomi che non rispettano `pair-<your-id>-*` collideranno con il lavoro di altre coppie — per favore attieniti alla convenzione.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: repo.github.upbound.io/v1alpha1
+kind: Repository
+metadata:
+  name: pair-<your-pair-id>-hello
+spec:
+  forProvider:
+    name: pair-<your-pair-id>-hello
+    description: "Created by Crossplane from the workshop"
+    visibility: public
+    autoInit: true
+  providerConfigRef:
+    name: default
+EOF
+```
+
+`spec.forProvider.name` è il vero nome del repo GitHub ed è obbligatorio — il provider *non* lo deduce da `metadata.name`. Tienili uguali qui così c'è un solo identificatore da seguire.
+
+### 2. Guardalo riconciliare
+
+```bash
+kubectl get repository.repo.github.upbound.io
+```
+
+Output atteso (dopo ~10s):
+
+```
+NAME                       READY   SYNCED   EXTERNAL-NAME              AGE
+pair-<your-pair-id>-hello  True    True     pair-<your-pair-id>-hello  15s
+```
+
+Poi aprilo nel browser:
+
+```
+https://github.com/riccap-demo-org/pair-<your-pair-id>-hello
+```
+
+Il repo esiste. Hai creato una vera risorsa GitHub attraverso una MR Crossplane.
+
+### 3. Fai una modifica
+
+Edita il `Repository` per aggiungere un topic, e guarda GitHub riflettere la modifica:
+
+```bash
+kubectl patch repository.repo.github.upbound.io pair-<your-pair-id>-hello \
+  --type merge -p '{"spec":{"forProvider":{"topics":["crossplane-workshop"]}}}'
+```
+
+Ricarica la pagina GitHub — il topic compare. Stesso loop di riconciliazione di ogni altra MR Crossplane; l'unica differenza è cosa c'è dall'altra parte dell'API.
+
+## 6.5 Cosa è appena successo
+
+Hai dimostrato che le MR Crossplane possono pilotare un'API SaaS allo stesso modo in cui pilotano risorse Kubernetes. La meccanica — `Provider`, `ProviderConfig`, MR con uno spec `forProvider`, condizioni Ready/Synced — è identica. L'unica novità è che la credenziale vive in un Secret a cui il tuo `ProviderConfig` fa riferimento, invece di essere implicita in un token di ServiceAccount. Quella stessa forma funziona per qualunque provider che prenda una credenziale basata su Secret — AWS, GCP, Azure, Vault, Datadog, e chi più ne ha più ne metta.
+
+### Per approfondire
+
+- [provider-upjet-github](https://github.com/crossplane-contrib/provider-upjet-github) — lista completa delle risorse (Team, Membership, BranchProtection, …) e modi di auth del ProviderConfig.
+- [Autenticazione delle GitHub App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app) — cos'è un installation token, perché scade ogni ora, e come il provider lo rinfresca per te.

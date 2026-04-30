@@ -1,0 +1,195 @@
+---
+sidebar_position: 2
+title: Cheatsheet
+translation_source_commit: 9c4476767df4468596fb977d03c33b78487d5bc3
+---
+
+# Cheatsheet
+
+Una pagina di riferimento da tenere aperta. Ogni termine, comando e link che ti servirà durante il workshop è qui. Sfogliala una volta, poi torna ogni volta che un modulo usa una parola che non ricordi.
+
+## 1.1 Kubernetes in due schermate
+
+### La forma dell'API
+
+| Cosa | Cos'è | Esempio |
+|---|---|---|
+| **Resource** | Il più piccolo oggetto API che puoi creare | `Pod`, `Service` |
+| **Kind** | Il nome del tipo di risorsa | `Pod` |
+| **Namespace** | Uno scope per le risorse che non sono cluster-wide | `default`, `crossplane-system` |
+| **Namespaced vs cluster-scoped** | Se una risorsa vive dentro un namespace (la maggior parte) o a livello di cluster (`Node`, `Namespace`, CRD) | — |
+| **CRD** (CustomResourceDefinition) | Il modo in cui i controller registrano nuovi kind nell'API server | `providers.pkg.crossplane.io` |
+
+### Comandi che lancerai
+
+```bash
+kubectl config current-context              # con quale cluster sto parlando
+kubectl get namespaces                      # elenca i namespace
+kubectl get pods -n <namespace>             # pod in un namespace
+kubectl get <kind> <name> -o yaml           # stampa una risorsa come YAML
+kubectl describe <kind> <name> -n <ns>      # mostra eventi + condizioni
+kubectl logs <pod> -n <namespace>           # stream dei log
+kubectl apply -f <file.yaml>                # crea o aggiorna da YAML
+kubectl delete -f <file.yaml>               # rimuove ciò che è stato applicato
+kubectl api-resources | grep <word>         # trova quali kind esistono
+```
+
+Metti il verbo per primo (`kubectl get pods -n foo`, non `kubectl -n foo get pods`). Si legge da sinistra a destra e viene cachato meglio nella history della shell.
+
+I manifest inline usano heredoc con singoli apici così `$` non viene espanso dalla shell:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example
+EOF
+```
+
+### Condizioni
+
+Le risorse Crossplane ti dicono il loro stato attraverso `status.conditions`. Le due che vedrai più spesso:
+
+| Condition | Significato |
+|---|---|
+| `type: Ready, status: True` | L'oggetto è completamente riconciliato e funzionante |
+| `type: Synced, status: True` | Crossplane ha l'ultima spec e sta provando ad applicarla |
+
+Se `Ready=True` e `Synced=True`, hai finito. Se uno dei due è `False`, `kubectl describe` ti mostra il perché.
+
+### Controller e l'operator pattern {#controllers-and-the-operator-pattern}
+
+Un **controller** è un programma Kubernetes long-running che osserva risorse di certi kind e agisce quando il loro stato dichiarato e quello reale divergono. Gira in loop: legge la spec, confronta con la realtà, **riconcilia** (crea / aggiorna / cancella per allineare), ripete. Questo è l'**operator pattern**.
+
+Il controller di Deployment che usi dal primo giorno di Kubernetes funziona così: vede un `Deployment` con `replicas: 3`, conta quanti Pod esistono, crea o cancella Pod per allineare. Il controller core di Crossplane è un controller in più della stessa famiglia — la sua `spec` descrive cose *fuori* dal cluster (risorse cloud, release Helm) o cose che hai definito tu con un XRD. Stesso loop, scope più ampio.
+
+Quando questo workshop dice "Crossplane riconcilia" o "il provider osserva", è esattamente questo: un controller legge la spec che hai applicato e fa in modo che qualcosa di reale corrisponda.
+
+## 1.2 Tool che vale la pena installare
+
+Non ti serve nessuno di questi per finire il workshop — `kubectl` da solo basta. Rendono solo le cose più piacevoli.
+
+| Tool | Cosa fa | Installazione |
+|---|---|---|
+| [`helm`](https://helm.sh) | Installa e aggiorna applicazioni Kubernetes pacchettizzate come chart | `brew install helm` |
+| [`k9s`](https://k9scli.io) | Dashboard a schermo intero da terminale per osservare le risorse | `brew install k9s` |
+| [`kubectx`](https://github.com/ahmetb/kubectx) | Cambia tra context kubeconfig: `kubectx prod` | `brew install kubectx` |
+| [`kubens`](https://github.com/ahmetb/kubectx) | Cambia il namespace di default: `kubens crossplane-system` | Incluso con `kubectx` |
+
+## 1.3 Terminologia Crossplane
+
+### Il quadro generale {#the-big-picture}
+
+**Il problema che Crossplane risolve.** `kubectl apply` è ottimo per i manifest di un singolo team. Ma le grandi piattaforme accumulano decine di oggetti di basso livello (Deployment, Service, ConfigMap, ruoli IAM cloud, record DNS, release Helm) che vanno coordinati per qualunque cosa rivolta all'utente — "un'applicazione", "un database", "un ambiente tenant". Crossplane ti permette di pubblicare l'*API del tuo team* — un singolo kind `Application`, un singolo kind `Database` — che si dirama in tutti quegli oggetti di basso livello. Gli altri team consumano la tua piattaforma con un solo file YAML invece di decine.
+
+**Come funziona.** Crossplane è un controller (vedi [§1.1 sopra](#controllers-and-the-operator-pattern)). Osserva due tipi di input:
+
+1. **Risorse di API esterne via Provider.** Un pacchetto `Provider` insegna a Crossplane a parlare con una specifica API esterna — AWS, GCP, Helm, un altro cluster Kubernetes. Tu applichi una risorsa `Bucket` o `Release`; il controller del Provider chiama l'API esterna per renderla reale.
+2. **I tuoi kind compositi via XRD + Composition.** Dichiari un nuovo kind con un `XRD` (schema) e una `Composition` (ricetta); gli utenti applicano un `XR` (un'istanza del tuo kind), e Crossplane lo dirama nelle risorse che la ricetta dichiara — o oggetti Kubernetes nativi direttamente (in v2) o risorse esterne via Provider.
+
+Farai la seconda di queste cose nei moduli 4-6 di questo workshop, poi aggiungerai un Provider nel modulo 7.
+
+### Oggetti core
+
+La colonna `Scope` ha una distinzione sottile. CRD e XRD sono essi stessi *oggetti* cluster-scoped — ma *definiscono un kind* il cui scope (Namespaced o Cluster) viene impostato nello `spec.scope` della definizione. La colonna "Definisce un kind che è" cattura proprio questo.
+
+| Oggetto | Cos'è | Scope (l'oggetto stesso) | Definisce un kind che è |
+|---|---|---|---|
+| **CRD** | Custom Resource Definition di Kubernetes. Estende l'API server con un nuovo kind. Crossplane ne auto-genera uno quando applichi un XRD | Cluster | `Namespaced` o `Cluster`, in base a `spec.scope` |
+| **Composite Resource Definition (XRD)** | Dichiara lo schema di un nuovo kind composito, ad es. `XApplication` con i campi `frontend` + `backend`. Applicarlo fa generare a Crossplane il CRD corrispondente | Cluster | `Namespaced` (default v2), `Cluster` o `LegacyCluster` (compatibilità v1 con claim), in base a `spec.scope` |
+| **Composite Resource (XR)** | Un'istanza di un XRD. Creata dall'utente; Crossplane la compone nelle risorse che la sua Composition dichiara | Come da XRD — `Namespaced` in v2 di default | — |
+| **Composition** | La ricetta. "Quando qualcuno crea questo XR, diramalo in queste risorse." In v2 le risorse composte possono essere semplici oggetti Kubernetes nativi (ConfigMap, Deployment, …) o Managed Resource di un Provider | Cluster | — |
+| **Composition function** | Logica plug-in che la pipeline della Composition esegue per produrre lo stato desiderato — `function-patch-and-transform`, `function-go-templating`, `function-kcl`, `function-python`, ecc. Un pacchetto Crossplane | Cluster | — |
+| **Provider** | Un pacchetto che insegna a Crossplane a gestire un'API esterna (AWS, GCP, Kubernetes, Helm, …) | Cluster | — |
+| **ProviderConfig** | Configurazione runtime per Provider — credenziali, endpoint target. Variante namespaced v2 (in `*.m.crossplane.io` per i provider che spediscono lo split v2) | Namespaced | — |
+| **ClusterProviderConfig** | Configurazione runtime per Provider — variante cluster-scoped della v2, condivisa tra namespace. Configurazione "di default" per cluster single-tenant | Cluster | — |
+| **Managed Resource (MR)** | Una rappresentazione Kubernetes di una cosa esterna che il provider riconcilia chiamando la sua API (ad es. `Release.helm.m.crossplane.io`, `Bucket.s3.aws.upbound.io`) | Scelta del Provider — molti provider v2 spediscono varianti namespaced in un gruppo `*.m.crossplane.io` accanto ai kind cluster-scoped legacy | — |
+
+[Panoramica dei concetti (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/)
+
+### Convenzione di naming: i kind XR iniziano con `X`
+
+[Crossplane raccomanda](https://docs.crossplane.io/latest/composition/composite-resource-definitions/) di iniziare **il kind XR** con `X` così non può collidere con kind API a valle che la Composition potrebbe emettere: `Application` è un kind ArgoCD, `Database` è spedito da diversi provider, `Bucket` è una MR S3. Chiamare il tuo XR `XApplication` mantiene il tuo e quelli degli altri non ambigui in `kubectl get`.
+
+La convenzione vale **solo per il kind**. Due conseguenze cadono di lì:
+
+- Il `metadata.name` dell'XRD è `<plural>.<group>`, e il plurale deriva dal kind — quindi `XApplication` dà `xapplications.workshop.example.io`. È meccanica, non una regola separata.
+- Il kind dell'oggetto XRD è sempre `CompositeResourceDefinition` — mai con prefisso X. Il prefisso si applica al kind che *definisce*, non a sé stesso.
+
+Cosa **non** fa parte della convenzione:
+
+- Il `metadata.name` della `Composition` — può essere qualunque cosa. Questo workshop la chiama come l'XRD solo per chiarezza (una Composition per XRD).
+- Il `metadata.name` dell'istanza XR — `wall-tile`, `hello-world`, qualunque cosa tu scelga. Niente prefisso X.
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition           # oggetto XRD — mai con prefisso X
+metadata:
+  name: xapplications.workshop.example.io   # <plurale-del-kind-XR>.<group>
+spec:
+  group: workshop.example.io
+  names:
+    kind: XApplication                       # ← l'unico posto dove la convenzione si applica
+    plural: xapplications
+---
+apiVersion: workshop.example.io/v1alpha1
+kind: XApplication                           # l'istanza XR porta il kind con X…
+metadata:
+  name: wall-tile                            # …ma il suo nome no
+```
+
+### Quando usare cosa
+
+| Obiettivo | Usa questo |
+|---|---|
+| Creare un nuovo oggetto Kubernetes nativo (ConfigMap, Deployment, Service, Job, …) come parte di una Composition | Una Composition con una function — Crossplane v2 emette la risorsa direttamente, non serve un Provider |
+| Creare o gestire qualcosa **fuori** dal cluster (bucket cloud, record DNS, repo GitHub) | Installa il pacchetto `provider-*` corrispondente e applica la sua MR (ad es. `Bucket.s3.aws.upbound.io`) |
+| Prendere possesso di una risorsa **esistente** in-cluster senza ricrearla | MR `Object` di `provider-kubernetes` con `managementPolicies: [Observe]` |
+| Installare un **chart Helm** tramite Crossplane | MR `Release.helm.m.crossplane.io` di `provider-helm` |
+| Puntare un singolo Provider a **più cluster o account target** | Una ProviderConfig per target, con credenziali separate in ciascuno |
+
+### Cose su cui la gente inciampa
+
+**MR ≠ XR.** Una Managed Resource è un wrapper 1-a-1 per un oggetto esterno reale (un `Object` = un oggetto Kubernetes che il provider applicherà a un cluster target). Una Composite Resource è l'astrazione rivolta all'utente che si dirama in MR.
+
+**ProviderConfig non è Provider.** `Provider` è il pacchetto (la cosa che installi). `ProviderConfig` è un oggetto di configurazione runtime che il provider osserva — gli dice come autenticarsi.
+
+**Gli XR namespaced sono una feature v2.** In v1 gli XR erano cluster-scoped e gli utenti dovevano creare "claim" per avere un handle namespaced. In v2 gli XR sono namespaced di default e i claim sono opzionali (il workshop non li usa).
+
+### Claim vs XR — perché questo workshop salta i claim
+
+In **Crossplane v1**, gli utenti creavano un *claim* (namespaced) e Crossplane creava un *XR* corrispondente (cluster-scoped) per ciascuno. Il claim era un handle; l'XR era la cosa vera. Funzionava bene per l'RBAC ma introduceva un secondo livello per ogni kind rivolto all'utente.
+
+In **Crossplane v2** — quello che stai usando oggi — gli XR sono cittadini di prima classe e possono essere namespaced. Applichi un XR `Application` direttamente, nessun claim richiesto. Quando leggi vecchi tutorial Crossplane che parlano di oggetti `Claim`, è il pattern v1; l'equivalente v2 è semplicemente l'XR stesso.
+
+### Crossplane v1 vs v2
+
+| | v1 | v2 |
+|---|---|---|
+| Scope XR | Cluster-scoped | Namespaced o cluster-scoped |
+| Layer dei claim | Richiesto per accesso namespaced | Opzionale (il workshop non lo usa) |
+| Stile delle Composition | Patch-and-transform (dichiarativo), Function (aggiunte dopo) | Le Function sono il default |
+| `claimNames` dell'XRD | Richiesto per XRD claim-backed | Non richiesto per XRD claim-free |
+| Gruppo API (tipi XR) | `apiextensions.crossplane.io/v1` | `apiextensions.crossplane.io/v2` |
+
+[Guida alla migrazione v2 (docs.crossplane.io)](https://docs.crossplane.io/latest/whats-new/)
+
+### Crossplane vs UXP
+
+**Crossplane** è il progetto upstream CNCF — community-maintained, spedito come chart Helm da `charts.crossplane.io/stable`.
+
+**UXP (Upbound Crossplane)** è la distribuzione Crossplane di Upbound. È lo stesso core più una Web UI read-only inclusa e qualche feature enterprise-only. È spedita da `charts.upbound.io/stable` e il chart è ancora chiamato `crossplane`.
+
+Questo workshop usa **UXP v2** così hai anche la Web UI gratis — comoda per visualizzare cosa hai composto. Tutto quello che impari si trasferisce uno-a-uno su Crossplane upstream.
+
+Una stranezza da sapere: le release UXP v2 sono taggate `2.x.y-up.N`, che Helm tratta come pre-release. Per questo `helm install` per UXP usa `--devel`; non è davvero una pre-release nel senso Upbound.
+
+## 1.4 Dove leggere di più
+
+- [Documentazione Crossplane](https://docs.crossplane.io/latest/) — il riferimento upstream. Preferisci le pagine `/latest/`; seguono la v2.
+- [Documentazione Upbound](https://docs.upbound.io) — UXP-specific: la Web UI, i provider del Marketplace Upbound, la CLI `up`.
+- [Crossplane Slack](https://slack.crossplane.io) — supporto della community.
+- [Awesome Crossplane](https://github.com/crossplane/awesome-crossplane) — link curati.
+
+Quando l'assistente cita un URL, viene da uno dei due siti di documentazione sopra. Se qualcuno ti dice qualcosa di diverso, verifica contro la fonte.
