@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Panoramica
-translation_source_commit: 892098abb83af9201eb4adc6b6cc539aaa8ad9e9
+translation_source_commit: fcc017eb0cc4cad235979236d393af4837ec8133
 ---
 
 # Crossplane 3XX — Panoramica
@@ -13,10 +13,11 @@ Task pointer-driven di difficoltà media per coppie a loro agio con provider e C
 | Modulo | ⏱️ | Argomento |
 |---|---|---|
 | [Pacchettizza come Configuration](./configurations) | 15m | Impacchetta gli XRD e le Composition che hai scritto in 101 in un artifact OCI versionato (un package `Configuration`), pinna le sue dipendenze provider/function, pubblicalo su un registry, installalo su un cluster fresco con un solo `kubectl apply`. |
-| [provider-github contro un'org reale](./provider-github) | 20m | Installa `provider-github`, collegalo a una GitHub App pre-staged (o al tuo PAT fine-grained in modalità solo) e riconcilia un `Repository` reale nella sandbox condivisa `riccap-demo-org`. |
-| [provider-aws contro il tuo account AWS](./provider-aws) | 35m | Iscriviti al free tier di AWS, crea un IAM user con accesso S3, installa `provider-aws-s3`, collega un `ClusterProviderConfig` e crea una sola MR `Bucket` S3. |
-| [provider-gcp contro il tuo progetto Google Cloud](./provider-gcp) | 35m | Iscriviti a Google Cloud, crea un progetto, crea un service account con `roles/storage.admin`, installa `provider-gcp-storage` e crea una sola MR `Bucket` GCS. |
-| [provider-azure contro la tua subscription Azure](./provider-azure) | 35m | Iscriviti ad Azure, crea un resource group, crea un service principal limitato ad esso, installa `provider-azure-storage` e crea una sola MR Storage `Account`. |
+| [Crea risorse in GitHub](./provider-github) | 20m | Installa `provider-github`, collegalo a una GitHub App pre-staged (o al tuo PAT fine-grained in modalità solo) e riconcilia un `Repository` reale nella sandbox condivisa `riccap-demo-org`. |
+| [Crea risorse in AWS](./provider-aws) | 35m | Iscriviti al free tier di AWS, crea un IAM user con accesso S3, installa `provider-aws-s3`, collega un `ClusterProviderConfig` e crea una sola MR `Bucket` S3. |
+| [Crea risorse in GCP](./provider-gcp) | 35m | Iscriviti a Google Cloud, crea un progetto, crea un service account con `roles/storage.admin`, installa `provider-gcp-storage` e crea una sola MR `Bucket` GCS. |
+| [Crea risorse in Azure](./provider-azure) | 35m | Iscriviti ad Azure, crea un resource group, crea un service principal limitato ad esso, installa `provider-azure-storage` e crea una sola MR Storage `Account`. |
+| [(Guidato) Crea risorse in Aruba](./provider-arubacloud) | 25m | Raggiungi il progetto Aruba condiviso del tuo team di piattaforma tramite `provider-arubacloud` — verifica i guardrail Kyverno, provisiona un vero DBaaS MySQL, esegui `SELECT 1` da un Pod, e fai pulizia. Lo si percorre insieme con l'istruttore. |
 
 Altri task atterrano qui man mano che vengono scritti. Roadmap della sezione (per la [style guide](../)): lo stack dei secret, le status function, le strategie di drift remediation e altri argomenti "hai le basi — ecco com'è la produzione".
 

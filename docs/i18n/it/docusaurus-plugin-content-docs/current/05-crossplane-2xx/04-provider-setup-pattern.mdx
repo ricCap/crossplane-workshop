@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Pattern di setup di un Provider
-translation_source_commit: 892098abb83af9201eb4adc6b6cc539aaa8ad9e9
+translation_source_commit: fcc017eb0cc4cad235979236d393af4837ec8133
 ---
 
 # Pattern di setup di un Provider
@@ -127,9 +127,10 @@ Entrambi condividono la `ClusterProviderConfig` `aws.m.upbound.io` che hai già 
 
 La categoria 3xx mette al lavoro questo pattern contro backend reali:
 
-- [provider-github contro un'org reale](../crossplane-3xx/provider-github)
-- [provider-aws contro il tuo account AWS](../crossplane-3xx/provider-aws)
-- [provider-gcp contro il tuo progetto Google Cloud](../crossplane-3xx/provider-gcp)
-- [provider-azure contro la tua subscription Azure](../crossplane-3xx/provider-azure)
+- [Crea risorse in GitHub](../crossplane-3xx/provider-github)
+- [Crea risorse in AWS](../crossplane-3xx/provider-aws)
+- [Crea risorse in GCP](../crossplane-3xx/provider-gcp)
+- [Crea risorse in Azure](../crossplane-3xx/provider-azure)
+- [(Guidato) Crea risorse in Aruba](../crossplane-3xx/provider-arubacloud)
 
 Ognuno segue la forma di questa pagina: install, ClusterProviderConfig che punta a un Secret, una MR. Leggi questa pagina una volta e puoi predire ogni blocco di codice in quei moduli prima ancora di cliccare.
