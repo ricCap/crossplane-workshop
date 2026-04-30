@@ -12,10 +12,11 @@ Medium-difficulty pointer-driven tasks for pairs comfortable with providers and 
 | Module | ⏱️ | Topic |
 |---|---|---|
 | [Package as a Configuration](./configurations) | 15m | Bundle the XRDs and Compositions you wrote in 101 into a versioned OCI artifact (a `Configuration` package), pin its provider/function dependencies, push it to a registry, install it on a fresh cluster with a single `kubectl apply`. |
-| [provider-github against a real org](./provider-github) | 20m | Install `provider-github`, wire it to a pre-staged GitHub App (or your own fine-grained PAT in solo mode), and reconcile a real `Repository` in the shared `riccap-demo-org` sandbox. |
-| [provider-aws against your own AWS account](./provider-aws) | 35m | Sign up for AWS free tier, mint an IAM user with S3 access, install `provider-aws-s3`, wire a `ClusterProviderConfig`, and create one S3 `Bucket` MR. |
-| [provider-gcp against your own Google Cloud project](./provider-gcp) | 35m | Sign up for Google Cloud, create a project, mint a service account with `roles/storage.admin`, install `provider-gcp-storage`, and create one GCS `Bucket` MR. |
-| [provider-azure against your own Azure subscription](./provider-azure) | 35m | Sign up for Azure, create a resource group, mint a service principal scoped to it, install `provider-azure-storage`, and create one Storage `Account` MR. |
+| [Create resources in GitHub](./provider-github) | 20m | Install `provider-github`, wire it to a pre-staged GitHub App (or your own fine-grained PAT in solo mode), and reconcile a real `Repository` in the shared `riccap-demo-org` sandbox. |
+| [Create resources in AWS](./provider-aws) | 35m | Sign up for AWS free tier, mint an IAM user with S3 access, install `provider-aws-s3`, wire a `ClusterProviderConfig`, and create one S3 `Bucket` MR. |
+| [Create resources in GCP](./provider-gcp) | 35m | Sign up for Google Cloud, create a project, mint a service account with `roles/storage.admin`, install `provider-gcp-storage`, and create one GCS `Bucket` MR. |
+| [Create resources in Azure](./provider-azure) | 35m | Sign up for Azure, create a resource group, mint a service principal scoped to it, install `provider-azure-storage`, and create one Storage `Account` MR. |
+| [(Guided) Create resources in Aruba](./provider-arubacloud) | 25m | Hit your platform team's shared Aruba project through `provider-arubacloud` — verify the Kyverno guardrails, provision a real MySQL DBaaS, run `SELECT 1` against it from a Pod, clean up. Walked together with the instructor. |
 
 More tasks land here as they're authored. Section roadmap (per the [style guide](../)): the secrets stack, status functions, drift remediation strategies, and other "you've got the basics — here's how production looks" topics.
 
