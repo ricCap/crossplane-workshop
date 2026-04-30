@@ -109,23 +109,34 @@ The `Scope` column has a subtle split. CRDs and XRDs are themselves cluster-scop
 
 ### Naming convention: XR kinds start with `X`
 
-The XR kind is **prefixed with `X`** by convention — `XApplication`, `XDatabase`, `XHello`. The prefix exists so the kind cannot collide with downstream API kinds the Composition might emit: `Application` is an ArgoCD kind, `Database` ships in several providers, `Bucket` is an S3 MR. Naming your XR `XApplication` keeps yours and theirs unambiguous in `kubectl get`.
+[Crossplane recommends](https://docs.crossplane.io/latest/composition/composite-resource-definitions/) starting **the XR kind** with `X` so it cannot collide with downstream API kinds the Composition might emit: `Application` is an ArgoCD kind, `Database` ships in several providers, `Bucket` is an S3 MR. Naming your XR `XApplication` keeps yours and theirs unambiguous in `kubectl get`.
 
-The XRD's `metadata.name` is the lowercase plural of the XR kind plus the API group:
+The convention is on the **kind only**. Two follow-ons drop out of that:
+
+- The XRD's `metadata.name` is `<plural>.<group>`, and the plural derives from the kind — so `XApplication` gives `xapplications.workshop.example.io`. That's mechanical, not a separate rule.
+- The XRD object's own kind is always `CompositeResourceDefinition` — never X-prefixed. The prefix applies to the kind it *defines*, not to itself.
+
+What is **not** part of the convention:
+
+- The `Composition`'s `metadata.name` — it can be anything. This workshop names it the same as the XRD purely for clarity (one Composition per XRD).
+- The XR instance's `metadata.name` — `wall-tile`, `hello-world`, whatever you pick. No X prefix.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2
-kind: CompositeResourceDefinition
+kind: CompositeResourceDefinition           # XRD object — never X-prefixed
 metadata:
   name: xapplications.workshop.example.io   # <plural-of-XR-kind>.<group>
 spec:
   group: workshop.example.io
   names:
-    kind: XApplication                       # the XR kind — starts with X
+    kind: XApplication                       # ← the only place the convention applies
     plural: xapplications
+---
+apiVersion: workshop.example.io/v1alpha1
+kind: XApplication                           # XR instance carries the X-kind…
+metadata:
+  name: wall-tile                            # …but its own name does not
 ```
-
-The XRD object's own kind is always `CompositeResourceDefinition` — never X-prefixed. The prefix applies to the kind it *defines*, not to itself.
 
 ### When to reach for what
 
