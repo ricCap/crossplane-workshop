@@ -31,6 +31,24 @@ spec:
                     kind: Namespace
                     metadata:
                       name: placeholder
+                      # Pod Security admission on the host namespace
+                      # (#81). The vcluster syncer creates pods here
+                      # with whatever securityContext a participant
+                      # set inside their vcluster — the syncer doesn't
+                      # strip privileged / hostPath / hostNetwork.
+                      # Without this label a participant could mount
+                      # `hostPath: /` and escape to the node, bypassing
+                      # the per-pair quota entirely.
+                      #
+                      # `baseline` blocks privileged, hostNetwork,
+                      # hostPID, hostIPC, hostPath, plus a few other
+                      # obviously-host-impacting fields. `restricted`
+                      # is stronger but breaks upstream provider
+                      # charts that run as root (UXP Apollo) — bump
+                      # later if calibration permits.
+                      labels:
+                        pod-security.kubernetes.io/enforce: baseline
+                        pod-security.kubernetes.io/enforce-version: latest
             patches:
               - type: CombineFromComposite
                 combine:
