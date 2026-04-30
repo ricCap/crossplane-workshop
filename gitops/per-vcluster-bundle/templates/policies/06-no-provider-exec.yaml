@@ -1,0 +1,42 @@
+{{/*
+Block `kubectl exec` and `kubectl port-forward` against any Pod in
+the aruba-system namespace. Companion to 05-secret-no-pod-mount:
+even if a participant Pod can't mount the Secret, they could try to
+exec into the Aruba provider's runtime Pod and read it from the
+provider process's memory or its mounted Secret in /tmp.
+
+Provider runtime mount path lives at /tmp/credentials inside the
+provider Pod (Crossplane's standard Provider runtime layout).
+Reachable only via exec; this policy denies that exec.
+
+Kyverno supports the CONNECT verb (kubectl exec / port-forward /
+attach) under operations[].
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-no-provider-exec
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Deny `kubectl exec` and `kubectl port-forward` against
+      any Pod in the aruba-system namespace.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-exec-aruba-system
+      match:
+        any:
+          - resources:
+              kinds: [Pod/exec, Pod/portforward]
+              namespaces: [aruba-system, crossplane-system]
+              operations: [CONNECT]
+      validate:
+        message: >-
+          `kubectl exec` and `kubectl port-forward` against Pods in
+          `aruba-system` / `crossplane-system` are denied. The
+          provider Pod's credentials are not for participant access.
+        deny: {}

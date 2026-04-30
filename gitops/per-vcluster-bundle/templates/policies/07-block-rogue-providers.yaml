@@ -1,0 +1,52 @@
+{{/*
+Block participants from installing any new Crossplane Provider
+package other than the workshop-installed ones (provider-helm,
+provider-kubernetes — those they install in module 4 — and
+provider-arubacloud, which the bundle installs).
+
+Why: a participant could try to install another upjet provider
+that runs with elevated permissions (provider-aws, provider-gcp),
+or even a malicious / mistyped package, and end up reconciling
+unintended cloud APIs. Restricting Provider package creates to a
+documented allowlist contains that.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: block-rogue-providers
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      Only the workshop-allowed Crossplane Provider packages may
+      be installed. Anything else gets denied at admission.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: provider-package-allowlist
+      match:
+        any:
+          - resources:
+              kinds:
+                - pkg.crossplane.io/v1/Provider
+              operations:
+                - CREATE
+      validate:
+        message: >-
+          New Crossplane Provider packages may not be installed.
+          The workshop's allowed providers are pre-installed.
+        deny:
+          conditions:
+            all:
+              # Allow updates to existing providers (e.g. version
+              # bumps from the workshop owner) — the bundle and
+              # module 4 already create them. Only deny CREATE of a
+              # *new* Provider with a name not in our allowlist.
+              - key: "{{`{{ request.object.metadata.name }}`}}"
+                operator: AnyNotIn
+                value:
+                  - provider-arubacloud
+                  - provider-helm
+                  - provider-kubernetes

@@ -1,0 +1,66 @@
+{{/*
+Kyverno self-protection. Without this, a participant who notices
+they have admin in their vcluster could `kubectl delete
+clusterpolicy aruba-allowed-kinds` and bypass every other policy
+in this bundle. Same for the validating webhook config that hands
+admission requests to Kyverno.
+
+Threat model is non-malicious participants (per #43), so this is
+"defence against accidents from people exploring the cluster",
+not "defence against motivated attackers". The latter would also
+require RBAC downgrade, which is out of scope for the workshop.
+
+Allow CREATE/UPDATE because the bundle / Helm chart upgrades are
+expected. Deny only DELETE.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: kyverno-self-protection
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Block participants from deleting Kyverno policies and the
+      Kyverno validating webhook configuration.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: protect-clusterpolicies
+      match:
+        any:
+          - resources:
+              kinds:
+                - kyverno.io/v1/ClusterPolicy
+                - kyverno.io/v1/Policy
+              operations:
+                - DELETE
+      validate:
+        message: >-
+          Kyverno policies may not be deleted. If a policy is
+          blocking something legitimate, ask the workshop owner to
+          relax it via PR.
+        deny: {}
+    - name: protect-webhook-config
+      match:
+        any:
+          - resources:
+              kinds:
+                - admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration
+                - admissionregistration.k8s.io/v1/MutatingWebhookConfiguration
+              # Match Kyverno's own webhook configurations by name
+              # prefix. Other webhooks (e.g., Crossplane's) stay
+              # unrestricted.
+              names:
+                - "kyverno-*"
+                - "*-kyverno"
+              operations:
+                - DELETE
+                - UPDATE
+      validate:
+        message: >-
+          Kyverno's admission webhook configuration may not be
+          modified or deleted by participants.
+        deny: {}

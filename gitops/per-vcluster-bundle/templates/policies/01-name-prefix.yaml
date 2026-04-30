@@ -1,0 +1,56 @@
+{{/*
+Every Aruba MR a participant creates must have a metadata.name
+that starts with `<pairId>-`. Two reasons:
+
+1. Aruba global namespace collision avoidance — Aruba's own
+   internal naming for VPCs, security groups, etc. is unique per
+   project. Two pairs trying to create `mysql` would fight.
+2. The companion `aruba-no-cross-pair-delete` policy uses the
+   prefix as its trust boundary — pair A can't delete pair B's
+   resource because pair B's resource doesn't have pair A's prefix.
+
+The pair id is baked into this policy at chart-render time via the
+ApplicationSet's Helm parameter (see values.yaml). That way we
+don't have to do a runtime ConfigMap lookup for every admission
+request.
+*/}}
+{{- if not .Values.pairId -}}
+{{- fail "values.pairId must be set" -}}
+{{- end -}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-name-prefix
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      Aruba MRs must have metadata.name starting with `<pairId>-`.
+      Pair id baked in at chart-render time.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: pair-id-prefix
+      match:
+        any:
+          - resources:
+              kinds:
+                - "*.arubacloud.crossplane.io/v1alpha1/*"
+                - "*.arubacloud.m.crossplane.io/v1alpha1/*"
+              operations:
+                - CREATE
+                - UPDATE
+      validate:
+        message: >-
+          Aruba MR `{{`{{ request.object.metadata.name }}`}}` must
+          start with `{{ .Values.pairId }}-` (your pair id). Each
+          pair scopes its resources by name prefix; two pairs
+          sharing one Aruba project rely on this for non-collision.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.metadata.name }}`}}"
+                operator: NotEquals
+                value: "{{ .Values.pairId }}-*"

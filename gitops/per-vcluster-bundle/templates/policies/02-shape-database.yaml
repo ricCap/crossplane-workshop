@@ -1,0 +1,104 @@
+{{/*
+Database (the workshop's headline MR) shape constraints:
+
+* `forProvider.engineId` must be in the allowedEngineIds whitelist.
+  Defaults to mysql-8.0 only — workshop walks participants through
+  exactly one engine; allowing arbitrary engines lets pairs spawn
+  Postgres / etc. that we haven't validated.
+* `forProvider.flavor` must be in the allowedFlavors whitelist.
+  Defaults to DBO2A4 (2 CPU / 4Gi RAM) — cheapest tier, smoke-tested
+  in #43. Bigger flavors mean bigger hourly bills.
+* `forProvider.location` must be in the allowedLocations whitelist
+  (defaults to ITBG-Bergamo only — only place we've smoke-tested).
+* `forProvider.storage.sizeGb` capped at maxStorageGb (default 20).
+
+Storage cap protects against forgotten 1TB DBs racking up bills.
+Engine + flavor + location whitelisting protects against
+participants exploring the API into untested-by-us territory.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-shape-database
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Workshop-tier shape constraints on Database MRs. Engine,
+      flavor, location whitelisted; storage size capped.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: engine-id-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - database.arubacloud.crossplane.io/v1alpha1/Database
+                - database.arubacloud.m.crossplane.io/v1alpha1/Database
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          Database `engineId` must be one of:
+          {{ .Values.shapePolicies.database.allowedEngineIds | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.engineId || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.database.allowedEngineIds | toJson }}
+    - name: flavor-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - database.arubacloud.crossplane.io/v1alpha1/Database
+                - database.arubacloud.m.crossplane.io/v1alpha1/Database
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          Database `flavor` must be one of:
+          {{ .Values.shapePolicies.database.allowedFlavors | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.flavor || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.database.allowedFlavors | toJson }}
+    - name: location-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - database.arubacloud.crossplane.io/v1alpha1/Database
+                - database.arubacloud.m.crossplane.io/v1alpha1/Database
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          Database `location` must be one of:
+          {{ .Values.shapePolicies.allowedLocations | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.location || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.allowedLocations | toJson }}
+    - name: storage-size-cap
+      match:
+        any:
+          - resources:
+              kinds:
+                - database.arubacloud.crossplane.io/v1alpha1/Database
+                - database.arubacloud.m.crossplane.io/v1alpha1/Database
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          Database `storage.sizeGb` must be <= {{ .Values.shapePolicies.database.maxStorageGb }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.storage.sizeGb || 0 }}`}}"
+                operator: GreaterThan
+                value: {{ .Values.shapePolicies.database.maxStorageGb }}
