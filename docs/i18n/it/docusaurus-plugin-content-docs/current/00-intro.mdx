@@ -2,7 +2,7 @@
 sidebar_position: 1
 slug: /
 title: Introduzione
-translation_source_commit: 4f2ebe7de4bec380cd63f6e109ecfb73648493f3
+translation_source_commit: 54b08efcad007cab70f052658b8b1e8fa9880ad9
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -12,11 +12,11 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 Nelle prossime tre ore installerai [Crossplane](https://crossplane.io), lo userai per comporre la tua API Kubernetes e aggiungerai un Provider che può gestire software esterno ai kind nativi di Kubernetes. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR e Provider — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
 
-**Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `Application` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
+**Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `XApplication` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
 
 ## Com'è strutturato il workshop
 
-La sidebar a sinistra elenca i moduli in ordine di lettura. Il gruppo **Crossplane 101** è la spina dorsale guidata — ogni coppia lo attraversa. I gruppi 2XX / 3XX / 4XX e il gruppo Journeys sono percorsi opzionali (choose-your-own-adventure) per dopo il 101 e non sono coperti durante il workshop dal vivo.
+La sidebar a sinistra elenca i moduli in ordine di lettura. Il gruppo **Crossplane 101** è la spina dorsale guidata — ogni coppia lo attraversa. I gruppi 2XX / 3XX / 4XX e il gruppo **Choose your own adventure** sono percorsi opzionali per dopo il 101 e non sono coperti durante il workshop dal vivo.
 
 | Sezione | Modulo | Tipo | ⏱️ |
 |---|---|---|---|
