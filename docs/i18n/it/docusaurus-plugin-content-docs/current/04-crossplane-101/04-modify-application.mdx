@@ -1,0 +1,86 @@
+---
+sidebar_position: 7
+title: Modifica la tua Application
+translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Modifica la tua Application ⏱️ 20m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Stessi comandi. La tua tile è su `/team/local/`. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+## 6.1 Prima di iniziare ⏱️ 3m
+
+Finora la tua Composition è statica: ogni `XApplication` produce lo stesso layout HTML, gli stessi font, la stessa struttura di pagina. In questo modulo modificherai la Composition e guarderai la tua tile aggiornarsi **senza** ri-applicare l'XR.
+
+Questo è il punto della composition: l'astrazione (`XApplication`) sopravvive, l'implementazione (le risorse dietro di essa) cambia. I team di piattaforma lo fanno di continuo — aggiungendo container sidecar, scambiando immagini base, stringendo i default di sicurezza — e i consumatori non se ne accorgono mai.
+
+Stai per: editare la Composition in-place, vedere la ConfigMap a valle aggiornarsi, ricaricare la tile.
+
+## 6.2 Rimodella il frontend ⏱️ 15m
+
+### 1. Apri la Composition per l'editing
+
+```bash
+kubectl edit composition xapplications.workshop.example.io
+```
+
+Trova la risorsa `frontend-configmap` (la prima sotto `spec.pipeline[0].input.resources`) e modifica l'HTML dentro `base.data.index.html`.
+
+### 2. Scegli almeno una modifica
+
+Vanno bene tutte queste, prendi quella che ti piace:
+
+- **Aggiungi un sottotitolo** sotto il `<div id="tile">`:
+  ```html
+  <div id="subtitle" style="font-size: 1rem; color: #6b7280;">hello from my XRD</div>
+  ```
+- **Cambia il colore di sfondo:**
+  ```css
+  body { background: #fef3c7; font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+  ```
+- **Aggiungi emoji, un bordo, un gradient** — qualunque cosa il CSS inline possa fare dentro una sola ConfigMap.
+
+Salva ed esci dall'editor.
+
+### 3. Guarda Crossplane riconciliare
+
+Crossplane riconcilia immediatamente: la ConfigMap desiderata dall'output della function viene aggiornata, e Crossplane core applica la patch in-place. Conferma:
+
+```bash
+kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | head -20
+```
+
+Dovresti vedere la tua modifica nell'output.
+
+### 4. Fai sì che nginx prenda il cambiamento
+
+nginx legge `/usr/share/nginx/html/index.html` ad ogni richiesta, ma la proiezione della ConfigMap dentro il Pod si rinfresca solo ogni ~30 secondi (sync periodico del kubelet). Riavvia il Pod frontend per vedere il cambiamento subito:
+
+```bash
+kubectl rollout restart deployment frontend
+```
+
+### 5. Ricarica la tile
+
+Apri il [muro del workshop](/wall) in una nuova scheda e clicca **Refresh**. La tua tile dovrebbe mostrare il nuovo HTML / CSS che hai editato. Il tuo XR `XApplication` è ancora `wall-tile`, intatto — il cambiamento è venuto dal rimodellare la Composition.
+
+<ValidateCheck check="application-ready" />
+
+Il check è ancora verde perché nessuna delle condizioni che osserva è cambiata — l'XApplication è ancora Ready. Questo è il punto.
+
+## 6.3 Cosa è appena successo
+
+Hai cambiato la piattaforma senza cambiare il consumatore. Lo YAML dell'`XApplication` che l'utente ha applicato è identico; le cinque risorse che produce sono diverse. In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API.
+
+### Per approfondire
+
+- **Stretch: aggiungi un campo.** Aggiungi `subtitle` all'XRD (con un default), passalo via patch attraverso la Composition in una nuova chiave ConfigMap o in una env var del backend, e applica un XR fresco che lo imposti. Buona sandbox per gli ultimi dieci minuti.
+- [Composition revisions](https://docs.crossplane.io/latest/concepts/composition-revisions/) — come Crossplane tiene in giro le vecchie Composition così gli XR esistenti restano stabili mentre quelli nuovi prendono la nuova ricetta.
+- [Catalogo delle composition function](https://github.com/crossplane-contrib) — `function-kcl`, `function-go-templating`, `function-auto-ready` — pattern per andare oltre patch-and-transform quando hai bisogno di più logica.

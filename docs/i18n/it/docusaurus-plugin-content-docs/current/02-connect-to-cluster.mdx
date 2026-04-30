@@ -1,0 +1,103 @@
+---
+sidebar_position: 3
+title: Connetti il tuo cluster
+translation_source_commit: 335f560795acfd54c901304c890f83905eb92749
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Connetti il tuo cluster ⏱️ 10m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Il tuo kubeconfig punta già al tuo cluster k3d e il tuo pair ID è `local`. Salta direttamente al [passo del pod `hello`](#23-smoke-test-apply-a-hello-pod). Vedi [Setup locale solo (k3d)](./solo-local-setup) se non l'hai ancora configurato.
+:::
+
+## 2.1 Prima di iniziare ⏱️ 2m
+
+`kubectl` parla con *un* cluster — quello descritto dal **kubeconfig** a cui la tua shell punta in questo momento. Per i prossimi cinque moduli, ogni comando deve atterrare nel tuo cluster del workshop, non in qualche altro cluster che potresti aver configurato sulla tua macchina.
+
+Un kubeconfig è semplicemente un file YAML con l'indirizzo del cluster, un certificato e le credenziali. Stai per scaricare il tuo, dire alla shell di usarlo, e dimostrare che funziona applicando un manifest Pod di una sola riga.
+
+Stai per: scaricare un kubeconfig, esportarlo e applicare un pod `hello`.
+
+## 2.2 Carica il tuo kubeconfig ⏱️ 5m
+
+### 1. Scarica il file kubeconfig
+
+Il tuo istruttore ti ha dato un link per scaricare il kubeconfig della tua coppia. Scarica il file e tieni a portata il percorso — questo esempio assume `~/Downloads/<pair-id>-kubeconfig.yaml`.
+
+### 2. Punta la tua shell al file
+
+```bash
+export KUBECONFIG=~/Downloads/<pair-id>-kubeconfig.yaml
+kubectl config current-context
+```
+
+Il comando `current-context` stampa il nome del context — considera qualsiasi output non vuoto come successo. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che il download sia andato a buon fine.
+
+### 3. Elenca i namespace come smoke test
+
+```bash
+kubectl get namespaces
+```
+
+Dovresti vedere i namespace di sistema standard (`default`, `kube-system`, `kube-public`, …). Se vedi un errore di permessi, controlla di stare usando il kubeconfig della tua coppia — ogni coppia ha accesso solo al proprio cluster.
+
+### 4. (Opzionale) Installa qualche tool comodo
+
+Non sono richiesti, ma renderanno il resto del workshop più rapido. Salta se sei stretto col tempo.
+
+```bash
+brew install kubectx k9s helm      # macOS / Linuxbrew
+```
+
+I link di installazione per Windows / Linux puro sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+
+## 2.3 Smoke test — applica un pod `hello` ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
+
+Applica un Pod a un container così il validator ha qualcosa di concreto su cui confermare che la tua pipeline `kubectl apply` scriva davvero nel cluster.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello
+  namespace: default
+spec:
+  containers:
+    - name: hello
+      image: public.ecr.aws/docker/library/busybox:1.36
+      command: ["sh", "-c", "echo hello && sleep 3600"]
+EOF
+```
+
+Aspetta qualche secondo per il pull dell'immagine, poi conferma:
+
+```bash
+kubectl get pod hello -n default
+```
+
+Output atteso:
+
+```
+NAME    READY   STATUS    RESTARTS   AGE
+hello   1/1     Running   0          15s
+```
+
+<ValidateCheck check="hello-pod" />
+
+Quando la tile diventa verde, il tuo kubeconfig è a posto e `kubectl apply` funziona end-to-end.
+
+## 2.4 Cosa è appena successo
+
+Hai detto alla tua shell con quale cluster parlare e hai dimostrato la connessione scrivendo una risorsa che il validator può rileggere. Tutto dal modulo 3 in poi assume che questo funzioni.
+
+### Per approfondire
+
+- [Documentazione di kubectl config](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/) — tutto ciò che `kubectl config` può fare.
+- [Riferimento del file kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) — cosa c'è dentro lo YAML che hai appena scaricato.
+- Puoi lasciare il pod `hello` in esecuzione — non usa risorse significative e i moduli successivi lo ignorano. Se preferisci ripartire pulito: `kubectl delete pod hello -n default`.

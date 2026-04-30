@@ -1,0 +1,84 @@
+---
+sidebar_position: 80
+title: Troubleshooting
+translation_source_commit: 335f560795acfd54c901304c890f83905eb92749
+---
+
+# Troubleshooting
+
+Cose che mordono su scala, con la ricetta per sbloccarle. I moduli
+preconfezionati sono già cablati per evitarle — questa pagina è per il
+freestyle del modulo 6 e qualunque YAML tu incolli da altrove.
+
+## ImagePullBackOff con `toomanyrequests`
+
+### Perché succede
+
+Tutte le coppie del workshop condividono lo stesso IP di egress sul
+management cluster. DockerHub anonimo permette circa 100 image pull ogni
+6 ore per IP. Con 10+ coppie che partono con i moduli nella stessa
+finestra, è facile inciampare in quel limite — e una volta inciampato,
+**ogni coppia vede il fallimento**, non solo quella che ha pullato per
+ultima.
+
+I moduli preconfezionati non pullano più direttamente da `docker.io`
+(usano un mirror pubblico — vedi sotto). Ma qualunque cosa incolli nel
+freestyle del modulo 6, o copi da un tutorial, probabilmente sì.
+
+### Come confermare che è il rate limit
+
+```bash
+kubectl describe pod <pod-name> -n <namespace>
+```
+
+Cerca un evento vicino al fondo dell'output:
+
+```
+Failed to pull image "nginx:alpine": ... 429 Too Many Requests -
+Server message: toomanyrequests: You have reached your pull rate limit.
+```
+
+Se vedi questo, la diagnosi è confermata. Qualunque altra cosa
+(`ErrImagePull` senza `429`, errori di rete, `manifest unknown`) è un
+problema diverso.
+
+### Come fixare
+
+Sostituisci il riferimento all'immagine con uno di due mirror pubblici.
+Nessuno richiede autenticazione:
+
+| Originale | Prefisso del mirror da usare |
+|---|---|
+| `nginx:alpine`, `busybox:1.36`, `redis`, `postgres`, `python`, qualunque immagine ufficiale `docker.io/library/*` | `public.ecr.aws/docker/library/<image>` |
+| `hashicorp/http-echo`, `bitnami/redis`, qualunque immagine `docker.io/*` non-`library/` | `mirror.gcr.io/<image>` |
+
+Esempi:
+
+```yaml
+# before
+image: nginx:alpine
+image: hashicorp/http-echo:1.0.0
+
+# after
+image: public.ecr.aws/docker/library/nginx:alpine
+image: mirror.gcr.io/hashicorp/http-echo:1.0.0
+```
+
+Applica lo YAML aggiornato. Il pod pullerà pulito dal mirror. I pod
+esistenti in `ImagePullBackOff` si riprendono automaticamente una volta
+che il Deployment sottostante è patchato — non serve cancellare il pod
+a mano.
+
+### Perché due mirror diversi
+
+`public.ecr.aws/docker/library/` è il mirror permanente di AWS delle
+immagini ufficiali della library DockerHub (`nginx`, `busybox`, `redis`,
+ecc.). È ben finanziato e senza rate limit, ma copre solo `library/`.
+
+`mirror.gcr.io` è la pull-through cache di Google di tutto `docker.io`,
+incluse le immagini non-library. Funziona per tutto, ma Google ha
+storicamente segnalato che vorrebbe ridurla — va bene per un workshop
+di un giorno, meno ideale come dipendenza di lungo termine.
+
+Per questo workshop, preferisci ECR per qualunque immagine ufficiale, e
+`mirror.gcr.io` solo quando ti serve un'immagine non-library.

@@ -1,0 +1,136 @@
+---
+sidebar_position: 4
+title: Pattern di setup di un Provider
+translation_source_commit: fcc017eb0cc4cad235979236d393af4837ec8133
+---
+
+# Pattern di setup di un Provider
+
+Ogni Provider in Crossplane segue la stessa forma in tre passi: installa il pacchetto, dagli credenziali tramite una ProviderConfig, poi referenzia la config dalle tue MR. Il percorso 101 ti ci ha guidato una volta con `provider-helm`. Questa pagina raccoglie le varianti — sorgenti delle credenziali, ProviderConfig cluster vs namespaced, pinning della versione, dove trovare i provider — così non devi ri-derivarle ogni volta.
+
+## 5.1 La forma
+
+Tre oggetti, in ordine:
+
+1. **`Provider`** (`pkg.crossplane.io/v1`). Un pacchetto la cui installazione fa partire un Pod long-running in `crossplane-system`. Il Pod registra i CRD e riconcilia le MR di quei kind.
+2. **`ProviderConfig`** (o **`ClusterProviderConfig`** — vedi [§5.3](#53-clusterproviderconfig-vs-providerconfig)). Dice al Pod del Provider come autenticarsi. Più comunemente fa riferimento a un Secret; l'auth cloud-native (IRSA, Workload Identity, Managed Identity) è l'alternativa senza Secret.
+3. **MR**. Custom Resource cluster- o namespace-scoped che il Provider riconcilia. Ognuna porta un `providerConfigRef` che punta a una `ProviderConfig` (o `ClusterProviderConfig`) per nome.
+
+Se uno di questi tre manca o è unhealthy, le MR restano non riconciliate — tipicamente con una reason `Cannot connect to the API` su `.status.conditions`.
+
+## 5.2 Pinna la versione
+
+Pinna sempre la versione del pacchetto. `:latest` funziona ma ti morde la prossima volta che il provider ha un cambio di schema breaking.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-s3
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.5.3
+EOF
+```
+
+Trova le versioni correnti sul [Marketplace Crossplane](https://marketplace.upbound.io/providers). Ogni pagina di provider elenca ogni versione pubblicata, i CRD che spedisce e se la famiglia fa pull automatico di pacchetti subordinati.
+
+## 5.3 ClusterProviderConfig vs ProviderConfig
+
+Crossplane v2 spedisce **due** kind ProviderConfig per ogni provider:
+
+| Kind | Scope | Scegli quando |
+|---|---|---|
+| `ClusterProviderConfig` | Cluster-scoped | Una credenziale serve l'intero cluster — tipico per account cloud dove ogni team scrive attraverso la stessa identità IAM. Le MR namespaced in qualunque namespace possono referenziarla. |
+| `ProviderConfig` | Namespace-scoped | Ogni namespace tenant porta la sua credenziale — tipico per provider SaaS (`provider-github`, `provider-vault`) quando team diversi hanno bisogno di identità diverse. Solo le MR nello stesso namespace possono referenziarla. |
+
+Entrambi i kind vivono sotto il gruppo API namespaced v2 `*.m.<provider>.io` (ad es. `aws.m.upbound.io`, `helm.m.crossplane.io`). L'infisso `.m.` marca la variante namespaced. I vecchi kind cluster-only su `*.<provider>.io` (ad es. `aws.upbound.io`, il gruppo `github.upbound.io` che usa [`provider-github`](../crossplane-3xx/provider-github)) precedono la v2 e sono ancora in giro per back-compat.
+
+Le MR namespaced in v2 richiedono un **`providerConfigRef.kind` esplicito** così il controller sa quale kind cercare:
+
+```yaml
+spec:
+  providerConfigRef:
+    kind: ClusterProviderConfig   # oppure: ProviderConfig
+    name: default
+```
+
+Dimenticatelo su una MR namespaced v2 e il provider rifiuterà di riconciliarla con un errore `kind is required`.
+
+## 5.4 Credenziali
+
+Tre pattern coprono la maggior parte dei provider.
+
+### Basato su Secret (default)
+
+Ogni Provider lo supporta; alcuni supportano solo questo. Il valore del Secret è qualunque cosa specificano i docs del Provider — spesso un blob JSON, a volte un file in formato CLI (il file shared-credentials AWS), a volte un singolo token.
+
+```yaml
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: aws-creds
+      namespace: crossplane-system
+      key: credentials
+```
+
+Tieni il Secret in `crossplane-system` — è il namespace in cui gira il Pod del Provider, e la maggior parte dei provider cerca lì di default. Il Secret può stare ovunque sia raggiungibile dal ServiceAccount del Pod, ma rompere la convenzione ti costa una caccia più tardi quando il Provider non riesce a leggere la chiave.
+
+### Cloud-native (no Secret)
+
+Quando il Pod del Provider stesso ha una workload identity, la credenziale è implicita e non c'è alcun Secret da gestire. AWS IRSA, GCP Workload Identity e Azure Managed Identity impostano tutti `source: InjectedIdentity` (la chiave esatta varia — controlla i docs del Provider):
+
+```yaml
+spec:
+  credentials:
+    source: InjectedIdentity
+```
+
+Questa è la mossa production-grade su un cluster cloud reale: nessuna chiave statica da ruotare, blast radius limitato dal ruolo IAM del Pod.
+
+### Staged dall'operatore (cluster gestiti)
+
+Quando l'operatore del cluster pre-provisiona una credenziale fuori da GitOps (perché il secret non può vivere in git), la ProviderConfig punta a un Secret che l'operatore mantiene. [`provider-github`](../crossplane-3xx/provider-github) sul tuo cluster del workshop usa questo pattern — una singola credenziale GitHub App che l'operatore stagea per te nel namespace `crossplane-system`.
+
+## 5.5 Famiglie di Provider
+
+I provider Upbound moderni sono pubblicati come **famiglie** — un piccolo pacchetto per servizio cloud, condividendo un singolo pacchetto `provider-family-<cloud>` per l'auth. Installare `provider-aws-s3` fa pull automaticamente di `provider-family-aws`, dove vive il CRD di `ClusterProviderConfig`.
+
+Scegli il membro più piccolo della famiglia che ti serve. Il vecchio `provider-aws` monolitico spediva ~1500 CRD; `provider-aws-s3` ne spedisce ~30. Installazione più piccola, meno upgrade di schema da tracciare, e puoi comporre più membri della famiglia sulla stessa `ClusterProviderConfig`:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-s3
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.5.3
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-rds
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-rds:v2.5.3
+EOF
+```
+
+Entrambi condividono la `ClusterProviderConfig` `aws.m.upbound.io` che hai già applicato. Nessuna seconda credenziale necessaria.
+
+## 5.6 Da qui in avanti
+
+La categoria 3xx mette al lavoro questo pattern contro backend reali:
+
+- [Crea risorse in GitHub](../crossplane-3xx/provider-github)
+- [Crea risorse in AWS](../crossplane-3xx/provider-aws)
+- [Crea risorse in GCP](../crossplane-3xx/provider-gcp)
+- [Crea risorse in Azure](../crossplane-3xx/provider-azure)
+- [(Guidato) Crea risorse in Aruba](../crossplane-3xx/provider-arubacloud)
+
+Ognuno segue la forma di questa pagina: install, ClusterProviderConfig che punta a un Secret, una MR. Leggi questa pagina una volta e puoi predire ogni blocco di codice in quei moduli prima ancora di cliccare.

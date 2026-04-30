@@ -1,0 +1,38 @@
+---
+sidebar_position: 4
+title: Automazione di processo
+translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+---
+
+# Automazione di processo
+
+> Stai automatizzando un processo di lunga durata dentro la tua organizzazione. Per andare in produzione, un'applicazione deve passare una security review: diversi dipartimenti eseguono ciascuno il proprio check, ognuno espone un endpoint API che si ribalta quando il suo check passa, e l'applicazione non può passare allo stage successivo finché il precedente non è verde. Vuoi che Crossplane guidi tutto — fa polling sugli endpoint, avanza tra gli stage, espone il progresso e segnala done.
+
+## Cosa stai costruendo
+
+Un XR — chiamiamolo `XSecurityReview` (prefisso `X` per la [convenzione di naming](../cheatsheet#naming-convention-xr-kinds-start-with-x)) — che rappresenta un'applicazione che attraversa il processo di review. Sotto, un insieme di `DisposableRequest` di [provider-http](https://github.com/crossplane-contrib/provider-http) fanno polling sull'endpoint di ogni dipartimento finché non ritorna la condizione attesa. La Composition fa avanzare la review stage dopo stage ed emette un singolo Ready=True quando ogni check è passato.
+
+## Passi suggeriti
+
+1. Definisci l'XRD `XSecurityReview`. Un input nello spec (application ID), un campo di status per check, una phase complessiva. Il pattern da [Definisci un'Application](../crossplane-101/define-application) si traduce direttamente — stessa forma di XRD, kind composti diversi.
+2. Installa [provider-http](https://github.com/crossplane-contrib/provider-http). Il check di ogni dipartimento diventa una MR `DisposableRequest`: GET sull'endpoint, parsa la risposta, riesce quando la condizione corrisponde.
+3. Componi le `DisposableRequest` dietro l'XR `XSecurityReview`. Ogni request legge la sua URL target dallo spec dell'XR; l'esito di ogni request atterra su un campo di status dedicato.
+4. Esponi lo status multi-step con [`function-status-transformer`](https://github.com/crossplane-contrib/function-status-transformer). Mappa la condition di ogni request composta su una condition significativa sull'XR (`SecurityCheckPassed`, `LegalCheckPassed`, ecc.) così `kubectl describe xsecurityreview` si legge come una checklist.
+5. Deriva il readiness complessivo con [`function-auto-ready`](https://github.com/crossplane-contrib/function-auto-ready). L'XR è `Ready=True` solo una volta che ogni `DisposableRequest` composta è ready.
+6. Guida la sequenza con le [Crossplane Operations](../crossplane-2xx/operations). Una `WatchOperation` sull'`XSecurityReview` fa avanzare lo stage quando il check precedente diventa verde; una `CronOperation` ri-polla i check bloccati a una cadenza.
+
+## Stretch goal
+
+- Subordina un'azione downstream al passaggio della review. Componi una release di `Repository` di [provider-github](../crossplane-3xx/provider-github) che si riconcilia solo quando l'`XSecurityReview` è Ready.
+- Valida la pipeline di Composition in locale con `render` della [CLI Crossplane](../crossplane-2xx/crossplane-cli) prima di ogni modifica — molto più rapido di un round-trip attraverso il cluster.
+- Persisti un audit trail completo emettendo Event per stage dalla Composition; `kubectl events` poi si legge come una timeline.
+
+## Riferimenti
+
+- [Definisci un'Application](../crossplane-101/define-application)
+- [Crossplane Operations](../crossplane-2xx/operations)
+- [CLI Crossplane](../crossplane-2xx/crossplane-cli)
+- [provider-github](../crossplane-3xx/provider-github)
+- [provider-http](https://github.com/crossplane-contrib/provider-http)
+- [function-status-transformer](https://github.com/crossplane-contrib/function-status-transformer)
+- [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready)

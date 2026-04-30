@@ -225,6 +225,17 @@ A journey module's body is short: 1–2 paragraphs of scenario, then a "Suggeste
 
 Decided to ship `05-crossplane-2xx`, `06-crossplane-3xx`, `07-crossplane-4xx`, and `08-journeys` as collapsible-category stubs **before** the task content is finalized. *Because:* the instructor's content guideline calls for a choose-your-own-adventure shape, and reserving the categories now lets future task PRs slot in without renumbering or sidebar churn. Wrap-up moved from `07` to `90` for the same reason — leaves room between `08-journeys` and the wrap-up.
 
+### Cloud-provider module title pattern: own vs platform-managed (2026-04-30)
+
+Cloud-provider modules in `06-crossplane-3xx/` use one of two title shapes depending on whose account the participant points the provider at:
+
+- **Own account** (AWS, GCP, Azure today): `provider-X against your own X account`. Participant signs up, mints a credential, applies the Provider + ProviderConfig themselves.
+- **Platform-managed** (Aruba today): `provider-X against your platform's X project`. The platform team has installed the Provider, applied a ProviderConfig referencing a Secret they injected, and configured admission policies. Participant doesn't see the credential. *Decided while authoring `07-provider-arubacloud.mdx`.* Different shape because the §7.2 "verify the wiring" section is fundamentally different from the §6.2/§6.3 "create your own account / mint your own credential" sections in own-account modules.
+
+### Real-cloud-cost warning admonition (2026-04-30)
+
+Any module that has participants create real billed cloud resources opens with a `:::warning Real cloud, real bills` admonition stating which resource is billed, in whose account, and that cleanup is mandatory. *Because:* the existing modules' "not yet end-to-end tested" warning exists for a different reason; cost is its own concern and deserves its own callout right where the participant decides whether to start the module. *Decided while authoring `07-provider-arubacloud.mdx`.*
+
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--

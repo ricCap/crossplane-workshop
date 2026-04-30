@@ -1,0 +1,127 @@
+---
+sidebar_position: 4
+title: Installa Crossplane
+translation_source_commit: 7abdb19134351d09ac44b97a4695d61db5f28cca
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Installa Crossplane ⏱️ 15m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Stesso cluster, stessi comandi — non cambia nulla in questo modulo per il percorso solo. Vedi [Setup locale solo (k3d)](../solo-local-setup) per il contesto.
+:::
+
+## 3.1 Prima di iniziare ⏱️ 3m
+
+[Crossplane](https://docs.crossplane.io/latest/) è un [**controller**](../cheatsheet#controllers-and-the-operator-pattern) Kubernetes — stesso operator pattern del controller Deployment integrato — che osserva una famiglia di risorse che incontrerai nei prossimi quattro moduli (XRD, Composition, XR, Managed Resource) e le riconcilia trasformandole in azioni. Dopo questo modulo Crossplane stesso girerà nel tuo cluster, senza ancora osservare nulla — il modulo 4 gli darà qualcosa da osservare.
+
+Installerai **UXP v2** (la distribuzione di Crossplane di Upbound) tramite la sua Helm chart. UXP è Crossplane con una [Web UI](https://docs.upbound.io) read-only inclusa — tutto quello che impari si trasferisce uno-a-uno su Crossplane upstream. Vedi il [Cheatsheet §1.3](../cheatsheet#crossplane-vs-uxp) per il confronto completo.
+
+:::info Perché `--devel`?
+Le release di UXP v2 sono taggate come `2.2.0-up.5`, che Helm tratta come pre-release. Il flag `--devel` è quello che dice a Helm "installa anche le versioni pre-release". Non è in realtà codice pre-release — è la linea stabile di UXP v2.
+:::
+
+Stai per: aggiungere un repo Helm, installare la chart e verificare che il Deployment `crossplane` sia Available.
+
+## 3.2 Installa la Helm chart ⏱️ 7m
+
+### 1. Aggiungi il repo Helm di Upbound
+
+```bash
+helm repo add upbound-stable https://charts.upbound.io/stable
+helm repo update upbound-stable
+```
+
+### 2. Installa UXP in `crossplane-system`
+
+```bash
+helm install crossplane upbound-stable/crossplane \
+  --version 2.2.0-up.5 \
+  --namespace crossplane-system \
+  --create-namespace \
+  --devel \
+  --wait \
+  --set webui.enabled=true
+```
+
+`--version 2.2.0-up.5` pinna la chart alla stessa revisione che gira sul cluster GitOps del workshop (vedi `gitops/apps/crossplane.yaml`) — senza, Helm prende l'ultima disponibile, che è andata avanti rispetto a quella su cui sono stati scritti i moduli. `--devel` è necessario perché il suffisso `-up.5` è un tag pre-release SemVer che Helm altrimenti filtra via. `--wait` fa sì che Helm si blocchi finché i Deployment di Crossplane non sono Available. Su un cluster delle dimensioni del workshop di solito ci vogliono 30–60 secondi. `webui.enabled=true` accende la Web UI read-only che userai nello step opzionale qui sotto.
+
+### 3. Verifica i pod
+
+```bash
+kubectl get pods -n crossplane-system
+```
+
+Output atteso:
+
+```
+NAME                                      READY   STATUS    RESTARTS   AGE
+crossplane-58ff757f44-5vjxz               1/1     Running   0          45s
+crossplane-apollo-7d475f549f-bbd6s        3/3     Running   1          45s
+crossplane-rbac-manager-75f69f7d64-7xttd  1/1     Running   0          45s
+upbound-controller-manager-85cd77fb9-xxx  1/1     Running   0          45s
+webui-5c65cc8bdf-xxxxx                    1/1     Running   0          45s
+```
+
+Cinque pod salgono per un'installazione UXP v2. Due sono quelli con cui interagirai davvero:
+
+- **`crossplane`** — il controller core di Crossplane che otterresti da qualsiasi installazione di Crossplane; il programma long-running che osserva XRD, Composition, XR, Provider e Function, ed esegue un loop di riconciliazione su ognuno. Tutto nei prossimi quattro moduli dipende dalla salute di questo Pod.
+- **`webui`** — la dashboard read-only abilitata da `webui.enabled=true`. La userai in §3.3.
+
+Gli altri tre sono infrastruttura che non toccherai direttamente:
+
+<details>
+<summary>Cosa sono <code>crossplane-rbac-manager</code>, <code>crossplane-apollo</code> e <code>upbound-controller-manager</code>?</summary>
+
+- **`crossplane-rbac-manager`** — genera ClusterRole per ogni XRD che applichi, così gli utenti finali possono fare `get`/`list` sui kind XR che definisci senza che tu debba scrivere RBAC a mano. Anche Crossplane upstream lo include.
+- **`crossplane-apollo`** — componente del control-plane specifico di UXP che supporta l'offerta managed di Upbound. Innocuo quando esegui UXP in locale; non ha nulla da fare in un'installazione standalone ma viene comunque schedulato. Un riavvio transitorio o due durante l'installazione è normale — aspetta CRD che il controller core sta ancora registrando.
+- **`upbound-controller-manager`** — orchestratore del control-plane di UXP (fratello di `apollo`). Stessa storia: di troppo nell'uso locale, necessario per l'integrazione cloud di Upbound che qui non eserciterai.
+
+Se avessi installato Crossplane upstream (non UXP), apparirebbero solo `crossplane` e `crossplane-rbac-manager`. Gli altri tre sono ciò che "UXP" aggiunge sopra; vedi il [confronto del Cheatsheet §1.3](../cheatsheet#crossplane-vs-uxp).
+
+</details>
+
+<ValidateCheck check="crossplane-installed" />
+
+Quando la tile diventa verde, Crossplane è in esecuzione e sei pronto per il modulo 4.
+
+## 3.3 (Opzionale) Apri la Web UI ⏱️ 5m
+
+La Web UI mostra ogni oggetto Crossplane nel tuo cluster — Provider, XRD, Composition, XR e managed resource — in un albero che puoi navigare. È utile mentre impari; non è obbligatoria.
+
+### 1. Fai port-forward del service
+
+Esegui questo in un secondo terminale (rimane aperto mentre navighi):
+
+```bash
+kubectl port-forward svc/webui -n crossplane-system 8200:80
+```
+
+Lascialo in esecuzione e apri [http://localhost:8200](http://localhost:8200) nel browser. Vedrai una dashboard quasi vuota — non c'è ancora nulla da comporre. Dopo i moduli 4, 5 e 6 ci tornerai per vedere cosa hai costruito.
+
+Premi `Ctrl+C` in quel terminale quando hai finito per fermare il port-forward.
+
+### 2. Tienila aperta per dopo
+
+Se vuoi lasciarla in esecuzione per il resto del workshop: bene. Passa a essa dopo ogni modulo e guarda l'albero popolarsi mentre installi un provider, definisci un XRD e applichi un XR.
+
+## 3.4 Cosa è appena successo
+
+Hai installato un controller Kubernetes. I cinque Pod in `crossplane-system` sono il controller core di Crossplane più i suoi compagni; insieme sono un programma long-running che osserva certi *kind* — `Provider`, `Function`, `CompositeResourceDefinition` (XRD), `Composition`, e qualunque kind composite-resource (XR) tu definisca — ed esegue un loop di riconciliazione su ognuno.
+
+Ora Crossplane sta osservando questi cinque kind built-in ma non esistono ancora istanze, quindi il loop non ha nulla da fare. Nei prossimi quattro moduli gli darai lavoro:
+
+- **Modulo 4** — applica una `Function` (la logica pluggable di una Composition) e il tuo primo `XRD` + `Composition` + `XR`. Crossplane reagirà creando una ConfigMap.
+- **Modulo 5** — un XRD + Composition più grande che si dirama in un frontend + backend.
+- **Modulo 6** — modifica la Composition; guarda il cambiamento propagarsi.
+- **Modulo 7** — installa un `Provider` e usalo per gestire una release Helm.
+
+### Per approfondire
+
+- [Installing Crossplane (docs upstream)](https://docs.crossplane.io/latest/software/install/) — alternative a Helm, flag CLI.
+- [Release notes di UXP](https://docs.upbound.io/release-notes/) — cosa è diverso rispetto all'upstream in ogni release UXP.
+- [Architettura di Crossplane](https://docs.crossplane.io/latest/concepts/crossplane/) — come il controller core e l'RBAC manager cooperano.

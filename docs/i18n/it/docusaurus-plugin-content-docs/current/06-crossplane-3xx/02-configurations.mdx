@@ -1,0 +1,37 @@
+---
+sidebar_position: 2
+title: Pacchettizza come Configuration
+translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Pacchettizza come Configuration ⏱️ 15m
+
+<PairId />
+
+## 6.1 Prima di iniziare ⏱️ 3m
+
+In [Definisci un'Application](../crossplane-101/define-application) hai scritto un XRD e una Composition applicando YAML direttamente al tuo cluster del workshop. Funziona su un cluster. Il problema successivo è la distribuzione: come fa un altro team — o il te-stesso-del-futuro su un cluster fresco — a installare la stessa API `XApplication` in un solo passo?
+
+Un [**package Configuration**](https://docs.crossplane.io/latest/packages/configurations/) è la risposta. È un'immagine OCI che impacchetta i tuoi XRD e Composition insieme ai Provider e alle Function da cui dipendono, e dichiara esplicitamente le versioni delle dipendenze. Il cluster ricevente scarica una sola immagine; Crossplane risolve il resto.
+
+Tre motivi per cui conta:
+
+- **Distribuzione.** Un artifact versionato in un registry (`xpkg.upbound.io`, `ghcr.io`, qualunque cosa OCI) invece di una cartella di YAML in un repo Git che qualcuno deve clonare.
+- **Igiene delle dipendenze.** Il manifest del package pinna le esatte versioni di provider e function rispetto alle quali la tua Composition è stata scritta, così installandolo non finisci silenziosamente su un provider più nuovo con cambiamenti di schema breaking.
+- **Lifecycle.** Crossplane riconcilia una risorsa `Configuration` allo stesso modo in cui riconcilia un `Provider` — `kubectl get configuration` mostra revisioni, salute e stato di roll-back.
+
+Stai per leggere tre brevi pagine upstream, e poi decidere se costruire e pubblicare davvero la tua API `XApplication` come Configuration.
+
+## 6.2 Suggerimenti ⏱️ 12m
+
+Questo è un modulo 3XX — pointer, non una ricetta. Apri la documentazione upstream e percorrila in questo ordine:
+
+- **La forma di un package.** Leggi [Create a configuration](https://docs.crossplane.io/latest/packages/configurations/#create-a-configuration) per vedere il file di metadati `crossplane.yaml`: `metadata.name`, `spec.crossplane.version` (l'intervallo di versioni Crossplane che il tuo package supporta) e `spec.dependsOn` (una lista di provider, function e altre configuration di cui il package ha bisogno). Nota che le dipendenze sono dichiarate una sola volta, in questo file — non nell'XRD o nella Composition.
+- **Costruiscilo.** [`crossplane xpkg build`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-build) percorre una directory di YAML e produce un artifact OCI `.xpkg`. La CLI è lo stesso binario `crossplane` che hai usato in [Cheatsheet](../cheatsheet) per `crossplane beta render`.
+- **Pubblicalo.** [`crossplane xpkg push`](https://docs.crossplane.io/latest/cli/command-reference/#xpkg-push) pubblica l'artifact su qualunque registry OCI con cui ti puoi autenticare. Il marketplace Crossplane-flavoured è `xpkg.upbound.io`; un generico `ghcr.io/<you>/<pkg>:vX.Y.Z` funziona altrettanto bene.
+- **Installalo.** Applica una risorsa `Configuration` (`apiVersion: pkg.crossplane.io/v1`, `kind: Configuration`, `spec.package: <registry>/<image>:<tag>`) su un cluster target. Vedi [Install a configuration](https://docs.crossplane.io/latest/packages/configurations/#install-a-configuration) per `revisionHistoryLimit`, `packagePullPolicy` e i flag di dependency-resolution.
+- **Guarda le dipendenze risolversi.** [Manage dependencies](https://docs.crossplane.io/latest/packages/configurations/#manage-dependencies) copre come Crossplane installa i provider e le function da cui la tua Configuration dipende, e come fare debug di una revisione `Healthy=False` quando i vincoli di versione confliggono.
+
+Un esercizio pratico: prendi l'XRD + Composition che hai applicato nel modulo 5, mettili in una directory accanto a un `crossplane.yaml` che dipende da `provider-kubernetes` e `function-patch-and-transform` alle versioni che hai usato, costruisci il package, pubblicalo su un registry che controlli, e installalo su un cluster `kind` fresco. Se lo stesso XR `XApplication` che hai usato nel modulo 5 riconcilia a Ready senza nessun altro YAML applicato, il package sta facendo il suo lavoro.

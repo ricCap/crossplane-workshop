@@ -1,0 +1,271 @@
+---
+sidebar_position: 5
+title: La tua prima Composition
+translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# La tua prima Composition ⏱️ 12m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+## 4.1 Prima di iniziare ⏱️ 2m
+
+Crossplane si installa pulito, ma non *fa* ancora niente. Non gli hai detto quali kind di risorse creare né come crearle. Questo modulo è il loop end-to-end più piccolo possibile: definisci una piccola API, scrivi una ricetta che crea una ConfigMap, applichi un'istanza, guardi la ConfigMap apparire.
+
+Stai usando **Crossplane v2**, quindi le risorse che Crossplane compone possono essere semplici oggetti Kubernetes — `ConfigMap`, `Deployment`, `Service`, qualsiasi cosa. Nessun pacchetto Provider richiesto per il caso base. (Vedrai perché i pacchetti Provider contano comunque per alcuni casi d'uso nel [modulo 7](./add-a-provider).)
+
+### Cosa sta per succedere, in un'immagine
+
+```mermaid
+flowchart TB
+  user(["You"])
+  xrd["XRD<br/>xhellos.workshop.example.io"]
+  crd["CRD<br/>xhellos.workshop.example.io<br/>(generated)"]
+  comp["Composition<br/>xhellos.workshop.example.io"]
+  fn["function-patch-and-transform"]
+  xr["XHello XR<br/>hello-world"]
+  cm["ConfigMap<br/>hello-world"]
+
+  user -- "kubectl apply" --> xrd
+  xrd == "Crossplane generates" ==> crd
+  user -- "kubectl apply" --> comp
+  user -- "kubectl apply" --> xr
+  xr == "kind matches XRD ⟶ runs" ==> comp
+  comp == "pipeline step" ==> fn
+  fn == "emits desired state" ==> cm
+```
+
+Le frecce spesse sono il lavoro che Crossplane fa per te; le frecce sottili sono cose che fai tu con `kubectl apply`. Ogni passo del resto del modulo è una delle frecce sottili.
+
+### I pezzi nell'immagine, definiti
+
+Cinque termini, tutti introdotti qui. Tratta la tabella come il glossario del diagramma. La versione completa corretta per v2 — comprensiva dei pezzi che incontrerai nei moduli 5 e 7 — vive nel [Cheatsheet](../cheatsheet#core-objects).
+
+| Componente | Cos'è | Scope dell'oggetto | Scope del kind che definisce / produce |
+|---|---|---|---|
+| **CRD** (Kubernetes) | Custom Resource Definition. Estende l'API server con un nuovo kind. Non ne scriverai uno direttamente — Crossplane ne genera uno per te quando applichi un XRD | Cluster | `Namespaced` o `Cluster`, secondo lo `spec.scope` del CRD |
+| **XRD** (Composite Resource Definition) | Dichiara lo schema di una nuova API Crossplane: che campi ha, di che tipi. Applicarlo fa sì che Crossplane crei il CRD corrispondente | Cluster | `Namespaced` (default v2), `Cluster`, o `LegacyCluster`, secondo lo `spec.scope` dell'XRD |
+| **XR** (Composite Resource) | Un'istanza di un XRD. Ne applichi uno e la Composition parte | Secondo l'XRD — `Namespaced` per l'`XHello` che scriverai | — |
+| **Composition** | La ricetta. "Quando qualcuno crea questo kind di XR, produci queste risorse" | Cluster | — |
+| **Composition function** | Logica plug-in che la pipeline della Composition esegue per produrre lo stato desiderato. `function-patch-and-transform` è quella che installerai | Cluster (è un pacchetto Crossplane) | — |
+
+Stai per: installare una composition function, definire un'API chiamata `XHello` (la `X` iniziale è la convenzione Crossplane — vedi il [cheatsheet](../cheatsheet#naming-convention-xr-kinds-start-with-x)), scrivere una ricetta che trasforma ogni `XHello` in una `ConfigMap`, e applicare un'istanza.
+
+## 4.2 Installa la composition function ⏱️ 3m
+
+Una Composition è una **pipeline** di una o più [composition function](../cheatsheet#core-objects). La function trasforma l'input dell'utente (lo spec dell'XR) nelle managed resource desiderate. Userai [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform), che prende una shape YAML resources-e-patches — la function più facile da leggere per una prima Composition.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+EOF
+```
+
+Aspetta che diventi healthy (di solito ~30 secondi):
+
+```bash
+kubectl get function
+```
+
+Output atteso:
+
+```
+NAME                           INSTALLED   HEALTHY   PACKAGE
+function-patch-and-transform   True        True      xpkg.crossplane.io/...:v0.9.0
+```
+
+## 4.3 Una nota sull'RBAC ⏱️ 1m
+
+Prima di scrivere la Composition, una verità Kubernetes vale la pena tirare fuori. Crossplane core stesso è ciò che applica le risorse che una Composition emette — come ogni controller, può creare solo i kind per cui ha RBAC. La ClusterRole `crossplane` inclusa nel chart UXP concede già verb wildcard sui kind che userai qui (`ConfigMap`, `Service`, `Deployment`), quindi non devi toccare l'RBAC per il flusso base:
+
+```bash
+kubectl auth can-i create configmaps \
+  --as=system:serviceaccount:crossplane-system:crossplane \
+  -n default
+# → yes
+```
+
+Due ragioni per cui conta comunque:
+
+- **Componi un kind diverso, dovrai estendere il grant.** Il pattern è una `ClusterRole` *aggregata* etichettata `rbac.crossplane.io/aggregate-to-crossplane: "true"` — l'aggregator RBAC di Kubernetes unisce le sue regole nella ClusterRole `crossplane` esistente a runtime. L'Application del modulo 5 resta dentro ConfigMap/Service/Deployment, quindi non serve. Un futuro modulo 2xx che componesse, ad esempio, un `Job` ne avrebbe bisogno.
+- **L'RBAC production-grade è più stretto.** Il grant largo di UXP va bene per un cluster da workshop; in produzione punteresti a un `RoleBinding` con scope a un namespace e verb espliciti. I [composition concepts](https://docs.crossplane.io/latest/concepts/compositions/) di Crossplane rimandano alla guida upstream.
+
+Questo è il trade-off che il providerless rende esplicito. Con `provider-kubernetes`, il grant equivalente vive sulla ServiceAccount del *Provider* via il suo `ProviderConfig` — stesso stato finale, nascosto dietro un layer in più.
+
+## 4.4 Definisci l'API (XRD) ⏱️ 3m
+
+L'XRD dichiara la tua nuova API. `XHello` sarà **namespaced** (default v2) con un campo obbligatorio, `message`.
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xhellos.workshop.example.io
+spec:
+  scope: Namespaced
+  group: workshop.example.io
+  names:
+    kind: XHello
+    plural: xhellos
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                message:
+                  type: string
+              required:
+                - message
+EOF
+```
+
+Verifica:
+
+```bash
+kubectl get xrd xhellos.workshop.example.io
+```
+
+Output atteso:
+
+```
+NAME                           ESTABLISHED   OFFERED   AGE
+xhellos.workshop.example.io    True                    5s
+```
+
+`ESTABLISHED=True` significa che il CRD `XHello` è registrato; ora puoi applicare degli XHello. La colonna `OFFERED` resta vuota perché v2 non genera un kind di claim — applica gli XR direttamente.
+
+## 4.5 Definisci la ricetta (Composition) ⏱️ 3m
+
+La Composition è la ricetta. Dice: "per ogni `XHello` che esiste, produci una `ConfigMap` il cui `data.greeting` contiene il `spec.message` di quell'XHello."
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xhellos.workshop.example.io
+spec:
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: XHello
+  mode: Pipeline
+  pipeline:
+    - step: render-configmap
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: greeting-configmap
+            base:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                namespace: default
+              data:
+                greeting: "placeholder"
+            readinessChecks:
+              - type: None
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.message
+                toFieldPath: data.greeting
+EOF
+```
+
+Quattro cose che vale la pena sottolineare:
+
+- La `ConfigMap` composta è **nuda** — `apiVersion: v1, kind: ConfigMap` direttamente sotto `base:`. Non c'è un wrapper di un pacchetto Provider attorno. Crossplane core stesso legge lo stato desiderato dall'output della function e applica la ConfigMap. Questo è il percorso v2 che rende `function-patch-and-transform` un runtime di Composition completo da solo.
+- La `Composition` è `apiextensions.crossplane.io/v1` anche se l'XRD è `/v2`. Non è un typo — il group dell'API XRD è salito a `/v2` per esprimere XR namespaced, ma `Composition` resta su `/v1`.
+- Il `metadata.namespace` della `ConfigMap` è hardcoded a `default`. v2 lo defaulterebbe al namespace dell'XR se lo lasciassi fuori; lo hardcoded-iamo per il workshop così il validator lo trova sempre nello stesso posto.
+- `readinessChecks: [type: None]` dice a `function-patch-and-transform` di marcare questa risorsa Ready non appena Crossplane l'ha osservata nel cluster. Senza, la function aspetta una condition `Ready` sulla risorsa, che `ConfigMap` non pubblica mai — e l'XR `XHello` resterebbe `Ready=False` per sempre. Per un `Deployment` useresti invece `MatchCondition` su `Available=True`; la Composition del modulo 5 lo fa.
+
+## 4.6 Usalo ⏱️ 2m
+
+Applica un XR `XHello`:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: workshop.example.io/v1alpha1
+kind: XHello
+metadata:
+  name: hello-world
+  namespace: default
+spec:
+  message: "Hello from my first Composition!"
+EOF
+```
+
+Guardalo riconciliarsi:
+
+```bash
+kubectl get xhello -n default
+```
+
+Output atteso:
+
+```
+NAME          SYNCED   READY   COMPOSITION                   AGE
+hello-world   True     True    xhellos.workshop.example.io   10s
+```
+
+E la ConfigMap sottostante esiste, con il messaggio che hai fornito:
+
+```bash
+kubectl get configmap hello-world -n default -o jsonpath='{.data.greeting}'
+```
+
+Output atteso:
+
+```
+Hello from my first Composition!
+```
+
+<ValidateCheck check="hello-xr-ready" />
+
+Quando la tile diventa verde, la tua prima Composition funziona end-to-end.
+
+## 4.7 Cosa è appena successo
+
+Hai definito una nuova API Kubernetes — `XHello` — e hai insegnato a Crossplane come trasformare ogni `XHello` in una `ConfigMap`. Dal punto di vista di un partecipante, è tutto il contratto di Crossplane: dichiari un kind di alto livello, dichiari una ricetta, applichi istanze.
+
+La forma si ripete nel modulo 5 con una ricetta più interessante: l'XR `XApplication` del prossimo modulo si trasforma in un frontend, un backend e la ConfigMap che li collega — stesso pattern XRD-e-Composition, solo cinque risorse invece di una.
+
+Prova a editare `spec.message` sull'XR `XHello` (`kubectl edit xhello hello-world -n default`) e a rieseguire il comando `kubectl get configmap`. Il `data.greeting` della ConfigMap si aggiorna in pochi secondi. È la riconciliazione in azione.
+
+Per pulire:
+
+```bash
+kubectl delete xhello hello-world -n default
+```
+
+La ConfigMap se ne va con lui (Crossplane mette owner ref sulle risorse composte).
+
+### Per approfondire
+
+- Il [Get started with Composition](https://docs.crossplane.io/latest/get-started/get-started-with-composition/) di Crossplane stesso — stesso pattern, più linguaggi (Python, KCL, templating Go).
+- [README di function-patch-and-transform](https://github.com/crossplane-contrib/function-patch-and-transform) — tipi di patch e transform.
+- "E [`provider-kubernetes`](https://github.com/crossplane-contrib/provider-kubernetes)?" — resta utile quando devi **adottare** una risorsa esistente nel cluster, fare server-side apply con gestione esplicita dei conflitti, o raggiungere altri cluster. Un futuro modulo 2xx copre quei casi. Per *creare* nuove risorse, il percorso providerless che hai appena usato è l'idioma v2.

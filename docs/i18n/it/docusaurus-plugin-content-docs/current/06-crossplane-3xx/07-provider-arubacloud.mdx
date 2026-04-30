@@ -1,0 +1,225 @@
+---
+sidebar_position: 7
+title: (Guidato) Crea risorse in Aruba
+translation_source_commit: fcc017eb0cc4cad235979236d393af4837ec8133
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# (Guidato) Crea risorse in Aruba ⏱️ 25m
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Questo modulo richiede un account Aruba a cui il workshop del tuo istruttore ha accesso. Il percorso solo locale non raggiunge Aruba — puoi leggere il modulo per capire la forma di un provider gestito dalla piattaforma, ma non potrai eseguirlo end-to-end. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+:::warning Cloud reale, costi reali
+Il DBaaS che crei qui è una vera istanza MySQL Aruba, fatturata a ore sul progetto Aruba del workshop. Cancellala appena finisci il §7.4 — il passo di pulizia in §7.5 non è opzionale.
+:::
+
+## 7.1 Prima di iniziare ⏱️ 3m
+
+Hai installato provider Crossplane sui tuoi account AWS / GCP / Azure. **`provider-arubacloud`** è diverso: punta al **progetto Aruba condiviso del tuo team di piattaforma** con credenziali che gestiscono loro. Non ti registri ad Aruba; non vedi la chiave API; entri e crei risorse.
+
+Questo è il pattern di produzione: il team di piattaforma cura la superficie cloud — un solo account condiviso, una sola credenziale, guardrail opinionati — e gli sviluppatori la consumano senza vedere il segreto. Il tuo team di piattaforma ha rivestito tutto questo con cinque guardrail Kyverno applicati al momento dell'admission:
+
+- Solo i kind `Database`, `ContainerRegistry` e `BlockStorage` possono essere creati.
+- I nomi devono iniziare con `<your-pair-id>-` così due coppie che condividono il progetto non collidono.
+- Engine, flavor, location e dimensione storage del DBaaS sono limitati a un livello dimensionato per il workshop.
+- I Pod non possono fare riferimento al Secret delle credenziali Aruba della piattaforma.
+- La VPC condivisa del workshop è in sola lettura — il tuo DBaaS si connette al suo interno, ma non puoi cancellarla.
+
+Stai per: verificare che il provider sia installato nel tuo cluster del workshop, ottenere quattro valori condivisi dal tuo istruttore, creare un DBaaS MySQL Aruba, eseguire `SELECT 1` da un Pod, e fare pulizia.
+
+## 7.2 Verifica il cablaggio della tua piattaforma ⏱️ 2m
+
+Conferma che il provider sia su. Il tooling del team di piattaforma ha installato `provider-arubacloud`, applicato un `ProviderConfig` che fa riferimento a un Secret che hanno iniettato per te, e configurato le policy Kyverno descritte sopra.
+
+```bash
+kubectl get provider.pkg.crossplane.io provider-arubacloud
+```
+
+Output atteso:
+
+```
+NAME                  INSTALLED   HEALTHY   PACKAGE
+provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+```
+
+<ValidateCheck check="provider-arubacloud-installed" />
+
+Se questo check resta rosso dopo qualche secondo, l'accesso Aruba della tua coppia non è ancora stato attivato — segnalalo al tuo istruttore. La sua dashboard ha un toggle per dargli il via libera.
+
+Anche le policy Kyverno che il team di piattaforma spedisce devono essere presenti. Conferma:
+
+```bash
+kubectl get clusterpolicy
+```
+
+Dovresti vedere dodici policy — i cinque guardrail descritti sopra espansi in policy di shape per Kind, più qualche compagno interno (auto-protezione di Kyverno, una guardia contro provider rogue).
+
+<ValidateCheck check="aruba-policies-present" />
+
+## 7.3 Provisiona un DBaaS MySQL ⏱️ 12m
+
+La risorsa di punta. Creerai una managed resource **DBaaS** (un'istanza MySQL reale) usando i valori che il tuo istruttore ha pinnato su una slide per la rete condivisa del workshop.
+
+### 1. Ottieni i valori condivisi
+
+Il tuo istruttore ha condiviso quattro stringhe:
+
+- **`<workshop-project-id>`** — ID del progetto Aruba in cui gira il workshop (stringa esadecimale di 24 caratteri)
+- **`<vpc-uri>`** — URI della VPC condivisa del workshop
+- **`<subnet-uri>`** — URI di una subnet dentro quella VPC
+- **`<security-group-uri>`** — URI di un security group attaccato alla VPC
+
+Tieni a portata questi quattro valori; li incollerai in §7.3.2.
+
+### 2. Applica la MR DBaaS
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: dbaas.arubacloud.crossplane.io/v1alpha1
+kind: DBaaS
+metadata:
+  name: <your-pair-id>-mysql
+spec:
+  forProvider:
+    name: <your-pair-id>-mysql
+    projectId: <workshop-project-id>
+    engineId: mysql-8.0
+    flavor: DBO2A4
+    location: ITBG-Bergamo
+    zone: ITBG-3
+    billingPeriod: Hour
+    storage:
+      sizeGb: 20
+    network:
+      vpcUriRef: <vpc-uri>
+      subnetUriRef: <subnet-uri>
+      securityGroupUriRef: <security-group-uri>
+    tags:
+      - crossplane-workshop
+      - <your-pair-id>
+  providerConfigRef:
+    name: default
+  writeConnectionSecretToRef:
+    name: <your-pair-id>-mysql-conn
+    namespace: default
+EOF
+```
+
+Qualche dettaglio del manifest che vale la pena capire:
+
+- `metadata.name` e `forProvider.name` iniziano entrambi con il tuo pair id. La policy name-prefix di Kyverno nega qualunque MR Aruba il cui nome non porti il tuo prefisso — prova a rimuoverlo al prossimo apply per vedere il rifiuto.
+- `flavor: DBO2A4` è 2 CPU / 4Gi RAM, il tier più piccolo del workshop. `DBO16A32` e simili sono negati al momento dell'admission.
+- `engineId: mysql-8.0` e `location: ITBG-Bergamo` sono gli unici valori ammessi per questo workshop. La policy è un Helm value; il tuo istruttore può rilassarla via PR.
+- `writeConnectionSecretToRef` dice a Crossplane dove pubblicare i dettagli di connessione (host, porta, credenziali admin) quando Aruba li restituisce. Leggerai questo Secret in §7.4.
+
+### 3. Guardalo provisionarsi
+
+Il provisioning del DBaaS richiede circa sei minuti — Aruba sta cablando MySQL, networking e storage. Apri un watch:
+
+```bash
+kubectl get dbaas <your-pair-id>-mysql -w
+```
+
+Output atteso una volta pronto:
+
+```
+NAME                   SYNCED   READY   EXTERNAL-NAME
+<your-pair-id>-mysql   True     True    69ee...
+```
+
+`SYNCED=True` significa che la chiamata API da Crossplane verso Aruba è andata a buon fine; `READY=True` significa che Aruba dice che l'istanza è su e sta servendo traffico. Premi `Ctrl+C` quando entrambi sono `True`.
+
+<ValidateCheck check="aruba-mr-ready" />
+
+## 7.4 Connettiti con `mysql` ⏱️ 6m
+
+Crossplane ha scritto i dettagli di connessione in un Secret chiamato `<your-pair-id>-mysql-conn` in `default`. Ispeziona quali chiavi ci sono dentro prima di cablarlo a un Pod:
+
+```bash
+kubectl get secret <your-pair-id>-mysql-conn -o jsonpath='{.data}' | jq 'keys'
+```
+
+Output atteso (i nomi delle chiavi possono variare leggermente):
+
+```json
+[
+  "endpoint",
+  "password",
+  "port",
+  "username"
+]
+```
+
+Il provider espone le chiavi di connection-detail che vede dall'API Aruba; il Secret è il contratto.
+
+### Esegui un Pod one-shot che fa il ping del DB
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: <your-pair-id>-db-test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: mysql-client
+      image: mysql:8
+      command: ["sh", "-c"]
+      args:
+        - mysql -h "$endpoint" -P "$port" -u "$username" -p"$password" -e 'SELECT 1 AS ok;'
+      envFrom:
+        - secretRef:
+            name: <your-pair-id>-mysql-conn
+EOF
+```
+
+`envFrom: secretRef` carica ogni chiave del Secret di connessione come variabile d'ambiente con il nome della chiave. Il comando shell poi le richiama per nome. Se il tuo Secret avesse chiavi diverse (ad es. `host` invece di `endpoint`), aggiorna l'argomento `mysql -h "$endpoint"` di conseguenza.
+
+Quando il Pod completa:
+
+```bash
+kubectl logs <your-pair-id>-db-test
+```
+
+Output atteso:
+
+```
+ok
+1
+```
+
+Hai instradato una query SQL attraverso un `kubectl apply` di una MR Crossplane, dentro una vera istanza MySQL Aruba, di ritorno attraverso la rete del cluster del workshop, e fuori dall'altra parte.
+
+## 7.5 Pulizia ⏱️ 2m
+
+Aruba fattura il DBaaS a ore. Cancellalo subito:
+
+```bash
+kubectl delete pod <your-pair-id>-db-test
+kubectl delete dbaas <your-pair-id>-mysql
+```
+
+Crossplane riconcilia la cancellazione contro Aruba, che smonta l'istanza MySQL. Il Secret di connessione è di proprietà della MR DBaaS e viene mietuto insieme a lei.
+
+Se ti dimentichi, il tuo istruttore farà ripulisce tutto al teardown del workshop — ma il DBaaS continuerà ad accumulare ore fino ad allora.
+
+## 7.6 Cosa è appena successo
+
+Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applicata contro Aruba. Le differenze interessanti:
+
+- **La credenziale è gestita dalla piattaforma.** Non hai mai visto la chiave API Aruba; il team di piattaforma l'ha iniettata nel tuo cluster in modo sicuro prima del tuo login. Questo è il pattern di produzione per l'isolamento degli account cloud — gli sviluppatori richiedono risorse senza mai detenere la credenziale.
+- **Guardrail Kyverno al momento dell'admission.** Prova a editare lo YAML del DBaaS per usare `flavor: DBO16A32`, oppure a rinominarlo senza il prefisso `<your-pair-id>-`, e a rifare apply. Il messaggio di errore torna istantaneo — Kyverno ha visto la richiesta prima che toccasse etcd. Il team di piattaforma può spedire aggiornamenti di policy via PR; il cluster di tutti li raccoglie al sync successivo.
+- **La rete Aruba è più esplicita degli hyperscaler.** AWS, GCP e Azure espongono tutti reti di default; Aruba richiede di referenziare URI di VPC + subnet + security group direttamente. Il team di piattaforma li gestisce una volta per il workshop, poi condivide gli URI.
+
+### Per approfondire
+
+- **Componi uno stack MySQL a privilegio minimo.** Questo modulo ha creato l'istanza DBaaS e si è collegato come admin — bene per un workshop, mai per produzione. Le app reali hanno bisogno di un login non-admin: un `Database.database.arubacloud.crossplane.io` (schema logico) + `DBaaSUser` (login non-admin) + `DatabaseGrant` (la riga `GRANT … TO …` che li collega). Avvolgi le quattro MR in un XR come `XAppDatabase` così gli utenti della piattaforma ottengono un workflow opinionated "dammi un DB per l'app X" da una sola riga di YAML — stessa forma dell'[`XApplication`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101.
+- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.2.0-workshop`.
+- [Riferimento API Aruba Cloud](https://api.arubacloud.com/docs/) — l'API upstream con cui parla il provider.

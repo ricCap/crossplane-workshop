@@ -1,0 +1,62 @@
+---
+sidebar_position: 2
+title: Crossplane Operations
+ai_edit: locked
+ai_edit_reviewed: 2026-04-28
+ai_edit_reviewer: ricCap
+translation_source_commit: 49786022955cf373fcffa52c2ed8d2be4b9b74ec
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Crossplane Operations
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+## 2.1 Prima di iniziare
+
+Tutto quello che hai fatto nel 101 è **dichiarativo**: descrivi uno stato desiderato e Crossplane riconcilia verso di lui per sempre. Le [Operations](https://docs.crossplane.io/latest/operations/) ribaltano questo modello — eseguono una pipeline di [composition function](./../cheatsheet#core-objects) in modo **imperativo**, per svolgere un task one-off o ricorrente che ha un inizio e una fine.
+
+Ne esistono tre tipi: una `Operation` esegue una pipeline una volta fino al completamento, una `CronOperation` ne esegue una su schedule, e una `WatchOperation` ne esegue una in risposta a cambiamenti su una risorsa osservata.
+
+Stai per esplorare cosa sblocca ognuno dei tre — niente sotto-passi guidati, solo spunti.
+
+## 2.2 Cosa puoi ottenere
+
+- **Backup e retention.** Snapshot di un database a cadenza e pruning dei vecchi snapshot — una `CronOperation`.
+- **Rotazione di credenziali e certificati.** Ruota un secret su tutti i consumer che corrispondono a una label — una `Operation` triggerata da te, o una `WatchOperation` triggerata da un cambio upstream.
+- **Drift check e validazione.** Esegui una pipeline di audit ad-hoc che riporta drift di configurazione nello status, senza alterare la risorsa — una `Operation` che rilanci on demand.
+- **Rolling upgrade in batch.** Porta una flotta attraverso un upgrade controllato con health check tra i batch — una `CronOperation` (o una catena di `Operation` gated sullo status).
+
+## 2.3 Suggerimenti
+
+- Operations è una feature **alpha** in Crossplane v2. L'installazione di Crossplane sul tuo cluster del workshop **non** la abilita di default — il deployment di Crossplane deve girare con `--enable-operations`. Rilancia il comando di install dal [modulo 3.1](../crossplane-101/install-crossplane) con il valore `args` extra:
+
+  ```bash
+  helm upgrade --install crossplane upbound-stable/crossplane \
+    --version 2.2.0-up.5 \
+    --namespace crossplane-system --create-namespace \
+    --devel \
+    --set webui.enabled=true \
+    --set args='{"--enable-operations"}' \
+    --wait
+  ```
+
+  Finché quel flag non è attivo, le risorse `Operation` / `CronOperation` / `WatchOperation` resteranno non riconciliate.
+- Leggi i tre reference delle risorse end-to-end prima di scrivere qualunque cosa: [`Operation`](https://docs.crossplane.io/latest/operations/operation/), [`CronOperation`](https://docs.crossplane.io/latest/operations/cron-operation/), [`WatchOperation`](https://docs.crossplane.io/latest/operations/watch-operation/). Ognuno spedisce un piccolo esempio elaborato.
+- Le Operations riusano le stesse composition function che hai incontrato nel modulo 3.4 — parti leggendo [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) e scegli la pipeline più semplice che produce l'effetto collaterale che vuoi.
+- Ispeziona cosa ha fatto una Operation con `kubectl get operations` e `kubectl describe operation <name>` — l'output della pipeline e le condizioni per step atterrano su `.status`.
+
+## 2.4 Dopo
+
+Le Operations permettono a Crossplane di possedere il lavoro di lifecycle day-2 — non solo le risorse, ma le procedure che agiscono su di esse.
+
+**Per approfondire:**
+
+- [Panoramica Crossplane Operations](https://docs.crossplane.io/latest/operations/)
+- [Reference della risorsa `Operation`](https://docs.crossplane.io/latest/operations/operation/)
+- [Note di rilascio Crossplane v2](https://docs.crossplane.io/latest/whats-new/)
