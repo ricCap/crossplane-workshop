@@ -1,0 +1,80 @@
+---
+sidebar_position: 80
+title: Troubleshooting
+---
+
+# Troubleshooting
+
+Things that bite at scale, with the recipe to unstick them. The canned
+modules are already wired to avoid these — this page is for module 6
+freestyle and any YAML you paste from elsewhere.
+
+## ImagePullBackOff with `toomanyrequests`
+
+### Why it happens
+
+All workshop pairs share the same egress IP on the management cluster.
+Anonymous DockerHub allows roughly 100 image pulls per 6 hours per IP.
+With 10+ pairs starting modules in the same window, that limit is
+easy to trip — and once tripped, **every pair sees the failure**, not
+just the one who pulled last.
+
+The canned modules don't pull from `docker.io` directly anymore (they
+use a public mirror — see below). But anything you paste in module 6
+freestyle, or copy from a tutorial, probably will.
+
+### How to confirm it's the rate limit
+
+```bash
+kubectl describe pod <pod-name> -n <namespace>
+```
+
+Look for an event near the bottom of the output:
+
+```
+Failed to pull image "nginx:alpine": ... 429 Too Many Requests -
+Server message: toomanyrequests: You have reached your pull rate limit.
+```
+
+If you see that, the diagnosis is confirmed. Anything else (`ErrImagePull`
+without `429`, network errors, `manifest unknown`) is a different problem.
+
+### How to fix
+
+Replace the image reference with one of two public mirrors. Neither
+requires authentication:
+
+| Original | Mirror prefix to use |
+|---|---|
+| `nginx:alpine`, `busybox:1.36`, `redis`, `postgres`, `python`, any official `docker.io/library/*` image | `public.ecr.aws/docker/library/<image>` |
+| `hashicorp/http-echo`, `bitnami/redis`, any non-`library/` `docker.io/*` image | `mirror.gcr.io/<image>` |
+
+Examples:
+
+```yaml
+# before
+image: nginx:alpine
+image: hashicorp/http-echo:1.0.0
+
+# after
+image: public.ecr.aws/docker/library/nginx:alpine
+image: mirror.gcr.io/hashicorp/http-echo:1.0.0
+```
+
+Apply the updated YAML. The pod will pull cleanly from the mirror.
+Existing `ImagePullBackOff` pods recover automatically once the
+underlying Deployment is patched — no need to delete the pod by hand.
+
+### Why two different mirrors
+
+`public.ecr.aws/docker/library/` is AWS's permanent mirror of the
+official DockerHub library images (`nginx`, `busybox`, `redis`, etc.).
+It's well-funded and rate-limit-free, but only covers `library/`.
+
+`mirror.gcr.io` is Google's pull-through cache of all of `docker.io`,
+including non-library images. It works for everything, but Google has
+historically signaled they'd like to wind it down — fine for a
+one-day workshop, less ideal as a long-term dependency.
+
+For this workshop, prefer ECR for any official image, and `mirror.gcr.io`
+only when you need a non-library image.
