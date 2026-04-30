@@ -42,6 +42,9 @@ var checks = map[string]Check{
 	"provider-aws-installed":        checkProviderAWSInstalled,
 	"provider-gcp-installed":        checkProviderGCPInstalled,
 	"provider-azure-installed":      checkProviderAzureInstalled,
+	"provider-arubacloud-installed": checkArubaProviderInstalled,
+	"aruba-policies-present":        checkArubaPoliciesPresent,
+	"aruba-mr-ready":                checkArubaMRReady,
 }
 
 // orderedCheckIDs lists the checks in the order participants are expected
@@ -65,6 +68,9 @@ var orderedCheckIDs = []string{
 	"provider-aws-installed",
 	"provider-gcp-installed",
 	"provider-azure-installed",
+	"provider-arubacloud-installed",
+	"aruba-policies-present",
+	"aruba-mr-ready",
 }
 
 // checkLabels maps a check ID to a human-readable column label used by
@@ -83,6 +89,9 @@ var checkLabels = map[string]string{
 	"provider-aws-installed":        "provider-aws-s3 Healthy",
 	"provider-gcp-installed":        "provider-gcp-storage Healthy",
 	"provider-azure-installed":      "provider-azure-storage Healthy",
+	"provider-arubacloud-installed": "provider-arubacloud Healthy",
+	"aruba-policies-present":        "Aruba Kyverno policies present",
+	"aruba-mr-ready":                "Aruba MR Ready",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -428,6 +437,162 @@ func checkApplicationReady(ctx context.Context, client dynamic.Interface) (bool,
 
 	first := list.Items[0]
 	return false, fmt.Sprintf("Application %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+}
+
+// expectedArubaClusterPolicies is the closed list of Kyverno policies the
+// per-vcluster Aruba bundle (gitops/per-vcluster-bundle/templates/policies/)
+// installs. checkArubaPoliciesPresent succeeds when every entry here is
+// reconciled into the participant vcluster.
+//
+// Keep this list in lockstep with the bundle's templates/policies/ dir.
+// If the bundle adds or renames a policy, this slice must follow — the
+// dashboard tile is what tells the workshop owner that the Track 3
+// guardrails are actually live in the pair's vcluster.
+var expectedArubaClusterPolicies = []string{
+	"aruba-allowed-kinds",
+	"aruba-name-prefix",
+	"aruba-shape-database",
+	"aruba-shape-containerregistry",
+	"aruba-shape-blockstorage",
+	"aruba-secret-no-pod-mount",
+	"aruba-no-provider-exec",
+	"block-rogue-providers",
+	"kyverno-self-protection",
+	"aruba-shared-vpc-readonly",
+	"aruba-no-cross-pair-delete",
+	"aruba-no-managementpolicies-flip",
+}
+
+// checkArubaProviderInstalled asserts that Provider/provider-arubacloud is
+// Healthy in the pair's vcluster. The provider is installed by the
+// per-vcluster ArgoCD bundle (gitops/per-vcluster-bundle/, see #79) once
+// the workshop owner runs `task workshop:enable-aruba PAIR=<id>`. Until
+// that sync, this check is red — that's by design (the manual sync gate
+// is the workshop's pacing mechanism).
+//
+// Used by module 06-crossplane-3xx/07-provider-arubacloud.
+func checkArubaProviderInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	return checkProviderHealthy(ctx, client, "provider-arubacloud")
+}
+
+// checkArubaPoliciesPresent asserts that every Kyverno ClusterPolicy in
+// `expectedArubaClusterPolicies` exists in the participant vcluster. The
+// bundle ships all 12 policies under gitops/per-vcluster-bundle/templates/
+// policies/ — this check turns red if any of them was deleted, never
+// applied (bundle never synced), or hasn't propagated yet.
+//
+// Listing once and comparing names is cheaper than 12 individual Get
+// calls. We don't validate policy *content* here (just presence) — that's
+// what the workshop owner's PR review of Track 3 changes is for.
+func checkArubaPoliciesPresent(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	policiesGVR := schema.GroupVersionResource{
+		Group:    "kyverno.io",
+		Version:  "v1",
+		Resource: "clusterpolicies",
+	}
+
+	list, err := client.Resource(policiesGVR).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		// Most likely cause: Kyverno CRDs aren't installed yet (bundle
+		// not synced). Return a friendly message rather than a raw API
+		// error so the dashboard tile reads as a "not yet" state, not a
+		// "validator broken" state.
+		return false, fmt.Sprintf("could not list ClusterPolicies (Kyverno may not be installed yet): %v", err), nil
+	}
+
+	present := make(map[string]bool, len(list.Items))
+	for _, item := range list.Items {
+		present[item.GetName()] = true
+	}
+
+	var missing []string
+	for _, want := range expectedArubaClusterPolicies {
+		if !present[want] {
+			missing = append(missing, want)
+		}
+	}
+	if len(missing) > 0 {
+		return false, fmt.Sprintf("missing %d/%d ClusterPolicies: %v",
+			len(missing), len(expectedArubaClusterPolicies), missing), nil
+	}
+	return true, fmt.Sprintf("all %d expected workshop ClusterPolicies present",
+		len(expectedArubaClusterPolicies)), nil
+}
+
+// arubaMRGVRs lists the v0.2.0-workshop curated Aruba MR Kinds the
+// validator considers when checking for "the participant has applied at
+// least one Aruba managed resource and it's Ready". The Kinds match the
+// curated set from #44 / values.yaml's shapePolicies.allowedKinds.
+//
+// We list both the cluster-scoped and the namespaced (.m.) flavours of
+// each — v0.2.0-workshop ships both, the workshop teaches the
+// cluster-scoped flavour first but a participant who experiments with
+// the namespaced variant should still see the tile turn green.
+var arubaMRGVRs = []schema.GroupVersionResource{
+	{Group: "database.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "databases"},
+	{Group: "database.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "databases"},
+	{Group: "containerregistry.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"},
+	{Group: "containerregistry.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"},
+	{Group: "blockstorage.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"},
+	{Group: "blockstorage.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"},
+}
+
+// checkArubaMRReady asserts that the participant has applied at least one
+// Aruba MR (Database, ContainerRegistry, or BlockStorage — cluster-scoped
+// or namespaced) and it reports condition Ready=True. Used by module
+// 06-crossplane-3xx/07-provider-arubacloud as the proof-of-cloud-resource
+// gate.
+//
+// Same pattern as checkFirstMRReady: walk every relevant GVR; if the GVR
+// isn't installed yet (CRDs not registered), skip silently and try the
+// next one. Found-but-not-ready beats not-found-anywhere.
+func checkArubaMRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	var firstNotReady *struct {
+		gvr             schema.GroupVersionResource
+		namespace, name string
+	}
+	var anyListed bool
+
+	for _, gvr := range arubaMRGVRs {
+		list, err := client.Resource(gvr).Namespace("").List(ctx, metav1.ListOptions{})
+		if err != nil {
+			// CRD not installed yet (provider-arubacloud not synced).
+			// Try the next one.
+			continue
+		}
+		anyListed = true
+		for _, item := range list.Items {
+			conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+			if !ok {
+				continue
+			}
+			for _, raw := range conditions {
+				cond, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if cond["type"] == "Ready" && cond["status"] == "True" {
+					return true, fmt.Sprintf("%s %s/%s is Ready",
+						gvr.Resource, item.GetNamespace(), item.GetName()), nil
+				}
+			}
+			if firstNotReady == nil {
+				firstNotReady = &struct {
+					gvr             schema.GroupVersionResource
+					namespace, name string
+				}{gvr: gvr, namespace: item.GetNamespace(), name: item.GetName()}
+			}
+		}
+	}
+
+	if !anyListed {
+		return false, "no Aruba MR CRDs registered yet (is the bundle synced?)", nil
+	}
+	if firstNotReady == nil {
+		return false, "no Aruba MRs (Database / ContainerRegistry / BlockStorage) found in the cluster", nil
+	}
+	return false, fmt.Sprintf("%s %s/%s exists but is not yet Ready",
+		firstNotReady.gvr.Resource, firstNotReady.namespace, firstNotReady.name), nil
 }
 
 // unstructuredNestedString is a thin helper for reading a scalar string

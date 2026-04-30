@@ -1233,7 +1233,112 @@ tasks:
           sleep 0.5
         done
         kubectl --kubeconfig "${KCFG}" --insecure-skip-tls-verify get ns
+        # Aruba bundle smoke — skips if `task workshop:enable-aruba PAIR=...`
+        # hasn't been run yet for this pair (provider CRD absent).
+        KUBECONFIG="${KCFG}" INSECURE_SKIP_TLS_VERIFY=true \
+          task verify:pair:aruba PAIR="{{.PAIR}}"
       - echo "{{.PAIR}} OK (local path)"
+
+  verify:pair:aruba:
+    desc: |
+      Aruba bundle smoke check. Runs against the kubeconfig at
+      KUBECONFIG (the caller — verify:pair or verify:pair:platform —
+      sets it up). Two-stage:
+
+        1. If provider-arubacloud's CRD isn't even installed in the
+           target vcluster, the bundle hasn't been synced yet for
+           this pair. Print a friendly skip and exit 0 — pre-Aruba
+           pairs aren't a verify:pair failure.
+        2. Otherwise: assert provider-arubacloud reaches Healthy=True,
+           apply a tiny `Project.project.arubacloud.crossplane.io`
+           MR named `verify-<pair>-<timestamp>`, wait <= 30 s for
+           Synced=True, then delete. The Project resource is free
+           per Aruba billing — no real cost — but it exercises the
+           full api_key + provider runtime + Aruba API path that
+           every paid resource the workshop creates relies on.
+
+      Set INSECURE_SKIP_TLS_VERIFY=true if KUBECONFIG points at the
+      localhost-rewrite tempfile verify:pair builds (the cert SANs
+      are the in-cluster vcluster DNS names, not localhost).
+      verify:pair:platform's Platform-proxied kubeconfig has valid
+      certs so omits this.
+
+      Not normally invoked standalone — the public surface is
+      verify:pair / verify:pair:platform / verify:all. Kept
+      separate so neither caller has to duplicate ~40 lines of
+      smoke logic.
+    requires:
+      vars: [PAIR]
+    cmds:
+      - |
+        set -euo pipefail
+        PAIR="{{.PAIR}}"
+
+        KCTL_FLAGS=""
+        if [ "${INSECURE_SKIP_TLS_VERIFY:-}" = "true" ]; then
+          KCTL_FLAGS="--insecure-skip-tls-verify"
+        fi
+        # shellcheck disable=SC2086
+        K() { kubectl ${KCTL_FLAGS} "$@"; }
+
+        if ! K get providers.pkg.crossplane.io provider-arubacloud >/dev/null 2>&1; then
+          echo "  skip: Aruba bundle not yet synced for ${PAIR}"
+          echo "        (run \`task workshop:enable-aruba PAIR=${PAIR}\` first)"
+          exit 0
+        fi
+
+        echo "==> provider-arubacloud Healthy=True"
+        K wait --for=condition=Healthy --timeout=60s \
+          providers.pkg.crossplane.io/provider-arubacloud >/dev/null
+
+        # Tiny free Project MR. Name disambiguates re-runs (timestamp)
+        # and stays prefixed by the pair id so Track 3's Kyverno
+        # `aruba-name-prefix` policy accepts it.
+        PROJECT_NAME="${PAIR}-verify-$(date +%s)"
+        echo "==> apply Project ${PROJECT_NAME}, wait for Synced=True (<= 30s)"
+        K apply -f - <<EOF >/dev/null
+        apiVersion: project.arubacloud.crossplane.io/v1alpha1
+        kind: Project
+        metadata:
+          name: ${PROJECT_NAME}
+        spec:
+          forProvider:
+            name: ${PROJECT_NAME}
+            description: "verify:pair smoke test (delete-me)"
+            tags:
+              - crossplane-workshop
+              - verify-pair-smoke
+              - delete-me
+          providerConfigRef:
+            name: default
+        EOF
+
+        cleanup() {
+          K delete project.project.arubacloud.crossplane.io \
+            "${PROJECT_NAME}" --wait=false --ignore-not-found >/dev/null 2>&1 || true
+        }
+        trap cleanup EXIT
+
+        deadline=$(( $(date +%s) + 30 ))
+        synced=""
+        while [ "$(date +%s)" -lt "${deadline}" ]; do
+          synced=$(K get project.project.arubacloud.crossplane.io "${PROJECT_NAME}" \
+            -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}' 2>/dev/null || true)
+          if [ "${synced}" = "True" ]; then break; fi
+          sleep 2
+        done
+
+        if [ "${synced}" != "True" ]; then
+          echo "  fail: Project ${PROJECT_NAME} did not reach Synced=True in 30s" >&2
+          # cleanup() runs via trap; exit non-zero
+          exit 1
+        fi
+        echo "  ok: Project ${PROJECT_NAME} Synced=True (real Aruba reconcile path verified)"
+
+        echo "==> delete Project ${PROJECT_NAME} (wait for Aruba teardown)"
+        K delete project.project.arubacloud.crossplane.io "${PROJECT_NAME}" --wait=true >/dev/null
+        trap - EXIT
+        echo "  ok: Project ${PROJECT_NAME} deleted (Aruba reconciled the delete)"
 
   verify:pair:platform:
     desc: |
@@ -1289,6 +1394,14 @@ tasks:
           exit 1
         fi
         vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- kubectl get ns
+        # Aruba bundle smoke. `vcluster platform connect ... -- KUBECONFIG=<path> ...`
+        # is the trick: the connect command writes a fresh
+        # platform-proxied kubeconfig and runs the trailing command
+        # with KUBECONFIG already set to it. We pipe that through
+        # `task verify:pair:aruba` (no INSECURE_SKIP_TLS_VERIFY —
+        # the platform kubeconfig has valid certs).
+        vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- \
+          task verify:pair:aruba PAIR="{{.PAIR}}"
       - echo "{{.PAIR}} OK (platform path)"
 
   verify:all:
