@@ -51,6 +51,16 @@ provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v
 
 If this check stays red after a few seconds, your pair's Aruba access hasn't been turned on yet — flag your instructor. Their dashboard has a green-light toggle for it.
 
+The Kyverno policies the platform team ships should also be present. Confirm:
+
+```bash
+kubectl get clusterpolicy
+```
+
+You should see twelve policies — the five guardrails described above expanded into per-Kind shape policies, plus a few internal companions (Kyverno self-protection, a guard against rogue providers).
+
+<ValidateCheck check="aruba-policies-present" />
+
 ## 7.3 Provision a MySQL DBaaS ⏱️ 12m
 
 The headline resource. You'll create one **DBaaS** managed resource (a real MySQL instance) using values your instructor pinned on a slide for the shared workshop network.
