@@ -1108,6 +1108,76 @@ tasks:
         echo "  failed:    ${FAILED[*]:-(none)}"
         [ ${#FAILED[@]} -eq 0 ]
 
+  workshop:close-event:
+    desc: |
+      Tear down a workshop event: remove every participant XR file
+      from gitops/participant-xrs/. Once the change is merged,
+      ArgoCD's prune cascade does the actual teardown:
+
+        XR removed -> Composition deletes vcluster +
+        participant namespace + ArgoCD Cluster Secret ->
+        ApplicationSet drops aruba-bundle-<pair> Application ->
+        in-vcluster Aruba MRs get reaped on vcluster destroy ->
+        provider-arubacloud reconciles deletes against Aruba's API.
+
+      This task removes files only. Commit + push + open PR are up
+      to you — tearing down a workshop's infrastructure deserves a
+      code review like any other gitops change. The next-steps hint
+      at the end of the task output gives the exact commands.
+
+      NOTE: The `aruba-creds` Secret and the underlying Aruba
+      api_key are workshop-wide, NOT per-pair. After this task's PR
+      merges and prune completes, separately:
+        kubectl -n crossplane-system delete secret aruba-creds
+        # And revoke the api_key in the Aruba console.
+
+      Set CONFIRM=yes to skip the interactive prompt — useful for
+      scripted teardown in CI.
+
+      Usage:
+        task workshop:close-event              # interactive, asks "yes"
+        task workshop:close-event CONFIRM=yes
+    cmds:
+      - |
+        set -euo pipefail
+
+        pairs=$(ls gitops/participant-xrs/*.yaml 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$pairs" -eq 0 ]; then
+          echo "No participant XRs in gitops/participant-xrs/. Nothing to do."
+          exit 0
+        fi
+
+        echo "About to remove $pairs participant XR file(s):"
+        ls gitops/participant-xrs/*.yaml | sed 's/^/  /'
+        echo ""
+        echo "Effect after the next ArgoCD sync (typically ~5 min after merge):"
+        echo "  * each vcluster torn down via Crossplane prune"
+        echo "  * each ArgoCD Cluster Secret + aruba-bundle-<pair> Application deleted"
+        echo "  * in-vcluster Aruba MRs reaped, triggering provider-arubacloud"
+        echo "    deletes against Aruba's API"
+        echo ""
+
+        if [ "${CONFIRM:-}" != "yes" ]; then
+          read -p "Proceed? (yes/no) " response
+          if [ "$response" != "yes" ]; then
+            echo "aborted."
+            exit 1
+          fi
+        fi
+
+        git rm gitops/participant-xrs/*.yaml
+
+        echo ""
+        echo "Removed. Next steps:"
+        echo "  git checkout -b chore/workshop-close-event-\$(date +%Y%m%d)"
+        echo "  git commit -s -m 'chore: workshop close-event teardown'"
+        echo "  git push -u origin HEAD"
+        echo "  gh pr create"
+        echo ""
+        echo "Once merged, ArgoCD reaps everything within ~5 minutes."
+        echo "Don't forget to also remove the aruba-creds Secret + revoke"
+        echo "the api_key in the Aruba console (see this task's desc)."
+
   # ------------------------------------------------------------------
   # Verify
   # ------------------------------------------------------------------
