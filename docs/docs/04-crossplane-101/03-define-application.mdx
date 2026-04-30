@@ -33,7 +33,7 @@ resources:
     patches:                       # connect XR fields → this resource's fields
       - type: CombineFromComposite # combine multiple XR fields via a format string
         combine: { ... }
-        toFieldPath: spec.template.spec.containers[0].args[1]
+        toFieldPath: data.message  # patches the backend ConfigMap, not the Deployment
     readinessChecks:               # when does Crossplane mark this Ready?
       - type: MatchCondition       # waits for Available=True (Deployments do this)
         matchCondition: { ... }
@@ -103,7 +103,7 @@ applications.workshop.example.io   True                    5s
 
 ### 2. Apply the Composition
 
-The Composition is the recipe. It creates five resources when an `Application` exists. The picture, then the table, then the YAML.
+The Composition is the recipe. It creates six resources when an `Application` exists. The picture, then the table, then the YAML.
 
 #### The fan-out, in one picture
 
@@ -118,17 +118,19 @@ flowchart TB
     fcm["ConfigMap<br/>frontend"]
     fd["Deployment<br/>frontend / nginx"]
     fs["Service<br/>frontend :80"]
-    bd["Deployment<br/>backend / http-echo<br/>-text=…patched…"]
+    bcm["ConfigMap<br/>backend<br/>data.message=…patched…"]
+    bd["Deployment<br/>backend / nginx"]
     bs["Service<br/>backend :5678"]
   end
 
   xr == "triggers" ==> comp ==> fn
-  fn ==> fcm & fd & fs & bd & bs
-  xr -. "CombineFromComposite<br/>spec.message + spec.color<br/>→ args[1]" .-> bd
+  fn ==> fcm & fd & fs & bcm & bd & bs
+  xr -. "CombineFromComposite<br/>spec.message + spec.color<br/>→ data.message" .-> bcm
   fd -. "volumeMounts" .-> fcm
+  bd -. "volumeMounts" .-> bcm
 ```
 
-The dashed arrow is the patch — the only place the XR's `message` and `color` fields actually flow into one of the composed resources. Everything else in the Composition is static template content. The other dashed arrow is a normal Kubernetes reference (the frontend Deployment mounts the frontend ConfigMap by name) — that's plain Kubernetes plumbing, nothing Crossplane-specific.
+The dashed arrow from the XR is the patch — the only place the XR's `message` and `color` fields actually flow into one of the composed resources. Everything else in the Composition is static template content. The two `volumeMounts` arrows are plain Kubernetes references (each Deployment mounts its ConfigMap by name) — nothing Crossplane-specific.
 
 #### What this Composition produces
 
@@ -137,10 +139,11 @@ The dashed arrow is the patch — the only place the XR's `message` and `color` 
 | `frontend-configmap` | `ConfigMap` | Holds the static HTML the frontend nginx serves. Ships an inline `<script>` that fetches `./api/message` and renders the JSON as the tile content | none — every `Application` gets the same HTML | `type: None` — ConfigMaps don't expose a Ready condition; treat as Ready on observation |
 | `frontend-deployment` | `Deployment` | Runs `nginx:alpine`, mounts the ConfigMap above at `/usr/share/nginx/html` | none — the deployment shape is identical for every Application | `type: MatchCondition` waiting for `Available=True` |
 | `frontend-service` | `Service` | Exposes the frontend on port 80; selected by `app: frontend`. The wall iframe targets `/team/<pair>/` which the workshop's HTTPRoute resolves to this Service | none | `type: None` |
-| `backend-deployment` | `Deployment` | Runs `hashicorp/http-echo`, returning a JSON blob on port 5678 | **one** — `CombineFromComposite` writes the XR's `spec.message` and `spec.color` into the container's `-text` argument as a single JSON-formatted string | `type: MatchCondition` waiting for `Available=True` |
-| `backend-service` | `Service` | Exposes the backend on port 5678. The HTTPRoute resolves `/team/<pair>/api/` to this Service | none | `type: None` |
+| `backend-configmap` | `ConfigMap` | Holds the JSON body the frontend's JS fetches from `/api/message`. The XR's `message` and `color` flow into this ConfigMap's `data.message` field via the patch | **one** — `CombineFromComposite` writes a JSON-formatted string into `data.message` | `type: None` |
+| `backend-deployment` | `Deployment` | Runs `nginx:alpine`, mounts `backend-configmap` at `/usr/share/nginx/html/api/` so requests to `/api/message` return the patched ConfigMap entry directly | none — the deployment shape is identical for every Application | `type: MatchCondition` waiting for `Available=True` |
+| `backend-service` | `Service` | Exposes the backend on port 5678 externally; forwards to nginx on `targetPort: 80`. The HTTPRoute resolves `/team/<pair>/api/` to this Service | none | `type: None` |
 
-The interesting wiring is the patch on `backend-deployment`. The XR ships two scalar fields:
+The interesting wiring is the patch on `backend-configmap`. The XR ships two scalar fields:
 
 ```yaml
 spec:
@@ -148,7 +151,7 @@ spec:
   color: "#10b981"
 ```
 
-`http-echo`'s `-text` argument expects a single string — the literal HTTP response body it'll echo back. The frontend's JS expects that body to be JSON shaped like `{"message":"…","color":"…"}`. `CombineFromComposite` glues the two together with a `printf`-style template:
+The frontend's JS fetches `./api/message` and expects a JSON body shaped like `{"message":"…","color":"…"}`. We don't need a server to compute that response — the `backend` Deployment is plain `nginx:alpine` and mounts `backend-configmap` at `/usr/share/nginx/html/api/`, so the file at `/api/message` *is* the ConfigMap's `data.message` entry. `CombineFromComposite` writes a JSON string into that entry with a `printf`-style template:
 
 ```yaml
 patches:
@@ -159,11 +162,11 @@ patches:
         - fromFieldPath: spec.color
       strategy: string
       string:
-        fmt: '-text={"message":"%s","color":"%s"}'
-    toFieldPath: spec.template.spec.containers[0].args[1]
+        fmt: '{"message":"%s","color":"%s"}'
+    toFieldPath: data.message
 ```
 
-`toFieldPath` is the actual path inside the naked `Deployment` (compare to module 4's modules-of-`Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.…`). At reconcile time, Crossplane substitutes the variables into the template and writes the result to that path on the live Deployment.
+`toFieldPath` is the path inside the naked `ConfigMap` (compare to module 4's `Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.data.message`). At reconcile time, Crossplane substitutes the variables into the template and writes the result into `data.message`. nginx serves whatever's there.
 
 #### Apply the YAML
 
@@ -240,7 +243,7 @@ spec:
                   spec:
                     containers:
                       - name: nginx
-                        image: nginx:alpine
+                        image: public.ecr.aws/docker/library/nginx:alpine
                         ports:
                           - containerPort: 80
                         volumeMounts:
@@ -269,6 +272,27 @@ spec:
                     targetPort: 80
             readinessChecks:
               - type: None
+          - name: backend-configmap
+            base:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: backend
+                namespace: default
+              data:
+                message: '{"message":"placeholder","color":"#2563eb"}'
+            readinessChecks:
+              - type: None
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.message
+                    - fromFieldPath: spec.color
+                  strategy: string
+                  string:
+                    fmt: '{"message":"%s","color":"%s"}'
+                toFieldPath: data.message
           - name: backend-deployment
             base:
               apiVersion: apps/v1
@@ -285,28 +309,22 @@ spec:
                     labels: { app: backend }
                   spec:
                     containers:
-                      - name: http-echo
-                        image: hashicorp/http-echo:1.0.0
-                        args:
-                          - '-listen=:5678'
-                          - '-text={"message":"placeholder","color":"#2563eb"}'
+                      - name: nginx
+                        image: public.ecr.aws/docker/library/nginx:alpine
                         ports:
-                          - containerPort: 5678
+                          - containerPort: 80
+                        volumeMounts:
+                          - name: api
+                            mountPath: /usr/share/nginx/html/api
+                    volumes:
+                      - name: api
+                        configMap:
+                          name: backend
             readinessChecks:
               - type: MatchCondition
                 matchCondition:
                   type: Available
                   status: "True"
-            patches:
-              - type: CombineFromComposite
-                combine:
-                  variables:
-                    - fromFieldPath: spec.message
-                    - fromFieldPath: spec.color
-                  strategy: string
-                  string:
-                    fmt: '-text={"message":"%s","color":"%s"}'
-                toFieldPath: spec.template.spec.containers[0].args[1]
           - name: backend-service
             base:
               apiVersion: v1
@@ -318,7 +336,7 @@ spec:
                 selector: { app: backend }
                 ports:
                   - port: 5678
-                    targetPort: 5678
+                    targetPort: 80
             readinessChecks:
               - type: None
 EOF
@@ -367,7 +385,7 @@ When the tile turns green, open the [workshop wall](/wall) and click **Refresh**
 
 ## 5.3 What just happened
 
-You extended Kubernetes with an `Application` kind. One `kubectl apply` now fans out into five resources Crossplane composes directly: two Deployments, two Services, and a ConfigMap. The XR's `message` and `color` fields flow through the Composition's patch into the backend's args — so you have a typed, field-driven interface to a multi-resource stack, and you've stayed in the providerless v2 path you used in module 4.
+You extended Kubernetes with an `Application` kind. One `kubectl apply` now fans out into six resources Crossplane composes directly: two Deployments, two Services, and two ConfigMaps. The XR's `message` and `color` fields flow through the Composition's patch into the backend ConfigMap's `data.message`, which nginx serves verbatim — so you have a typed, field-driven interface to a multi-resource stack, and you've stayed in the providerless v2 path you used in module 4.
 
 That's Crossplane's central value: **compose your own APIs**, and let Kubernetes and providers do the rest.
 
