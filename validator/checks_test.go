@@ -15,7 +15,7 @@ import (
 // newFakeClient builds a fake dynamic client seeded with the given objects.
 // The scheme needs list-kind mappings for every GVR the tests List() against,
 // so we pre-register the list kinds for Pods, Namespaces, Objects, and
-// Applications. Deployments and Providers are only ever Get()'d here, so
+// XApplications. Deployments and Providers are only ever Get()'d here, so
 // their list kinds do not need to be registered — but we add them anyway to
 // keep the helper reusable if future tests add List cases.
 func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
@@ -28,7 +28,8 @@ func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
 		{Group: "pkg.crossplane.io", Version: "v1", Resource: "providers"}:            "ProviderList",
 		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}:   "ObjectList",
 		{Group: "kubernetes.m.crossplane.io", Version: "v1alpha1", Resource: "objects"}: "ObjectList",
-		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "applications"}: "ApplicationList",
+		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "xhellos"}:        "XHelloList",
+		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "xapplications"}: "XApplicationList",
 		// Kyverno + Aruba MR list-kinds for the Track 5 validator
 		// checks added with #44's per-vcluster bundle. Both
 		// cluster-scoped and namespaced (.m.) flavours of every
@@ -293,7 +294,7 @@ func TestCheckFirstMRReady_MultipleOneReady(t *testing.T) {
 // --- checkApplicationReady ------------------------------------------------
 
 func TestCheckApplicationReady_Ready(t *testing.T) {
-	app := u("workshop.example.io/v1alpha1", "Application", "default", "wall-tile", []map[string]interface{}{
+	app := u("workshop.example.io/v1alpha1", "XApplication", "default", "wall-tile", []map[string]interface{}{
 		cond("Ready", "True", "Available", "composed"),
 	})
 	client := newFakeClient(t, app)
@@ -310,18 +311,18 @@ func TestCheckApplicationReady_Missing(t *testing.T) {
 	client := newFakeClient(t)
 	pass, details, _ := checkApplicationReady(context.Background(), client)
 	if pass {
-		t.Fatalf("expected pass=false when no Applications exist, details=%q", details)
+		t.Fatalf("expected pass=false when no XApplications exist, details=%q", details)
 	}
 }
 
 func TestCheckApplicationReady_NotReady(t *testing.T) {
-	app := u("workshop.example.io/v1alpha1", "Application", "default", "wall-tile", []map[string]interface{}{
+	app := u("workshop.example.io/v1alpha1", "XApplication", "default", "wall-tile", []map[string]interface{}{
 		cond("Ready", "False", "Creating", "waiting for composed resources"),
 	})
 	client := newFakeClient(t, app)
 	pass, details, _ := checkApplicationReady(context.Background(), client)
 	if pass {
-		t.Fatalf("expected pass=false for not-yet-ready Application, details=%q", details)
+		t.Fatalf("expected pass=false for not-yet-ready XApplication, details=%q", details)
 	}
 	if !strings.Contains(details, "not yet Ready") {
 		t.Fatalf("expected 'not yet Ready' in details, got %q", details)

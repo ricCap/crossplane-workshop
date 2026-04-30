@@ -5,6 +5,33 @@ title: Infrastructure management
 
 # Infrastructure management
 
-:::note Coming soon
-This journey is a placeholder.
-:::
+> You run the platform team. A new developer team is being onboarded and needs its own landing zone in the cloud — VPC, subnet, security group, the usual primitives. You want one XR per team. Reviewable in git, composable, and identical across every cloud you support.
+
+## What you're building
+
+An `XLandingZone` XR (`X` prefix per the [naming convention](../cheatsheet#naming-convention-xr-kinds-start-with-x)) that takes a team name and a region. The Composition reconciles the network primitives (VPC, subnet, security group) for that team in your cloud of choice, with sensible defaults baked in. Adding a new team is one YAML file; deleting one rolls everything back.
+
+## Suggested steps
+
+1. Read the [Provider setup pattern](../crossplane-2xx/provider-setup-pattern) first. Every provider in this journey follows the same three-step shape — install, ProviderConfig, MR — and you'll be wiring at least one. `ClusterProviderConfig` vs per-team `ProviderConfig` is the decision point that matters.
+2. Pick a cloud and walk one bucket MR end to end: [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), or [provider-azure](../crossplane-3xx/provider-azure). The bucket is throwaway — the credentials and `ClusterProviderConfig` you set up are what you'll reuse.
+3. On Aruba, the same shape applies once `provider-aruba` lands in 3XX — Aruba VPC / subnet / security-group CRDs, wired through the same install + `ClusterProviderConfig` flow.
+4. Replace the bucket with the landing-zone primitives. Browse the provider's CRDs on the [Crossplane Marketplace](https://marketplace.upbound.io/providers) — every published version lists the kinds it ships and the fields they accept. VPC, subnet, security group, route table, IAM role — pick what your landing zone needs.
+5. Wrap the primitives in an XRD + Composition. Reuse the pattern from [Define an Application](../crossplane-101/define-application): one XR input (team name + region), several composed MRs underneath.
+6. Package the landing zone as a [Configuration](../crossplane-3xx/configurations) so other clusters — staging, prod — install the same shape with one command.
+
+## Stretch goals
+
+- Per-team `ProviderConfig` referencing per-team Secrets, so blast radius stays inside one team's cloud account.
+- Multi-cloud Composition: a single `LandingZone` XR that picks AWS, GCP, Azure, or Aruba based on a `cloud` input. [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) is the usual lever.
+- Surface drift on `.status` with [`function-auto-ready`](https://github.com/crossplane-contrib/function-auto-ready) so a deleted subnet shows up as a non-Ready landing zone in `kubectl get`.
+
+## References
+
+- [Provider setup pattern](../crossplane-2xx/provider-setup-pattern)
+- [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), [provider-azure](../crossplane-3xx/provider-azure)
+- [Define an Application](../crossplane-101/define-application)
+- [Package as a Configuration](../crossplane-3xx/configurations)
+- [Crossplane Marketplace](https://marketplace.upbound.io/providers)
+- [function-go-templating](https://github.com/crossplane-contrib/function-go-templating)
+- [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready)

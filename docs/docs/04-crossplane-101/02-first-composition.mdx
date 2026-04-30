@@ -25,11 +25,11 @@ You're using **Crossplane v2**, so the resources Crossplane composes can be plai
 ```mermaid
 flowchart TB
   user(["You"])
-  xrd["XRD<br/>hellos.workshop.example.io"]
-  crd["CRD<br/>hellos.workshop.example.io<br/>(generated)"]
-  comp["Composition<br/>hellos.workshop.example.io"]
+  xrd["XRD<br/>xhellos.workshop.example.io"]
+  crd["CRD<br/>xhellos.workshop.example.io<br/>(generated)"]
+  comp["Composition<br/>xhellos.workshop.example.io"]
   fn["function-patch-and-transform"]
-  xr["Hello XR<br/>hello-world"]
+  xr["XHello XR<br/>hello-world"]
   cm["ConfigMap<br/>hello-world"]
 
   user -- "kubectl apply" --> xrd
@@ -51,11 +51,11 @@ Five terms, all introduced here. Treat the table as the diagram's glossary. The 
 |---|---|---|---|
 | **CRD** (Kubernetes) | Custom Resource Definition. Extends the API server with a new kind. You won't write one directly — Crossplane generates one for you when you apply an XRD | Cluster | `Namespaced` or `Cluster`, per the CRD's `spec.scope` |
 | **XRD** (Composite Resource Definition) | Declares the schema of a new Crossplane API: what fields it has, what types. Applying it makes Crossplane create the matching CRD | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster`, per the XRD's `spec.scope` |
-| **XR** (Composite Resource) | An instance of an XRD. Apply one and the Composition runs | Per the XRD — `Namespaced` for the `Hello` you'll write | — |
+| **XR** (Composite Resource) | An instance of an XRD. Apply one and the Composition runs | Per the XRD — `Namespaced` for the `XHello` you'll write | — |
 | **Composition** | The recipe. "When someone creates this kind of XR, produce these resources" | Cluster | — |
 | **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state. `function-patch-and-transform` is the one you'll install | Cluster (it's a Crossplane package) | — |
 
-You're about to: install one composition function, define an API called `Hello`, write a recipe that turns each `Hello` into one `ConfigMap`, and apply an instance.
+You're about to: install one composition function, define an API called `XHello` (the leading `X` is the Crossplane convention — see the [cheatsheet](../cheatsheet#naming-convention-xr-kinds-start-with-x)), write a recipe that turns each `XHello` into one `ConfigMap`, and apply an instance.
 
 ## 4.2 Install the composition function ⏱️ 3m
 
@@ -105,20 +105,20 @@ This is the trade-off providerless makes explicit. With `provider-kubernetes`, t
 
 ## 4.4 Define the API (XRD) ⏱️ 3m
 
-The XRD declares your new API. `Hello` will be **namespaced** (v2 default) with one required field, `message`.
+The XRD declares your new API. `XHello` will be **namespaced** (v2 default) with one required field, `message`.
 
 ```bash
 kubectl apply -f - <<'EOF'
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: hellos.workshop.example.io
+  name: xhellos.workshop.example.io
 spec:
   scope: Namespaced
   group: workshop.example.io
   names:
-    kind: Hello
-    plural: hellos
+    kind: XHello
+    plural: xhellos
   versions:
     - name: v1alpha1
       served: true
@@ -140,32 +140,32 @@ EOF
 Verify:
 
 ```bash
-kubectl get xrd hellos.workshop.example.io
+kubectl get xrd xhellos.workshop.example.io
 ```
 
 Expected output:
 
 ```
-NAME                          ESTABLISHED   OFFERED   AGE
-hellos.workshop.example.io    True                    5s
+NAME                           ESTABLISHED   OFFERED   AGE
+xhellos.workshop.example.io    True                    5s
 ```
 
-`ESTABLISHED=True` means the `Hello` CRD is registered; you can now apply Hellos. The `OFFERED` column stays empty because v2 does not generate a claim kind — apply XRs directly.
+`ESTABLISHED=True` means the `XHello` CRD is registered; you can now apply XHellos. The `OFFERED` column stays empty because v2 does not generate a claim kind — apply XRs directly.
 
 ## 4.5 Define the recipe (Composition) ⏱️ 3m
 
-The Composition is the recipe. It says: "for every `Hello` that exists, produce one `ConfigMap` whose `data.greeting` contains that Hello's `spec.message`."
+The Composition is the recipe. It says: "for every `XHello` that exists, produce one `ConfigMap` whose `data.greeting` contains that XHello's `spec.message`."
 
 ```bash
 kubectl apply -f - <<'EOF'
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: hellos.workshop.example.io
+  name: xhellos.workshop.example.io
 spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1
-    kind: Hello
+    kind: XHello
   mode: Pipeline
   pipeline:
     - step: render-configmap
@@ -200,16 +200,16 @@ Four things worth pointing out:
 - The composed `ConfigMap` is **naked** — `apiVersion: v1, kind: ConfigMap` directly under `base:`. There's no provider-package wrapper around it. Crossplane core itself reads the desired state out of the function's output and applies the ConfigMap. This is the v2 path that makes `function-patch-and-transform` a complete Composition runtime by itself.
 - The `Composition` is `apiextensions.crossplane.io/v1` even though the XRD is `/v2`. That's not a typo — the XRD API group bumped to `/v2` to express namespaced XRs, but `Composition` stays on `/v1`.
 - The `ConfigMap`'s `metadata.namespace` is hardcoded to `default`. v2 would default it to the XR's namespace if you left it off; we hardcode for the workshop so the validator always finds it in the same place.
-- `readinessChecks: [type: None]` tells `function-patch-and-transform` to mark this resource Ready as soon as Crossplane has observed it in the cluster. Without that, the function waits for a `Ready` condition on the resource, which `ConfigMap` never publishes — and the `Hello` XR would stay `Ready=False` forever. For a `Deployment` you'd use `MatchCondition` on `Available=True` instead; module 5's Composition does that.
+- `readinessChecks: [type: None]` tells `function-patch-and-transform` to mark this resource Ready as soon as Crossplane has observed it in the cluster. Without that, the function waits for a `Ready` condition on the resource, which `ConfigMap` never publishes — and the `XHello` XR would stay `Ready=False` forever. For a `Deployment` you'd use `MatchCondition` on `Available=True` instead; module 5's Composition does that.
 
 ## 4.6 Use it ⏱️ 2m
 
-Apply a `Hello` XR:
+Apply an `XHello` XR:
 
 ```bash
 kubectl apply -f - <<'EOF'
 apiVersion: workshop.example.io/v1alpha1
-kind: Hello
+kind: XHello
 metadata:
   name: hello-world
   namespace: default
@@ -221,14 +221,14 @@ EOF
 Watch it reconcile:
 
 ```bash
-kubectl get hello -n default
+kubectl get xhello -n default
 ```
 
 Expected output:
 
 ```
-NAME          SYNCED   READY   COMPOSITION                  AGE
-hello-world   True     True    hellos.workshop.example.io   10s
+NAME          SYNCED   READY   COMPOSITION                   AGE
+hello-world   True     True    xhellos.workshop.example.io   10s
 ```
 
 And the underlying ConfigMap exists, with the message you provided:
@@ -249,16 +249,16 @@ When the tile turns green, your first Composition is working end-to-end.
 
 ## 4.7 What just happened
 
-You defined a new Kubernetes API — `Hello` — and taught Crossplane how to turn each `Hello` into a `ConfigMap`. From a participant's view, that's the entire Crossplane contract: declare a high-level kind, declare a recipe, apply instances.
+You defined a new Kubernetes API — `XHello` — and taught Crossplane how to turn each `XHello` into a `ConfigMap`. From a participant's view, that's the entire Crossplane contract: declare a high-level kind, declare a recipe, apply instances.
 
-The shape repeats in module 5 with a more interesting recipe: the next module's `Application` XR turns into a frontend, a backend, and the ConfigMap that wires them together — same XRD-and-Composition pattern, just five resources instead of one.
+The shape repeats in module 5 with a more interesting recipe: the next module's `XApplication` XR turns into a frontend, a backend, and the ConfigMap that wires them together — same XRD-and-Composition pattern, just five resources instead of one.
 
-Try editing `spec.message` on the `Hello` XR (`kubectl edit hello hello-world -n default`) and re-running the `kubectl get configmap` command. The ConfigMap's `data.greeting` updates within seconds. That's reconciliation in action.
+Try editing `spec.message` on the `XHello` XR (`kubectl edit xhello hello-world -n default`) and re-running the `kubectl get configmap` command. The ConfigMap's `data.greeting` updates within seconds. That's reconciliation in action.
 
 To clean up:
 
 ```bash
-kubectl delete hello hello-world -n default
+kubectl delete xhello hello-world -n default
 ```
 
 The ConfigMap goes with it (Crossplane sets owner refs on composed resources).

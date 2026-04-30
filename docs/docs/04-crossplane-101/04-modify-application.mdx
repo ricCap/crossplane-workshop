@@ -16,9 +16,9 @@ Same commands. Your tile is at `/team/local/`. See [Solo local setup (k3d)](../s
 
 ## 6.1 Before you start ⏱️ 3m
 
-So far your Composition is static: every `Application` produces the same HTML layout, the same fonts, the same page structure. In this module you'll edit the Composition and watch your tile update **without** re-applying the XR.
+So far your Composition is static: every `XApplication` produces the same HTML layout, the same fonts, the same page structure. In this module you'll edit the Composition and watch your tile update **without** re-applying the XR.
 
-That's the point of composition: the abstraction (`Application`) survives, the implementation (the resources behind it) changes. Platform teams do this all the time — adding sidecar containers, swapping base images, tightening security defaults — and consumers never notice.
+That's the point of composition: the abstraction (`XApplication`) survives, the implementation (the resources behind it) changes. Platform teams do this all the time — adding sidecar containers, swapping base images, tightening security defaults — and consumers never notice.
 
 You're about to: edit the Composition in place, see the downstream ConfigMap update, refresh the tile.
 
@@ -27,7 +27,7 @@ You're about to: edit the Composition in place, see the downstream ConfigMap upd
 ### 1. Open the Composition for editing
 
 ```bash
-kubectl edit composition applications.workshop.example.io
+kubectl edit composition xapplications.workshop.example.io
 ```
 
 Find the `frontend-configmap` resource (the first one under `spec.pipeline[0].input.resources`) and modify the HTML inside `base.data.index.html`.
@@ -68,15 +68,15 @@ kubectl rollout restart deployment frontend
 
 ### 5. Refresh the tile
 
-Open the [workshop wall](/wall) in a new tab and click **Refresh**. Your tile should show the new HTML / CSS you edited. Your `Application` XR is still `wall-tile`, untouched — the change came from reshaping the Composition.
+Open the [workshop wall](/wall) in a new tab and click **Refresh**. Your tile should show the new HTML / CSS you edited. Your `XApplication` XR is still `wall-tile`, untouched — the change came from reshaping the Composition.
 
 <ValidateCheck check="application-ready" />
 
-The check is still green because none of the conditions it watches have changed — the Application is still Ready. That's the point.
+The check is still green because none of the conditions it watches have changed — the XApplication is still Ready. That's the point.
 
 ## 6.3 What just happened
 
-You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
+You changed the platform without changing the consumer. The `XApplication` YAML the user applied is identical; the five resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
 
 ### Go deeper
 
