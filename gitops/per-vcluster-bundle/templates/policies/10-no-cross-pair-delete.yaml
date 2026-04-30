@@ -1,0 +1,52 @@
+{{/*
+Shared-resource protection #2 of 3. Companion to
+01-name-prefix.yaml: that policy enforces `<pairId>-` on CREATE; this
+one enforces it on DELETE. Together they mean a participant in pair
+A can't `kubectl delete` a resource that pair B created.
+
+Two pairs sharing one Aruba project means their MRs all live in the
+same Crossplane managed-resource list. Without this, anyone could
+DELETE anything by name (cluster-scoped Aruba MRs have no namespace
+isolation).
+
+Pair id baked in at chart-render time so the policy doesn't need a
+runtime ConfigMap lookup for every admission.
+*/}}
+{{- if not .Values.pairId -}}
+{{- fail "values.pairId must be set" -}}
+{{- end -}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-no-cross-pair-delete
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Participants may only delete Aruba MRs that carry their own
+      `<pairId>-` prefix. Cross-pair deletes are denied.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: pair-id-prefix-required-on-delete
+      match:
+        any:
+          - resources:
+              kinds:
+                - "*.arubacloud.crossplane.io/v1alpha1/*"
+                - "*.arubacloud.m.crossplane.io/v1alpha1/*"
+              operations:
+                - DELETE
+      validate:
+        message: >-
+          Cross-pair delete attempt blocked. Resource
+          `{{`{{ request.oldObject.metadata.name }}`}}` does not
+          carry your pair prefix `{{ .Values.pairId }}-`.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.oldObject.metadata.name }}`}}"
+                operator: NotEquals
+                value: "{{ .Values.pairId }}-*"

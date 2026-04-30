@@ -1,0 +1,78 @@
+{{/*
+BlockStorage shape constraints. Caps `sizeGb` at maxSizeGb (default
+50 GB — biggest disk we expect a workshop participant to need
+during a 3-hour event), restricts `type` to Standard (not
+Performance, which costs more), and pins `location` to the
+workshop's allowed list.
+
+We don't enforce `bootable: false` even though most participants
+won't make bootable disks — it's harmless if they try.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-shape-blockstorage
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      BlockStorage MRs capped at maxSizeGb, type=Standard,
+      pinned to allowedLocations.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: size-cap
+      match:
+        any:
+          - resources:
+              kinds:
+                - blockstorage.arubacloud.crossplane.io/v1alpha1/BlockStorage
+                - blockstorage.arubacloud.m.crossplane.io/v1alpha1/BlockStorage
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          BlockStorage `sizeGb` must be <= {{ .Values.shapePolicies.blockStorage.maxSizeGb }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.sizeGb || 0 }}`}}"
+                operator: GreaterThan
+                value: {{ .Values.shapePolicies.blockStorage.maxSizeGb }}
+    - name: type-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - blockstorage.arubacloud.crossplane.io/v1alpha1/BlockStorage
+                - blockstorage.arubacloud.m.crossplane.io/v1alpha1/BlockStorage
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          BlockStorage `type` must be one of:
+          {{ .Values.shapePolicies.blockStorage.allowedTypes | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.type || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.blockStorage.allowedTypes | toJson }}
+    - name: location-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - blockstorage.arubacloud.crossplane.io/v1alpha1/BlockStorage
+                - blockstorage.arubacloud.m.crossplane.io/v1alpha1/BlockStorage
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          BlockStorage `location` must be one of:
+          {{ .Values.shapePolicies.allowedLocations | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.location || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.allowedLocations | toJson }}

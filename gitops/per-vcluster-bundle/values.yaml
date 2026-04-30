@@ -6,8 +6,11 @@
 # Pair id — overridden by ApplicationSet from `{{name}}` (the
 # participant vcluster's name as registered in ArgoCD's Cluster
 # Secret). Used by:
-#  * the workshop-pair-id ConfigMap (consumed by Kyverno policies in
-#    Track 3 to enforce the per-pair name prefix on Aruba MRs).
+#  * the workshop-pair-id ConfigMap (consumed by Kyverno policies
+#    to enforce the per-pair name prefix on Aruba MRs).
+#  * the Kyverno policies themselves — the per-pair prefix is
+#    baked in at chart-render time so policies don't need a
+#    runtime ConfigMap lookup.
 #  * naming any pair-scoped resource the bundle creates.
 pairId: ""
 
@@ -16,6 +19,42 @@ pairId: ""
 # provider ships a new tag.
 provider:
   package: ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+
+# Shape policies — what participants are allowed to create. Tuned
+# for the smoke-tested ITBG-Bergamo region; override per-event via
+# Helm values if the workshop runs in a different region.
+shapePolicies:
+  # Aruba MR Kinds the workshop exposes. Anything else under any
+  # `*.arubacloud.crossplane.io` group is denied at admission. Names
+  # match v0.2.0-workshop CRD Kinds (see ricCap/provider-arubacloud#5).
+  allowedKinds:
+    - Database
+    - ContainerRegistry
+    - BlockStorage
+  # Aruba location codes the workshop allows. Default is the
+  # Bergamo region we smoke-tested in #43. Locations not in this
+  # list are rejected for Database / ContainerRegistry / BlockStorage.
+  allowedLocations:
+    - ITBG-Bergamo
+  # Database engine + flavor whitelist. mysql-8.0 is the headline
+  # workshop kind; DBO2A4 (2 CPU / 4Gi RAM) is the cheapest tier
+  # we've validated. Add more as needed.
+  database:
+    allowedEngineIds:
+      - mysql-8.0
+    allowedFlavors:
+      - DBO2A4
+    maxStorageGb: 20
+  containerRegistry:
+    # Aruba's Container Registry "concurrent users flavor" tier.
+    # See provider-arubacloud's containerregistry CRD `settings`
+    # nested schema.
+    allowedTiers:
+      - Small
+  blockStorage:
+    maxSizeGb: 50
+    allowedTypes:
+      - Standard
 
 # Kyverno sub-chart values. Workshop-tuned: keep the running
 # footprint small (each per-pair vcluster runs its own copy).

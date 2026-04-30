@@ -1,0 +1,51 @@
+{{/*
+Shared-resource protection #1 of 3 (added when #43 chose Option B:
+shared workshop VPC). The workshop owner pre-provisions ONE shared
+Aruba VPC; every pair's resources go inside it. Pair vclusters
+have observe-only MRs pointing at this shared VPC so their MRs can
+URI-reference it, but participants must NOT be able to delete or
+modify it.
+
+Deny CREATE/UPDATE/DELETE on every Aruba VPC Kind from inside any
+participant vcluster. The workshop owner provisions the VPC out of
+band (separate ArgoCD Application, separate gitops directory) and
+participants only consume.
+
+Note: this is the strictest of the three "shared-resource" policies.
+Subnet and SecurityGroup are NOT denied here — pairs may need to
+create their own subnets / SGs inside the shared VPC. Only the VPC
+resource itself is participant-readonly.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-shared-vpc-readonly
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Aruba VPC Kinds are workshop-owner-only. Participants
+      can't create, update, or delete VPC MRs in their vcluster
+      (they observe-only the shared workshop VPC).
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: vpc-readonly-for-participants
+      match:
+        any:
+          - resources:
+              kinds:
+                - vpc.arubacloud.crossplane.io/v1alpha1/VPC
+                - vpc.arubacloud.m.crossplane.io/v1alpha1/VPC
+              operations:
+                - CREATE
+                - UPDATE
+                - DELETE
+      validate:
+        message: >-
+          Aruba VPC resources are workshop-shared. Participants
+          observe the shared workshop VPC; the workshop owner
+          manages its lifecycle.
+        deny: {}

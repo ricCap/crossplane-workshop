@@ -1,0 +1,53 @@
+{{/*
+Restrict participants to a curated set of Aruba MR Kinds. The
+`provider-arubacloud` package ships ~25 Kinds (DBaaS, CloudServer,
+ScheduleJob, ...); the workshop only walks through a few. Apply
+admission denial on every other Kind so participants can't
+provision unbounded cloud resources by exploring the API surface.
+
+The match selector hits any kind in any of the
+`*.arubacloud.crossplane.io` API groups (the cluster-scoped flavour
+in v0.2.0-workshop; the namespaced `m.crossplane.io` mirror is
+denied separately by the same kind list — different group, same
+constraint). Allowed Kinds come from values.yaml so the workshop
+owner can extend the set per event without editing this template.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-allowed-kinds
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Only the curated workshop Kinds may be created. Everything
+      else under *.arubacloud.crossplane.io is denied.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: only-curated-kinds
+      match:
+        any:
+          - resources:
+              # `Kind: "*"` plus the wildcard apiGroup catches every
+              # Aruba MR Kind across both v0.2.0 cluster-scoped and
+              # m.crossplane.io namespaced groups.
+              kinds:
+                - "*.arubacloud.crossplane.io/v1alpha1/*"
+                - "*.arubacloud.m.crossplane.io/v1alpha1/*"
+              operations:
+                - CREATE
+                - UPDATE
+      validate:
+        message: >-
+          Aruba MR Kind {{`{{ request.object.kind }}`}} is not in the
+          workshop's curated set. Allowed: {{ .Values.shapePolicies.allowedKinds | join ", " }}.
+          See https://github.com/ricCap/crossplane-workshop/issues/44.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.kind }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.allowedKinds | toJson }}

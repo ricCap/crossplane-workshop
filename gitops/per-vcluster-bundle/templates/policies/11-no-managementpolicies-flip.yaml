@@ -1,0 +1,66 @@
+{{/*
+Shared-resource protection #3 of 3. The workshop owner installs a
+small number of observe-only MRs in each participant vcluster — at
+minimum, the shared workshop VPC (so a pair's DBaaS MR can
+.network.vpcUriRef the URI). These are managed via
+`spec.managementPolicies: ["Observe"]`, which tells Crossplane "do
+not Create, do not Delete, just Read."
+
+If a participant flipped the policy from Observe to anything else
+(Default = ["*"], or [Update] etc.), Crossplane would attempt to
+reconcile the MR — including DELETE on tear-down. They could then
+`kubectl delete` the MR and the underlying Aruba VPC would go too.
+
+Deny any UPDATE that changes spec.managementPolicies away from a
+list containing exactly Observe. Allow leaving it alone (Updates
+that don't touch the field are fine via JMESPath comparing
+old vs new).
+
+Note: the 09-shared-vpc-readonly policy already protects VPCs from
+participant CREATE/UPDATE/DELETE, so this is belt-and-braces for
+ALL Aruba MR Kinds — including any future observe-only resources
+(subnets, security groups, etc.) the workshop owner might add to
+the shared platform.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-no-managementpolicies-flip
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: |
+      Participants can't flip an observe-only MR to a wider
+      managementPolicies setting and then delete it.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-management-policy-widening
+      match:
+        any:
+          - resources:
+              kinds:
+                - "*.arubacloud.crossplane.io/v1alpha1/*"
+                - "*.arubacloud.m.crossplane.io/v1alpha1/*"
+              operations:
+                - UPDATE
+      validate:
+        message: >-
+          Refusing to widen `spec.managementPolicies`. Observe-only
+          MRs (e.g. references to the shared workshop VPC) must
+          stay observe-only.
+        deny:
+          conditions:
+            # Old object had managementPolicies == ["Observe"], new
+            # object does not. Means the participant tried to
+            # widen it. Note: comparing JSON-encoded list shapes
+            # via JMESPath equality.
+            all:
+              - key: "{{`{{ request.oldObject.spec.managementPolicies | sort(@) | to_string(@) }}`}}"
+                operator: Equals
+                value: "[\"Observe\"]"
+              - key: "{{`{{ request.object.spec.managementPolicies | sort(@) | to_string(@) }}`}}"
+                operator: NotEquals
+                value: "[\"Observe\"]"

@@ -1,0 +1,58 @@
+{{/*
+ContainerRegistry shape constraints. Same pattern as
+02-shape-database: location and tier (concurrent-users-flavor)
+whitelisted. The `settings.concurrentUsersFlavor` field on the
+underlying TF schema accepts {Small, Medium, HighPerf}; we restrict
+participants to Small to keep cost predictable.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-shape-containerregistry
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      ContainerRegistry MRs constrained to allowed locations and
+      a workshop-tier (concurrent-users-flavor).
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: location-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - containerregistry.arubacloud.crossplane.io/v1alpha1/ContainerRegistry
+                - containerregistry.arubacloud.m.crossplane.io/v1alpha1/ContainerRegistry
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          ContainerRegistry `location` must be one of:
+          {{ .Values.shapePolicies.allowedLocations | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.location || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.allowedLocations | toJson }}
+    - name: tier-whitelist
+      match:
+        any:
+          - resources:
+              kinds:
+                - containerregistry.arubacloud.crossplane.io/v1alpha1/ContainerRegistry
+                - containerregistry.arubacloud.m.crossplane.io/v1alpha1/ContainerRegistry
+              operations: [CREATE, UPDATE]
+      validate:
+        message: >-
+          ContainerRegistry `settings.concurrentUsersFlavor` must be
+          one of: {{ .Values.shapePolicies.containerRegistry.allowedTiers | join ", " }}.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.forProvider.settings.concurrentUsersFlavor || '' }}`}}"
+                operator: AnyNotIn
+                value: {{ .Values.shapePolicies.containerRegistry.allowedTiers | toJson }}
