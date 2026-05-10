@@ -218,15 +218,20 @@ For local vind, this section does **not** apply: Platform isn't installed there,
 
 ## External credential bootstrap
 
-Four operator-injected credentials live alongside the GitOps-managed
-state. Three are Secrets the Taskfile provisions on the management
-cluster (with various namespace targets) so the per-pair vClusters
-can pick them up — `vcluster-platform-api-key` and `github-app-credentials`
-land in every `participant-*` namespace, while `aruba-creds` lands in
-`crossplane-system` and is mirrored into each pair vcluster's
-`aruba-system` namespace via `sync.fromHost.secrets`. The fourth is
-per-pair *outbound* state — files dropped under `out/` and distributed
-to participants via a shared link. Nothing is committed to git.
+Five pieces of operator-injected state live alongside the
+GitOps-managed cluster. Three are Secrets the Taskfile provisions on
+the management cluster (with various namespace targets) so the
+per-pair vClusters can pick them up — `vcluster-platform-api-key`
+and `github-app-credentials` land in every `participant-*`
+namespace, while `aruba-creds` lands in `crossplane-system` and is
+mirrored into each pair vcluster's `aruba-system` namespace via
+`sync.fromHost.secrets`. The fourth is the
+`workshop-aruba-shared` ConfigMap (#97) — not a credential, just
+cloud resource references — provisioned in `crossplane-system` and
+mirrored into each pair vcluster's `default` namespace via
+`sync.fromHost.configMaps`. The fifth is per-pair *outbound* state
+— files dropped under `out/` and distributed to participants via a
+shared link. Nothing is committed to git.
 
 ### `vcluster-platform-api-key` (Loft Platform syncer)
 
@@ -297,6 +302,39 @@ production sub-account hosting the management cluster would shrink
 the blast radius from "delete the cluster" to "burn the workshop
 budget". See #102 for the tracking issue to investigate whether
 Aruba's product supports this.
+
+### `workshop-aruba-shared` (shared workshop network references)
+
+Module `06-crossplane-3xx/07-provider-arubacloud.mdx` §7.3 has each
+pair create an Aruba `Database` MR that references the shared
+workshop VPC, subnet, and security group by URI. Rather than asking
+the workshop owner to pin the four strings on a slide (#97), the
+Taskfile provisions them as a ConfigMap on the management cluster
+in `crossplane-system`; the Composition's vcluster Helm Release
+wires `sync.fromHost.configMaps`
+([gitops/crossplane-config/composition.yaml](gitops/crossplane-config/composition.yaml))
+to mirror the host ConfigMap into each pair vcluster's `default`
+namespace. Participants read it with
+`kubectl get configmap workshop-aruba-shared -o yaml`.
+
+Provision the ConfigMap with:
+
+```
+ARUBA_SHARED_PROJECT_ID=<24-char-hex> \
+ARUBA_SHARED_VPC_URI=/projects/.../vpcs/... \
+ARUBA_SHARED_SUBNET_URI=/projects/.../subnets/... \
+ARUBA_SHARED_SECURITY_GROUP_URI=/projects/.../securityGroups/... \
+  task bootstrap:aruba-shared-network
+```
+
+Or run the task without env vars and answer the interactive prompts.
+Idempotent — re-running upserts the ConfigMap.
+
+These are identifiers, not credentials — possessing them grants no
+access on its own (the Aruba API token in `aruba-creds` is the
+actual control point). They live in operator-injected state anyway,
+matching the rest of the per-pair external dependencies, so a
+public source tree never carries cloud resource refs.
 
 ### `github-app-credentials` (provider-github)
 

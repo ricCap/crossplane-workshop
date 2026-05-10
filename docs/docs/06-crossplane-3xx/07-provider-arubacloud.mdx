@@ -63,18 +63,32 @@ You should see twelve policies — the five guardrails described above expanded 
 
 ## 7.3 Provision a MySQL DBaaS ⏱️ 12m
 
-The headline resource. You'll create one **DBaaS** managed resource (a real MySQL instance) using values your instructor pinned on a slide for the shared workshop network.
+The headline resource. You'll create one **DBaaS** managed resource (a real MySQL instance) using four shared workshop network values your platform team has dropped into a ConfigMap inside your cluster.
 
 ### 1. Get the shared values
 
-Your instructor has shared four strings:
+Read the ConfigMap your platform team provisioned in your cluster's `default` namespace:
 
-- **`<workshop-project-id>`** — Aruba project ID the workshop runs in (24-character hex string)
-- **`<vpc-uri>`** — URI of the shared workshop VPC
-- **`<subnet-uri>`** — URI of a subnet inside that VPC
-- **`<security-group-uri>`** — URI of a security group attached to the VPC
+```bash
+kubectl get configmap workshop-aruba-shared -o yaml
+```
 
-Have these four values handy; you'll paste them in §7.3.2.
+Expected output:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-aruba-shared
+  namespace: default
+data:
+  projectId: <workshop-project-id>          # 24-character hex string
+  vpcUri: <vpc-uri>                         # URI of the shared workshop VPC
+  subnetUri: <subnet-uri>                   # URI of a subnet inside that VPC
+  securityGroupUri: <security-group-uri>    # URI of a security group on the VPC
+```
+
+Keep the four values handy; you'll paste them in §7.3.2. (`vpcUriRef` / `subnetUriRef` / `securityGroupUriRef` on a `Database` MR don't yet support `valueFrom: configMapKeyRef` — Crossplane's `*Ref` suffix is for cross-MR references, not arbitrary ConfigMap lookups — so for now this is read-and-paste rather than read-and-bind.)
 
 ### 2. Apply the DBaaS MR
 
