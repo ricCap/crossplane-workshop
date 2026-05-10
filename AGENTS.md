@@ -336,14 +336,36 @@ scope to enable in-workshop deletes.
 Participants do not log into the vCluster Platform UI. Instead, each
 pair gets a kubeconfig file with a per-pair Loft Platform access key
 embedded as a bearer token, distributed via a shareable link encoded
-as a QR code on the workshop Miro board.
+as a QR code on the workshop Miro board. The kubeconfig itself ships
+inside a password-protected ZIP — see "Threat model" below.
 
 The flow is split across three Taskfile targets, with an umbrella
 that runs them in order:
 
 ```
-task pairs:distribute
+KUBECONFIG_ZIP_PASSWORD=<shared-pw> task pairs:distribute
 ```
+
+`KUBECONFIG_ZIP_PASSWORD` is **required** — the umbrella fails fast
+if it's unset so we don't burn a kubeconfig rotation only to error
+out at upload time. The password is **operator-shared, not
+per-pair**: pick one short, memorable string and share it verbally /
+on the live Miro board at the start of the workshop. Every pair's
+ZIP uses the same password.
+
+**Threat model.** Each kubeconfig embeds a bearer token with full
+admin on the pair vcluster, which can read
+`crossplane-system/aruba-creds` (shared Aruba API key, account-admin
+scope — see above) and `crossplane-system/github-app-credentials`
+(GitHub App PEM for the workshop sandbox org). The shareable URL is
+distributed via a QR code on a public Miro board and gets shown on
+screen during the workshop — recorded sessions, screenshots, and
+attendees who post "I learned Crossplane today!" with the board
+visible are realistic leak vectors. The 24h Drive TTL is the only
+defense against a leaked URL on its own; that's not enough for events
+with public recordings. The ZIP layer means a leaked link plus
+nothing else gets the attacker an encrypted blob — they also need
+the password, which never goes through Drive.
 
 What each step does:
 
@@ -360,13 +382,24 @@ What each step does:
   every pair's key — previously-issued kubeconfigs stop working
   immediately.** That's a feature, not a bug: it's how you revoke
   after the workshop.
-- `pairs:upload-kubeconfigs` — `rclone copy out/kubeconfigs/` to a
-  configured remote (default: a Drive remote called `gdrive` set up
-  via `rclone config`), then collects per-file shareable URLs into
-  `out/urls.txt`. URLs auto-expire after `RCLONE_LINK_EXPIRE`
-  (default `24h`) on backends that support TTL (Drive does).
+- `pairs:upload-kubeconfigs` — wraps every plaintext kubeconfig in a
+  password-protected ZIP (`zip -e -j -P "$KUBECONFIG_ZIP_PASSWORD"
+  out/kubeconfigs/<pair>.zip out/kubeconfigs/<pair>.yaml`), deletes
+  the plaintext YAML so it can't accidentally upload, then
+  `rclone copy out/kubeconfigs/` (now containing only `.zip` files)
+  to a configured remote (default: a Drive remote called `gdrive`
+  set up via `rclone config`), and collects per-file shareable URLs
+  into `out/urls.txt`. URLs auto-expire after `RCLONE_LINK_EXPIRE`
+  (default `24h`) on backends that support TTL (Drive does). The
+  `-j` flag flattens path components so participants get a flat
+  `<pair>.yaml` after extracting the ZIP.
 - `pairs:qr` — encodes each URL into `out/qr/<pair>.png`. Operator
   drags these onto the workshop Miro board.
+
+Required env vars:
+
+- `KUBECONFIG_ZIP_PASSWORD` — shared password for the per-pair ZIPs.
+  No default; the umbrella fails fast if unset.
 
 Optional env vars:
 
