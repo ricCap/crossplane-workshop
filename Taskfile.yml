@@ -1141,9 +1141,36 @@ tasks:
         echo "==> 4/4 sync aruba-bundle-${PAIR} (this is the manual gate)"
         # `--prune` so removing things from the bundle in this repo
         # cleans up in the vcluster on the next sync. Default
-        # syncPolicy on the ApplicationSet is manual; this command is
+        # syncPolicy on the ApplicationSet is manual; this patch is
         # the workshop owner's explicit go-ahead.
-        argocd app sync "aruba-bundle-${PAIR}" --prune
+        #
+        # We trigger via `kubectl patch` rather than `argocd app sync`
+        # because the argocd CLI in --core mode looks for the
+        # `argocd-cm` ConfigMap in the *current kubectl namespace*
+        # (default unless overridden), which fails with `configmap
+        # "argocd-cm" not found` whenever the operator's kubeconfig
+        # doesn't have its default namespace set to argocd. The
+        # operation field is the same hand-off the argocd CLI uses
+        # under the hood — application-controller picks it up and
+        # runs the sync.
+        kubectl -n {{.ARGOCD_NS}} patch application "aruba-bundle-${PAIR}" \
+          --type=merge \
+          -p '{"operation":{"sync":{"prune":true,"revision":"main"}}}'
+
+        echo "    waiting for sync to finish..."
+        for _ in $(seq 1 120); do
+          PHASE=$(kubectl -n {{.ARGOCD_NS}} get application "aruba-bundle-${PAIR}" \
+            -o jsonpath='{.status.operationState.phase}' 2>/dev/null || true)
+          case "$PHASE" in
+            Succeeded) echo "    ✓ sync ${PHASE}"; break ;;
+            Failed|Error)
+              echo "    ✗ sync ${PHASE}"
+              kubectl -n {{.ARGOCD_NS}} get application "aruba-bundle-${PAIR}" \
+                -o jsonpath='{.status.operationState.message}{"\n"}'
+              exit 1 ;;
+          esac
+          sleep 5
+        done
 
         echo ""
         echo "${PAIR} can now `kubectl apply` Aruba managed resources."
