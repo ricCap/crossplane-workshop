@@ -409,6 +409,14 @@ tasks:
     desc: |
       Install vCluster Platform via Helm. Keeps admin password out of git.
       Set PLATFORM_ADMIN_PASSWORD env var or be prompted interactively.
+
+      MANUAL FOLLOW-UP — license activation. After this task finishes, an
+      admin must open https://platform-crossplane.workshops.riccardocapraro.it
+      in a browser, log in as `admin` with PLATFORM_ADMIN_PASSWORD, and
+      accept the license to activate the trial. Until that's done, the
+      Platform proxy returns 4xx for participant kubeconfig requests and
+      `verify:pair:platform` will fail. This step is intentionally manual —
+      Loft requires a human to accept the EULA, there is no headless flag.
     run: once
     cmds:
       - |

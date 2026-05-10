@@ -208,6 +208,14 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
+## Post-bootstrap: Platform license activation
+
+After `task bootstrap:all` succeeds, vCluster Platform is installed but **its license is not yet active**. An admin must open https://platform-crossplane.workshops.riccardocapraro.it in a browser, log in as `admin` with the password supplied to `bootstrap:vcluster-platform`, and accept the EULA to activate the trial license. Until that's done, the Platform proxy returns 4xx for participant kubeconfig requests and `task verify:pair:platform` / `task verify:all MODE=platform` will fail with auth errors.
+
+This step is intentionally manual — Loft requires a human to accept the EULA, there is no headless flag. Do it once per fresh Platform install (i.e. once per cluster rebuild). The license persists across `helm upgrade` of the chart and across `loft` pod restarts.
+
+For local vind, this section does **not** apply: Platform isn't installed there, and `MODE=local` verifies via port-forward instead.
+
 ## External credential bootstrap
 
 Four operator-injected credentials live alongside the GitOps-managed
