@@ -395,6 +395,63 @@ tasks:
         echo "aruba-creds Secret provisioned in crossplane-system on management cluster"
         echo "(per-pair vclusters pick it up automatically via sync.fromHost.secrets once their Aruba bundle is synced)"
 
+  bootstrap:aruba-shared-network:
+    desc: |
+      Install the workshop-aruba-shared ConfigMap on the management
+      cluster, holding the four shared workshop network references
+      (Aruba project ID + VPC URI + subnet URI + security group URI)
+      participants reference from their Database MRs. The
+      XDeveloperEnvironment Composition's vcluster Helm Release
+      projects this ConfigMap into every per-pair vcluster's
+      `default` namespace via `sync.fromHost.configMaps`, so module
+      7 §7.3 can read it with `kubectl get configmap
+      workshop-aruba-shared -o yaml`.
+
+      Closes #97 — replaces the slide-pinned values pattern.
+      Operator-injected (kept out of git) for the same reason as
+      `aruba-creds` — even though these are identifiers, not
+      credentials, keeping cloud resource refs out of source matches
+      the rest of the per-pair operator-injected state.
+
+      Set ARUBA_SHARED_PROJECT_ID, ARUBA_SHARED_VPC_URI,
+      ARUBA_SHARED_SUBNET_URI, ARUBA_SHARED_SECURITY_GROUP_URI env
+      vars, or be prompted interactively. Workshop owner runs this
+      once at workshop setup; idempotent — re-run to update.
+    run: once
+    cmds:
+      - |
+        set -euo pipefail
+
+        if [ -z "${ARUBA_SHARED_PROJECT_ID:-}" ]; then
+          read -p "ARUBA_SHARED_PROJECT_ID (24-char hex): " ARUBA_SHARED_PROJECT_ID
+        fi
+        if [ -z "${ARUBA_SHARED_VPC_URI:-}" ]; then
+          read -p "ARUBA_SHARED_VPC_URI (/projects/.../vpcs/...): " ARUBA_SHARED_VPC_URI
+        fi
+        if [ -z "${ARUBA_SHARED_SUBNET_URI:-}" ]; then
+          read -p "ARUBA_SHARED_SUBNET_URI (/projects/.../subnets/...): " ARUBA_SHARED_SUBNET_URI
+        fi
+        if [ -z "${ARUBA_SHARED_SECURITY_GROUP_URI:-}" ]; then
+          read -p "ARUBA_SHARED_SECURITY_GROUP_URI (/projects/.../securityGroups/...): " ARUBA_SHARED_SECURITY_GROUP_URI
+        fi
+
+        [ -n "${ARUBA_SHARED_PROJECT_ID}" ]        || { echo "ARUBA_SHARED_PROJECT_ID cannot be empty"; exit 1; }
+        [ -n "${ARUBA_SHARED_VPC_URI}" ]           || { echo "ARUBA_SHARED_VPC_URI cannot be empty"; exit 1; }
+        [ -n "${ARUBA_SHARED_SUBNET_URI}" ]        || { echo "ARUBA_SHARED_SUBNET_URI cannot be empty"; exit 1; }
+        [ -n "${ARUBA_SHARED_SECURITY_GROUP_URI}" ] || { echo "ARUBA_SHARED_SECURITY_GROUP_URI cannot be empty"; exit 1; }
+
+        kubectl create namespace crossplane-system 2>/dev/null || true
+        kubectl create configmap workshop-aruba-shared \
+          --namespace crossplane-system \
+          --from-literal=projectId="${ARUBA_SHARED_PROJECT_ID}" \
+          --from-literal=vpcUri="${ARUBA_SHARED_VPC_URI}" \
+          --from-literal=subnetUri="${ARUBA_SHARED_SUBNET_URI}" \
+          --from-literal=securityGroupUri="${ARUBA_SHARED_SECURITY_GROUP_URI}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        echo "workshop-aruba-shared ConfigMap provisioned in crossplane-system on management cluster"
+        echo "(per-pair vclusters pick it up automatically in default/workshop-aruba-shared via sync.fromHost.configMaps)"
+
   bootstrap:envoy-gateway:
     desc: Install Envoy Gateway (Gateway API controller) via OCI Helm chart.
     run: once

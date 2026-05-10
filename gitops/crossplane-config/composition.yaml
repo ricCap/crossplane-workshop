@@ -129,6 +129,25 @@ spec:
                             byName:
                               "/github-app-credentials": "crossplane-system/github-app-credentials"
                               "crossplane-system/aruba-creds": "aruba-system/aruba-creds"
+                        # One host->vcluster ConfigMap mirror (#97):
+                        #
+                        # workshop-aruba-shared — sourced from the
+                        # management cluster's `crossplane-system`
+                        # namespace, holds the four shared workshop
+                        # network values (project + VPC + subnet + SG
+                        # IDs/URIs) the participants reference from
+                        # their Database MRs. Provisioned out-of-band
+                        # by `task bootstrap:aruba-shared-network`.
+                        # Lands in `default` namespace inside the
+                        # vcluster so participants can read it
+                        # without privileged context. Operator-
+                        # injected (not committed to git) for the
+                        # same reason as `aruba-creds`.
+                        configMaps:
+                          enabled: true
+                          mappings:
+                            byName:
+                              "crossplane-system/workshop-aruba-shared": "default/workshop-aruba-shared"
                     exportKubeConfig:
                       server: placeholder
             patches:
