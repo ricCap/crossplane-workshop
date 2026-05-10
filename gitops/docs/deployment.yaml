@@ -23,7 +23,7 @@ spec:
       containers:
         - name: docs
           # Pinned. Bump after a new vX.Y.Z is published. See AGENTS.md §Releasing.
-          image: ghcr.io/riccap/crossplane-workshop-docs:v0.1.0
+          image: ghcr.io/riccap/crossplane-workshop-docs:v0.2.0
           ports:
             - name: http
               containerPort: 80
@@ -43,7 +43,7 @@ spec:
 
         - name: validator
           # Pinned. Bump after a new vX.Y.Z is published. See AGENTS.md §Releasing.
-          image: ghcr.io/riccap/crossplane-workshop-validator:v0.1.0
+          image: ghcr.io/riccap/crossplane-workshop-validator:v0.2.0
           ports:
             - name: http-validator
               containerPort: 8081
