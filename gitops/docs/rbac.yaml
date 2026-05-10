@@ -1,19 +1,24 @@
-# NOTE on scope: RBAC does not support prefix-matching on resource names in a
-# ClusterRole rule. A resourceNames list would require enumerating every pair
-# explicitly, which defeats the purpose of a dynamic multi-pair setup.
-# Instead, we grant cluster-wide get/list on Secrets and Namespaces, and the
-# validator code is responsible for constraining access to the correct
-# "participant-<pairId>" namespace and "vc-<pairId>" secret name.
-# This is acceptable for a workshop environment where the validator pod is
-# operator-controlled and not exposed to the public internet directly.
+# RBAC for the validator ServiceAccount.
+#
+# Two privileges, both as narrow as Kubernetes RBAC permits:
+#
+# 1. Cluster-wide get/list on namespaces (this file). The validator
+#    discovers pair IDs by listing `participant-*` namespaces; that
+#    needs cluster-wide list. Namespaces have no secret content.
+#
+# 2. Per-pair get on `secrets/vc-<pair>` in `participant-<pair>`,
+#    granted via Role+RoleBinding emitted by the XDeveloperEnvironment
+#    Composition (see gitops/crossplane-config/composition.yaml). RBAC
+#    cluster-rules can't constrain by name, so we use namespace-scoped
+#    Roles with `resourceNames` instead — that way the validator can
+#    only read the specific kubeconfig secret for each registered pair,
+#    not `crossplane-system/aruba-creds`, the GitHub App credentials,
+#    or any other secret on the cluster (#112).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: validator
 rules:
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list"]
