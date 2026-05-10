@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -232,6 +233,20 @@ func listPairIDs(ctx context.Context, mgmtClient *kubernetes.Clientset) ([]strin
 	return pairs, nil
 }
 
+// vcClientCache holds one dynamic.Interface per pair. Building a
+// vcluster client involves a kubeconfig-secret Get + TLS handshake on
+// the first apiserver call; caching collapses that to once-per-process
+// instead of once-per-request. Critical for /api/dashboard, which
+// previously rebuilt N clients on every poll and OOMed the validator
+// pod under load (#113).
+//
+// Entries are never evicted on success — kubeconfigs don't rotate
+// during a workshop, and client-go's transport re-dials lazily if the
+// connection drops, so a stale entry self-heals. If the secret itself
+// is replaced (e.g. vcluster recreated), restart the validator pod;
+// for a 3h workshop that's an acceptable invalidation story.
+var vcClientCache sync.Map // map[string]dynamic.Interface
+
 // vclientForPair loads the kubeconfig secret for a pair from the
 // management cluster and builds a dynamic client to that pair's vcluster.
 // The secret name / namespace convention matches what the XDeveloperEnvironment
@@ -253,6 +268,10 @@ func vclientForPair(ctx context.Context, mgmtClient *kubernetes.Clientset, pairI
 		return client, nil
 	}
 
+	if cached, ok := vcClientCache.Load(pairID); ok {
+		return cached.(dynamic.Interface), nil
+	}
+
 	secretName := "vc-" + pairID
 	ns := participantNSPrefix + pairID
 
@@ -265,7 +284,11 @@ func vclientForPair(ctx context.Context, mgmtClient *kubernetes.Clientset, pairI
 	if err != nil {
 		return nil, fmt.Errorf("vcluster client: %w", err)
 	}
-	return client, nil
+	// LoadOrStore so that two concurrent first-time calls for the
+	// same pair share the first-built client instead of leaking the
+	// loser.
+	actual, _ := vcClientCache.LoadOrStore(pairID, client)
+	return actual.(dynamic.Interface), nil
 }
 
 // vclientFromSecret builds a dynamic client for the vcluster whose kubeconfig

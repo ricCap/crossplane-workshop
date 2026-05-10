@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -20,6 +21,25 @@ const dashboardMaxPairConcurrency = 16
 // a red cell with a timeout message rather than stalling the whole
 // dashboard response.
 const dashboardCheckTimeout = 5 * time.Second
+
+// dashboardCacheTTL bounds how often we rebuild the aggregate
+// pair × check matrix. The endpoint is unauthenticated and reachable
+// from the public internet via the docs HTTPRoute (#113), so without
+// caching, repeated polls trivially stampede every pair vcluster
+// apiserver in parallel and OOM the validator pod (and therefore the
+// docs site, same Pod). 10s is short enough that the operator
+// dashboard still feels live and long enough to absorb a burst of a
+// few hundred concurrent unauthenticated requests.
+const dashboardCacheTTL = 10 * time.Second
+
+// dashboardCache holds the most recent dashboard response so repeated
+// requests within dashboardCacheTTL share the result rather than each
+// triggering a fresh fan-out across pairs.
+var dashboardCache struct {
+	mu        sync.Mutex
+	body      []byte
+	createdAt time.Time
+}
 
 type checkInfo struct {
 	ID    string `json:"id"`
@@ -48,17 +68,50 @@ type dashboardResponse struct {
 // discovered on the management cluster and returns a single aggregated
 // response. Per-check and per-pair errors become failed cells; only a
 // failure to build the management client itself 5xxs the whole request.
+//
+// Responses are cached for dashboardCacheTTL. Within the window the
+// whole HTTP body is served from memory — no apiserver calls, no
+// vcluster fan-out, no allocation. Outside the window, the next
+// request rebuilds the cache while still holding the lock so a
+// concurrent burst collapses into one rebuild.
 func handleDashboard(w http.ResponseWriter, r *http.Request) {
-	mgmtClient, err := newMgmtClient()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	dashboardCache.mu.Lock()
+	defer dashboardCache.mu.Unlock()
+
+	if dashboardCache.body != nil && time.Since(dashboardCache.createdAt) < dashboardCacheTTL {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Cache", "HIT")
+		_, _ = w.Write(dashboardCache.body)
 		return
 	}
 
-	pairs, err := listPairIDs(r.Context(), mgmtClient)
+	body, status := buildDashboardJSON(r.Context())
+	w.Header().Set("Content-Type", "application/json")
+	if status == http.StatusOK {
+		w.Header().Set("X-Cache", "MISS")
+		dashboardCache.body = body
+		dashboardCache.createdAt = time.Now()
+	}
+	w.WriteHeader(status)
+	_, _ = w.Write(body)
+}
+
+// buildDashboardJSON does the actual fan-out + check execution and
+// returns a marshaled response body + HTTP status. Errors building
+// the management client or listing pairs map to a 500 with a JSON
+// error body; per-pair / per-check errors become failed cells inside
+// a 200 response.
+func buildDashboardJSON(ctx context.Context) ([]byte, int) {
+	mgmtClient, err := newMgmtClient()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		body, _ := json.Marshal(map[string]string{"error": err.Error()})
+		return body, http.StatusInternalServerError
+	}
+
+	pairs, err := listPairIDs(ctx, mgmtClient)
+	if err != nil {
+		body, _ := json.Marshal(map[string]string{"error": err.Error()})
+		return body, http.StatusInternalServerError
 	}
 
 	checkCols := make([]checkInfo, 0, len(orderedCheckIDs))
@@ -80,17 +133,18 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 		go func(i int, pair string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			rows[i] = runPairChecks(r.Context(), mgmtClient, pair)
+			rows[i] = runPairChecks(ctx, mgmtClient, pair)
 		}(i, pair)
 	}
 
 	wg.Wait()
 
-	writeJSON(w, http.StatusOK, dashboardResponse{
+	body, _ := json.Marshal(dashboardResponse{
 		GeneratedAt: time.Now().UTC(),
 		Checks:      checkCols,
 		Pairs:       rows,
 	})
+	return body, http.StatusOK
 }
 
 // runPairChecks builds one vcluster client for the pair and runs every
