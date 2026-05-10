@@ -398,6 +398,243 @@ spec:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
 
+          # --- 6. NetworkPolicies (#86) ---
+          # Default-deny ingress + egress on the participant host
+          # namespace, with a curated allowlist for the traffic the
+          # workshop actually needs:
+          #   - intra-namespace (frontend ↔ backend, vcluster pods talk
+          #     to each other);
+          #   - DNS to the host kube-system kube-dns (synced CoreDNS
+          #     upstream resolution);
+          #   - ingress from envoy-gateway-system (HTTPRoute traffic);
+          #   - egress to the public internet, RFC1918 excluded (Aruba
+          #     API, GitHub, external services participants might use);
+          #   - the syncer pod (label `app=vcluster`) is exempted from
+          #     the deny — it needs to reach the host apiserver and
+          #     vcluster-platform on intra-cluster IPs that would
+          #     otherwise be blocked by the RFC1918 carve-out.
+          #
+          # Calico v3.29.1 on the management cluster (#85) supports
+          # `networking.k8s.io/v1` NetworkPolicy natively. The same
+          # policies work on local vind because vcluster's chart
+          # ships kube-router (NetworkPolicy-capable) by default.
+          #
+          # Naming convention: `pair-netpol-<purpose>` so they sort
+          # cohesively in `kubectl get networkpolicy -n participant-*`.
+          - name: netpol-default-deny
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-default-deny
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Ingress, Egress]
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-intra-namespace
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-intra-namespace
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Ingress, Egress]
+                      ingress:
+                        - from:
+                            - podSelector: {}
+                      egress:
+                        - to:
+                            - podSelector: {}
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-dns-egress
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-dns-egress
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Egress]
+                      egress:
+                        - to:
+                            - namespaceSelector:
+                                matchLabels:
+                                  kubernetes.io/metadata.name: kube-system
+                              podSelector:
+                                matchLabels:
+                                  k8s-app: kube-dns
+                          ports:
+                            - {protocol: UDP, port: 53}
+                            - {protocol: TCP, port: 53}
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-ingress-envoy-gateway
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-ingress-envoy-gateway
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Ingress]
+                      ingress:
+                        - from:
+                            - namespaceSelector:
+                                matchLabels:
+                                  kubernetes.io/metadata.name: envoy-gateway-system
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-egress-external
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-egress-external
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Egress]
+                      egress:
+                        - to:
+                            - ipBlock:
+                                cidr: 0.0.0.0/0
+                                except:
+                                  - 10.0.0.0/8
+                                  - 172.16.0.0/12
+                                  - 192.168.0.0/16
+                                  - 169.254.0.0/16
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-syncer-ingress-all
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-syncer-ingress-all
+                      namespace: placeholder
+                    spec:
+                      podSelector:
+                        matchLabels:
+                          app: vcluster
+                      policyTypes: [Ingress]
+                      ingress:
+                        - {}
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: netpol-allow-syncer-egress-all
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-syncer-egress-all
+                      namespace: placeholder
+                    spec:
+                      podSelector:
+                        matchLabels:
+                          app: vcluster
+                      policyTypes: [Egress]
+                      egress:
+                        - {}
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
 
     # --- Step 2: Platform user (go-templating) ---
     # Creates a Platform User per pair and registers the pair's

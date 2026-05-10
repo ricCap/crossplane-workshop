@@ -97,6 +97,13 @@ rules:
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["httproutes"]
     verbs: ["*"]
+  # NetworkPolicies for per-pair default-deny on participant-* host
+  # namespaces (#86). The Composition emits 7 NetworkPolicy Objects
+  # per pair (default-deny + targeted allow rules); provider-kubernetes
+  # needs full CRUD to manage them.
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["*"]
   - apiGroups: ["management.loft.sh"]
     resources: ["users"]
     verbs: ["*"]
