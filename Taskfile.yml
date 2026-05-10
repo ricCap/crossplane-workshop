@@ -425,6 +425,7 @@ tasks:
         helm repo add loft https://charts.loft.sh 2>/dev/null || true
         helm repo update loft
 
+        # config.costControl.enabled=false skips the Prometheus / global-prometheus / OpenCost Helm releases Loft auto-installs at runtime when cost analytics is enabled.
         helm upgrade --install vcluster-platform loft/vcluster-platform \
           --version {{.VCLUSTER_PLATFORM_VERSION}} \
           --namespace {{.VCLUSTER_PLATFORM_NS}} --create-namespace \
@@ -433,7 +434,7 @@ tasks:
           --set "admin.password=${PLATFORM_ADMIN_PASSWORD}" \
           --set ingress.enabled=false \
           --set config.loftHost=platform-crossplane.workshops.riccardocapraro.it \
-          --set config.monitoring.enabled=false \
+          --set config.costControl.enabled=false \
           --set replicaCount=1 \
           --set "resources.requests.cpu=200m" \
           --set "resources.requests.memory=512Mi" \
