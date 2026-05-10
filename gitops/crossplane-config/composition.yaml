@@ -682,6 +682,81 @@ spec:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
 
+          # Per-pair Role + RoleBinding granting the validator
+          # ServiceAccount (in `docs` namespace) `get` on this pair's
+          # vcluster-admin kubeconfig secret only (#112).
+          #
+          # Without this pair, the validator ClusterRole used to grant
+          # cluster-wide get/list on Secrets — which meant any RCE
+          # in the validator binary leaked aruba-creds, the GitHub
+          # App credentials, and every pair's vc-* kubeconfig in one
+          # step. Splitting per-pair via `resourceNames` is the
+          # tightest scope RBAC supports for namespace-scoped reads.
+          - name: validator-vc-secret-role
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: rbac.authorization.k8s.io/v1
+                    kind: Role
+                    metadata:
+                      name: validator-vc-secret-reader
+                      namespace: placeholder
+                    rules:
+                      - apiGroups: [""]
+                        resources: ["secrets"]
+                        resourceNames: ["placeholder"]
+                        verbs: ["get"]
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "vc-%s"
+                toFieldPath: spec.forProvider.manifest.rules[0].resourceNames[0]
+
+          - name: validator-vc-secret-rolebinding
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: rbac.authorization.k8s.io/v1
+                    kind: RoleBinding
+                    metadata:
+                      name: validator-vc-secret-reader
+                      namespace: placeholder
+                    roleRef:
+                      apiGroup: rbac.authorization.k8s.io
+                      kind: Role
+                      name: validator-vc-secret-reader
+                    subjects:
+                      - kind: ServiceAccount
+                        name: validator
+                        namespace: docs
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
 
     # --- Step 2: Platform user (go-templating) ---
     # Creates a Platform User per pair and registers the pair's
