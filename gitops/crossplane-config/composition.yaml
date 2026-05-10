@@ -577,6 +577,19 @@ spec:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
 
+          # The two policies below grant the vcluster syncer
+          # unrestricted ingress + egress. The selector deliberately
+          # matches the *real* syncer only — `app=vcluster` AND no
+          # `vcluster.loft.sh/managed-by` label. The syncer doesn't
+          # carry `managed-by` (it's the thing that adds the label
+          # to every shadow pod it creates), so the matchExpression
+          # below distinguishes it from any participant-controlled
+          # pod that the syncer might propagate with `app=vcluster`
+          # set in inner labels (#117). vcluster v0.33 currently
+          # rewrites participant labels on shadow pods, but the
+          # rewriting behavior is a moving target across versions
+          # — this matchExpression makes the policy independent of
+          # that.
           - name: netpol-allow-syncer-ingress-all
             base:
               apiVersion: kubernetes.crossplane.io/v1alpha2
@@ -593,6 +606,9 @@ spec:
                       podSelector:
                         matchLabels:
                           app: vcluster
+                        matchExpressions:
+                          - key: vcluster.loft.sh/managed-by
+                            operator: DoesNotExist
                       policyTypes: [Ingress]
                       ingress:
                         - {}
@@ -622,6 +638,9 @@ spec:
                       podSelector:
                         matchLabels:
                           app: vcluster
+                        matchExpressions:
+                          - key: vcluster.loft.sh/managed-by
+                            operator: DoesNotExist
                       policyTypes: [Egress]
                       egress:
                         - {}
