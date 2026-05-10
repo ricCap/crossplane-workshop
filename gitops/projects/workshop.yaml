@@ -29,6 +29,25 @@ spec:
     # any of the allowed destinations`.
     - namespace: '*'
       server: 'https://*.participant-*:443'
+  # Wildcard resource whitelist — accepted residual (#120). The
+  # workshop's app-of-apps pattern syncs many distinct Applications
+  # (Crossplane, UXP Apollo, vCluster Platform, Envoy Gateway,
+  # cert-manager, the per-pair Aruba bundle, …); each ships its own
+  # mix of cluster-scoped + namespaced kinds. Enumerating every
+  # group/kind here is high-effort and high-regression-risk: a
+  # missing kind blocks ArgoCD sync mid-workshop with no fast
+  # workaround.
+  #
+  # The operative defenses against malicious manifests landing in
+  # main are upstream of the AppProject:
+  #   - branch protection on main + required PR review
+  #   - DCO sign-off + Assisted-by trailer enforcement on commits
+  #   - sourceRepos pin (above) — only this repo + four trusted
+  #     chart repos can be referenced as sources
+  #
+  # Worth a structured pass to enumerate kinds if the workshop ever
+  # runs against a multi-tenant management cluster shared with
+  # production workloads. Until then the wildcard is intentional.
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
