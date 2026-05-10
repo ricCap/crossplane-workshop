@@ -210,13 +210,15 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 ## External credential bootstrap
 
-Three operator-injected credentials live alongside the GitOps-managed
-state. The first two follow the same pattern: the Taskfile target
-reads sensitive material from env vars, writes the Secret into every
-`participant-*` namespace, and the per-pair vCluster picks it up. The
-third is per-pair *outbound* state — files dropped under `out/` and
-distributed to participants via a shared link. Nothing is committed
-to git.
+Four operator-injected credentials live alongside the GitOps-managed
+state. Three are Secrets the Taskfile provisions on the management
+cluster (with various namespace targets) so the per-pair vClusters
+can pick them up — `vcluster-platform-api-key` and `github-app-credentials`
+land in every `participant-*` namespace, while `aruba-creds` lands in
+`crossplane-system` and is mirrored into each pair vcluster's
+`aruba-system` namespace via `sync.fromHost.secrets`. The fourth is
+per-pair *outbound* state — files dropped under `out/` and distributed
+to participants via a shared link. Nothing is committed to git.
 
 ### `vcluster-platform-api-key` (Loft Platform syncer)
 
@@ -239,6 +241,54 @@ Create. Override `PLATFORM_HOST`, `PLATFORM_PROJECT`, or
 defaults. Re-running is safe (Secret is replaced in place; affected
 StatefulSets are restarted so the syncer remounts the populated
 volume).
+
+### `aruba-creds` (provider-arubacloud)
+
+The shared Aruba Cloud API key the per-pair `provider-arubacloud`
+(installed by the per-vcluster bundle, see #87) uses to provision
+DBaaS / object storage / block storage / container registries. The
+Composition's vcluster Helm Release wires `sync.fromHost.secrets`
+([gitops/crossplane-config/composition.yaml](gitops/crossplane-config/composition.yaml))
+to mirror the host Secret from `crossplane-system/aruba-creds` into
+each pair vcluster's `aruba-system/aruba-creds`.
+
+Provision the credential with:
+
+```
+ARUBA_API_KEY=<key> ARUBA_API_SECRET=<secret> task bootstrap:aruba-cloud-credentials
+```
+
+Or run the task without env vars and answer the interactive prompts.
+Idempotent — re-running upserts the Secret.
+
+**Scope and residual risk.** Aruba's API only issues account-admin
+tokens — there is no scope-down path (confirmed against the Aruba
+console; #84). The Secret mirrored into every participant vcluster
+therefore grants full control over the Aruba account hosting the
+workshop's management cluster. A participant with vcluster-admin can
+read it (`kubectl -n aruba-system get secret aruba-creds -o yaml`)
+and exfiltrate it. The workshop's threat model explicitly assumes
+friendly attendees, not adversaries — but two operator controls are
+mandatory to keep that assumption tenable:
+
+1. **Rotate immediately after every workshop.** Issue a fresh token
+   in the Aruba console, revoke the old one, then re-run
+   `task bootstrap:aruba-cloud-credentials` with the new value. A
+   leaked credential stops being useful within minutes of the
+   workshop ending.
+2. **Configure a billing/usage alert** on the Aruba account so any
+   misuse outside the workshop's expected resource shape (the
+   per-pair Kyverno policies under
+   [gitops/per-vcluster-bundle/templates/policies/](gitops/per-vcluster-bundle/templates/policies/)
+   pin Database / ContainerRegistry / BlockStorage to specific flavors
+   and locations) triggers a page within minutes. Detective control
+   on top of the preventive Kyverno layer.
+
+A separate Aruba sub-account whose token has no access to the
+production sub-account hosting the management cluster would shrink
+the blast radius from "delete the cluster" to "burn the workshop
+budget". See #102 for the tracking issue to investigate whether
+Aruba's product supports this.
 
 ### `github-app-credentials` (provider-github)
 
