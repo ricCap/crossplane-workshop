@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: 335f560795acfd54c901304c890f83905eb92749
+translation_source_commit: 1b0618d8640665a3c4e8363415fd6885f4baa1b8
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -27,18 +27,32 @@ Stai per: scaricare un kubeconfig, esportarlo e applicare un pod `hello`.
 
 ### 1. Scarica il file kubeconfig
 
-Il tuo istruttore ti ha dato un link per scaricare il kubeconfig della tua coppia. Scarica il file e tieni a portata il percorso — questo esempio assume `~/Downloads/<pair-id>-kubeconfig.yaml`.
+Il tuo istruttore ti ha mostrato un QR code sulla board Miro. Inquadralo dal laptop (oppure clicca sul link che l'istruttore condivide) e scarica `<pair-id>.zip` — il kubeconfig è racchiuso in uno ZIP protetto da password, così un link leakato da solo non basta a entrare nel cluster.
 
-### 2. Punta la tua shell al file
+### 2. Estrai con la password condivisa dall'operatore
+
+L'istruttore condivide la password dello ZIP a voce o sulla board Miro dal vivo. Estrai il file YAML del kubeconfig dall'archivio — la password è la stessa per tutte le coppie.
+
+- **macOS / Linux:**
+  ```bash
+  cd ~/Downloads
+  unzip <pair-id>.zip
+  # chiede la password, poi scrive <pair-id>.yaml accanto allo zip
+  ```
+- **Windows:** click destro su `<pair-id>.zip` → **Estrai tutto…** → inserisci la password condivisa dall'operatore → conferma. Otterrai `<pair-id>.yaml` nella stessa cartella.
+
+### 3. Punta la tua shell al file
 
 ```bash
-export KUBECONFIG=~/Downloads/<pair-id>-kubeconfig.yaml
+export KUBECONFIG=$PWD/<pair-id>.yaml
 kubectl config current-context
 ```
 
-Il comando `current-context` stampa il nome del context — considera qualsiasi output non vuoto come successo. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che il download sia andato a buon fine.
+(Su Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
 
-### 3. Elenca i namespace come smoke test
+Il comando `current-context` stampa il nome del context — considera qualsiasi output non vuoto come successo. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che l'estrazione abbia effettivamente prodotto il YAML.
+
+### 4. Elenca i namespace come smoke test
 
 ```bash
 kubectl get namespaces
@@ -46,7 +60,7 @@ kubectl get namespaces
 
 Dovresti vedere i namespace di sistema standard (`default`, `kube-system`, `kube-public`, …). Se vedi un errore di permessi, controlla di stare usando il kubeconfig della tua coppia — ogni coppia ha accesso solo al proprio cluster.
 
-### 4. (Opzionale) Installa qualche tool comodo
+### 5. (Opzionale) Installa qualche tool comodo
 
 Non sono richiesti, ma renderanno il resto del workshop più rapido. Salta se sei stretto col tempo.
 
