@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: 7c696886e3df91834691ed888f010cc84d44e5f7
+translation_source_commit: bf57562803eba5cde14d83dae1cf51cdcbffa9f6
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -64,18 +64,32 @@ Dovresti vedere dodici policy — i cinque guardrail descritti sopra espansi in 
 
 ## 7.3 Provisiona un DBaaS MySQL ⏱️ 12m
 
-La risorsa di punta. Creerai una managed resource **DBaaS** (un'istanza MySQL reale) usando i valori che il tuo istruttore ha pinnato su una slide per la rete condivisa del workshop.
+La risorsa di punta. Creerai una managed resource **DBaaS** (un'istanza MySQL reale) usando quattro valori di rete condivisi del workshop che il tuo platform team ha messo in una ConfigMap dentro il tuo cluster.
 
 ### 1. Ottieni i valori condivisi
 
-Il tuo istruttore ha condiviso quattro stringhe:
+Leggi la ConfigMap che il tuo platform team ha provvisto nel namespace `default` del tuo cluster:
 
-- **`<workshop-project-id>`** — ID del progetto Aruba in cui gira il workshop (stringa esadecimale di 24 caratteri)
-- **`<vpc-uri>`** — URI della VPC condivisa del workshop
-- **`<subnet-uri>`** — URI di una subnet dentro quella VPC
-- **`<security-group-uri>`** — URI di un security group attaccato alla VPC
+```bash
+kubectl get configmap workshop-aruba-shared -o yaml
+```
 
-Tieni a portata questi quattro valori; li incollerai in §7.3.2.
+Output atteso:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-aruba-shared
+  namespace: default
+data:
+  projectId: <workshop-project-id>          # stringa esadecimale di 24 caratteri
+  vpcUri: <vpc-uri>                         # URI della VPC condivisa del workshop
+  subnetUri: <subnet-uri>                   # URI di una subnet dentro quella VPC
+  securityGroupUri: <security-group-uri>    # URI di un security group sulla VPC
+```
+
+Tieni a portata i quattro valori; li incollerai in §7.3.2. (`vpcUriRef` / `subnetUriRef` / `securityGroupUriRef` su una MR `Database` non supportano ancora `valueFrom: configMapKeyRef` — il suffisso `*Ref` di Crossplane è per riferimenti tra MR, non per lookup arbitrari di ConfigMap — quindi per ora è leggi-e-incolla, non leggi-e-collega.)
 
 ### 2. Applica la MR DBaaS
 
