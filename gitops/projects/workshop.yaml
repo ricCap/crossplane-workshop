@@ -15,8 +15,20 @@ spec:
     - https://charts.upbound.io/stable
     - https://charts.jetstack.io
   destinations:
+    # Management cluster — for the bulk of the GitOps tree (Crossplane,
+    # vCluster Platform, Envoy Gateway, docs, etc.).
     - namespace: '*'
       server: https://kubernetes.default.svc
+    # Per-pair vclusters — for the Aruba bundle ApplicationSet
+    # (`gitops/apps/vcluster-aruba-bundle.yaml`). Each pair's vcluster
+    # is registered as an ArgoCD Cluster Secret with server URL
+    # `https://<pair>.participant-<pair>:443` (see
+    # `task workshop:enable-aruba`). Without this entry the
+    # ApplicationSet's `aruba-bundle-<pair>` Applications are
+    # rejected at admission with `InvalidSpecError: ... do not match
+    # any of the allowed destinations`.
+    - namespace: '*'
+      server: 'https://*.participant-*:443'
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'

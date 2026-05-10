@@ -35,3 +35,8 @@ docs/.docusaurus/
 # without improving reproducibility — same pattern every other
 # chart in this repo uses (reference via `repoURL`, don't vendor).
 gitops/per-vcluster-bundle/charts/
+
+# Per-developer Claude Code MCP server config (API keys, local
+# server addresses). Lives at repo root only; nothing in this repo
+# ever consumes it.
+.mcp.json
