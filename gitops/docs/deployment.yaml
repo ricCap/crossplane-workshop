@@ -16,10 +16,36 @@ spec:
         app: docs
     spec:
       serviceAccountName: validator
+      # The Pod's SA is `validator` (cluster-wide get/list on secrets +
+      # namespaces — needed by the validator binary). We disable auto-mount
+      # here so the docs nginx container does NOT get a SA token on disk;
+      # the token is projected only into the validator container below
+      # (#110). If the docs static-file image is ever exploited, the
+      # attacker has no kube-api credential to escalate with.
+      automountServiceAccountToken: false
       # Pull secret is provisioned imperatively by `task bootstrap:ghcr-pull-secret`
       # (see Taskfile). The images live under a private GHCR package.
       imagePullSecrets:
         - name: ghcr-pull
+      volumes:
+        - name: kube-api-access
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  expirationSeconds: 3607
+                  path: token
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace
       containers:
         - name: docs
           # Pinned. Bump after a new vX.Y.Z is published. See AGENTS.md §Releasing.
@@ -54,6 +80,13 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+          # The SA token is mounted ONLY here (see pod-level
+          # automountServiceAccountToken: false above). client-go's
+          # in-cluster config picks it up at the standard path.
+          volumeMounts:
+            - name: kube-api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
