@@ -25,9 +25,13 @@ provider:
 # Helm values if the workshop runs in a different region.
 shapePolicies:
   # Aruba MR Kinds the workshop exposes. Anything else under any
-  # `*.arubacloud.crossplane.io` group is denied at admission. Names
-  # match v0.2.0-workshop CRD Kinds (see ricCap/provider-arubacloud#5).
+  # `*.arubacloud.crossplane.io` group is denied at admission.
+  # `DBaaS` is the headline MR module 06 walks participants through
+  # (`docs/docs/06-crossplane-3xx/07-provider-arubacloud.mdx`); the
+  # other three remain in case future modules use them.
+  # See ricCap/provider-arubacloud#5 for the full v0.3.0-workshop kind list.
   allowedKinds:
+    - DBaaS
     - Database
     - ContainerRegistry
     - BlockStorage
