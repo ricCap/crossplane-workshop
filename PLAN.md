@@ -45,10 +45,10 @@ ground truth the per-pair quotas and the blast-radius hardening (#80,
   hard (~7.6 GiB free), `<15%` soft (~11.4 GiB free). At 10 pairs
   hitting the per-pair `requests.ephemeral-storage: 5Gi` cap from #80
   plus baseline image footprint, we'd land near the soft threshold.
-- **Aruba in-network registry**: `registry01-dc07.foundation.intra.cloud.it`
-  serves Calico images on the node. Aruba operates a private mirror
-  reachable from inside the cluster — possible alternative to ECR
-  Public for #83 follow-ups, but #83 is shipped and stable.
+- **Aruba in-network registry**: Aruba operates a private mirror
+  reachable from inside the cluster (serves Calico images on the
+  node) — possible alternative to ECR Public for #83 follow-ups, but
+  #83 is shipped and stable.
 
 ### Per-pair budget math
 
