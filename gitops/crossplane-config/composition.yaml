@@ -519,9 +519,18 @@ spec:
                               podSelector:
                                 matchLabels:
                                   k8s-app: kube-dns
+                          # UDP only — TCP/53 was the DNS-tunnel
+                          # egress channel (#121). UDP/53 covers
+                          # standard A/AAAA/SRV lookups for normal
+                          # workshop workloads; TCP/53 is only needed
+                          # for responses >512 bytes (rare without
+                          # EDNS) or zone transfers (which CoreDNS
+                          # doesn't serve to clients anyway). Stripping
+                          # TCP closes the "shovel arbitrary text via
+                          # CoreDNS forwarder to a controlled domain"
+                          # vector.
                           ports:
                             - {protocol: UDP, port: 53}
-                            - {protocol: TCP, port: 53}
             patches:
               - type: CombineFromComposite
                 combine:

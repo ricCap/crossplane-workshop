@@ -45,16 +45,23 @@ shapePolicies:
     allowedFlavors:
       - DBO2A4
     maxStorageGb: 20
+    # Per-pair MR object-count cap (#118). Without this a participant
+    # can `for i in $(seq 1 1000); do kubectl apply -f db-$i.yaml`
+    # and rack up unbounded billing. Workshop walks through 1
+    # Database; allow 1 retry.
+    maxCount: 2
   containerRegistry:
     # Aruba's Container Registry "concurrent users flavor" tier.
     # See provider-arubacloud's containerregistry CRD `settings`
     # nested schema.
     allowedTiers:
       - Small
+    maxCount: 3
   blockStorage:
     maxSizeGb: 50
     allowedTypes:
       - Standard
+    maxCount: 5
 
 # Kyverno sub-chart values. Workshop-tuned: keep the running
 # footprint small (each per-pair vcluster runs its own copy).

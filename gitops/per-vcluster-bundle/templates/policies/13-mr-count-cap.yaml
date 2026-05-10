@@ -1,0 +1,110 @@
+{{/*
+Per-pair, per-kind cap on Aruba MR object count (#118). The shape
+policies (02–04) restrict per-MR attributes (engine, tier, size);
+none cap how many MRs of a given kind a single pair can create.
+Without this a participant can `for i in $(seq 1 1000); do kubectl
+apply -f bs-$i.yaml; done` and the workshop's Aruba account is
+billed for 1000 BlockStorage volumes.
+
+Each rule queries the in-vcluster apiserver for existing MRs of
+the same kind via Kyverno's `context.apiCall`, then denies CREATE
+when count is at or above the cap. Caps live in values.yaml so
+the workshop owner can tune per event.
+
+Notes:
+* `apiCall` runs as Kyverno's SA, not the participant's, so it
+  works regardless of participant RBAC.
+* CREATE only — UPDATE doesn't change the count, and DELETE
+  removes one (so post-delete CREATE is fine).
+* Each kind has both a cluster-scoped (`*.arubacloud.crossplane.io`)
+  and namespaced (`*.arubacloud.m.crossplane.io`) flavour. We count
+  the cluster-scoped one (the v0.2.0-workshop default); if the
+  workshop ever switches to the namespaced mirror the rule needs
+  the namespace path baked in.
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aruba-mr-count-cap
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      Per-pair count cap on each curated Aruba MR Kind. Stops
+      "1000-MR loops" from racking up workshop-account billing.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: cap-database
+      match:
+        any:
+          - resources:
+              kinds:
+                - database.arubacloud.crossplane.io/v1alpha1/Database
+              operations: [CREATE]
+      context:
+        - name: existingCount
+          apiCall:
+            urlPath: /apis/database.arubacloud.crossplane.io/v1alpha1/databases
+            jmesPath: items | length(@)
+      validate:
+        message: >-
+          Per-pair Database cap reached
+          ({{ .Values.shapePolicies.database.maxCount }}). Delete an
+          existing Database before creating a new one.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ existingCount }}`}}"
+                operator: GreaterThanOrEquals
+                value: {{ .Values.shapePolicies.database.maxCount }}
+
+    - name: cap-containerregistry
+      match:
+        any:
+          - resources:
+              kinds:
+                - containerregistry.arubacloud.crossplane.io/v1alpha1/ContainerRegistry
+              operations: [CREATE]
+      context:
+        - name: existingCount
+          apiCall:
+            urlPath: /apis/containerregistry.arubacloud.crossplane.io/v1alpha1/containerregistries
+            jmesPath: items | length(@)
+      validate:
+        message: >-
+          Per-pair ContainerRegistry cap reached
+          ({{ .Values.shapePolicies.containerRegistry.maxCount }}).
+          Delete an existing one before creating a new one.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ existingCount }}`}}"
+                operator: GreaterThanOrEquals
+                value: {{ .Values.shapePolicies.containerRegistry.maxCount }}
+
+    - name: cap-blockstorage
+      match:
+        any:
+          - resources:
+              kinds:
+                - blockstorage.arubacloud.crossplane.io/v1alpha1/BlockStorage
+              operations: [CREATE]
+      context:
+        - name: existingCount
+          apiCall:
+            urlPath: /apis/blockstorage.arubacloud.crossplane.io/v1alpha1/blockstorages
+            jmesPath: items | length(@)
+      validate:
+        message: >-
+          Per-pair BlockStorage cap reached
+          ({{ .Values.shapePolicies.blockStorage.maxCount }}). Delete
+          an existing volume before creating a new one.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ existingCount }}`}}"
+                operator: GreaterThanOrEquals
+                value: {{ .Values.shapePolicies.blockStorage.maxCount }}
