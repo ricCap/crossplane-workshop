@@ -519,13 +519,13 @@ func checkArubaPoliciesPresent(ctx context.Context, client dynamic.Interface) (b
 		len(expectedArubaClusterPolicies)), nil
 }
 
-// arubaMRGVRs lists the v0.2.0-workshop curated Aruba MR Kinds the
+// arubaMRGVRs lists the v0.3.0-workshop curated Aruba MR Kinds the
 // validator considers when checking for "the participant has applied at
 // least one Aruba managed resource and it's Ready". The Kinds match the
 // curated set from #44 / values.yaml's shapePolicies.allowedKinds.
 //
 // We list both the cluster-scoped and the namespaced (.m.) flavours of
-// each — v0.2.0-workshop ships both, the workshop teaches the
+// each — v0.3.0-workshop ships both, the workshop teaches the
 // cluster-scoped flavour first but a participant who experiments with
 // the namespaced variant should still see the tile turn green.
 var arubaMRGVRs = []schema.GroupVersionResource{

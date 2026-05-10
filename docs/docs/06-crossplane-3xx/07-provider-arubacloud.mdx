@@ -44,7 +44,7 @@ Expected output:
 
 ```
 NAME                  INSTALLED   HEALTHY   PACKAGE
-provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
 ```
 
 <ValidateCheck check="provider-arubacloud-installed" />
@@ -220,5 +220,5 @@ Same `Provider` → `ProviderConfig` → MR shape as AWS / GCP / Azure, applied 
 ### Go deeper
 
 - **Compose a least-privilege MySQL stack.** This module created the DBaaS instance and connected as admin — fine for a workshop, never for production. Real apps need a non-admin login: a `Database.database.arubacloud.crossplane.io` (logical schema) + `DBaaSUser` (non-admin login) + `DatabaseGrant` (the `GRANT … TO …` row that wires them together). Wrap the four MRs in an XR like `XAppDatabase` so platform users get an opinionated "give me a DB for app X" workflow from one line of YAML — same shape as the [`XApplication`](../crossplane-101/define-application) you wrote in 101 module 4.
-- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — provider source, full Kind catalogue, version index. The workshop pins `v0.2.0-workshop`.
+- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — provider source, full Kind catalogue, version index. The workshop pins `v0.3.0-workshop`.
 - [Aruba Cloud API reference](https://api.arubacloud.com/docs/) — the upstream API the provider talks to.
