@@ -1,0 +1,51 @@
+{{/*
+Block participant pods from setting `priorityClassName` to anything
+other than the default. Without this, a participant inside their
+vcluster can submit a Pod with `priorityClassName:
+system-cluster-critical` (priority 2000000000); the syncer
+translates the field through to the host shadow Pod, which on the
+single-node Aruba cluster preempts every other workload — other
+pairs' syncers, ArgoCD, the docs pod (#119).
+
+PSA `baseline` on `participant-*` host namespaces does NOT cover
+priorityClassName, hence this Kyverno rule on the inner side.
+
+Allowlisted values: `""` (default — empty means "system default") and
+`low-priority` (reserved if we ever add a low-priority class for
+opportunistic experiments).
+*/}}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-priority-class
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    policies.kyverno.io/category: Workshop / Aruba
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: |
+      Pods may not request a non-default priorityClassName.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-non-default-priority
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              operations:
+                - CREATE
+                - UPDATE
+      validate:
+        message: >-
+          Custom priorityClassName is not allowed. Pods must use
+          the default priority (omit `spec.priorityClassName`).
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.priorityClassName || '' }}`}}"
+                operator: AnyNotIn
+                value:
+                  - ""
+                  - low-priority

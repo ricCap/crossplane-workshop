@@ -11,7 +11,11 @@ not "defence against motivated attackers". The latter would also
 require RBAC downgrade, which is out of scope for the workshop.
 
 Allow CREATE/UPDATE because the bundle / Helm chart upgrades are
-expected. Deny only DELETE.
+expected — but block any UPDATE that empties `spec.rules`, since
+that's the specific "neuter the policy without deleting it" attack
+(#114). Routine ArgoCD self-heal of unchanged manifests doesn't
+trigger UPDATE, and bundle bumps add/replace rules rather than
+removing them all.
 */}}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -43,6 +47,33 @@ spec:
           blocking something legitimate, ask the workshop owner to
           relax it via PR.
         deny: {}
+    # The above only catches DELETE. A vcluster-admin can equivalently
+    # neuter a policy by `kubectl patch ... --type=json -p='[{"op":
+    # "replace","path":"/spec/rules","value":[]}]'` — the policy
+    # stays "present" (so any name-based check still passes) but with
+    # zero rules, admission permits everything. This rule blocks that
+    # specific attack while leaving legitimate edits (add/change a
+    # rule) free to land via ArgoCD bundle bumps. (#114)
+    - name: protect-clusterpolicies-no-empty-rules
+      match:
+        any:
+          - resources:
+              kinds:
+                - kyverno.io/v1/ClusterPolicy
+                - kyverno.io/v1/Policy
+              operations:
+                - UPDATE
+      validate:
+        message: >-
+          Kyverno policy updates may not result in an empty
+          `spec.rules` list. To remove a policy entirely, ask the
+          workshop owner to drop it via PR.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ request.object.spec.rules | length(@) }}`}}"
+                operator: Equals
+                value: 0
     - name: protect-webhook-config
       match:
         any:
