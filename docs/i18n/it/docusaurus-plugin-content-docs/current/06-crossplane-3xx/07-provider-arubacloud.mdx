@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: fcc017eb0cc4cad235979236d393af4837ec8133
+translation_source_commit: 7c696886e3df91834691ed888f010cc84d44e5f7
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -45,7 +45,7 @@ Output atteso:
 
 ```
 NAME                  INSTALLED   HEALTHY   PACKAGE
-provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
 ```
 
 <ValidateCheck check="provider-arubacloud-installed" />
@@ -221,5 +221,5 @@ Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applic
 ### Per approfondire
 
 - **Componi uno stack MySQL a privilegio minimo.** Questo modulo ha creato l'istanza DBaaS e si è collegato come admin — bene per un workshop, mai per produzione. Le app reali hanno bisogno di un login non-admin: un `Database.database.arubacloud.crossplane.io` (schema logico) + `DBaaSUser` (login non-admin) + `DatabaseGrant` (la riga `GRANT … TO …` che li collega). Avvolgi le quattro MR in un XR come `XAppDatabase` così gli utenti della piattaforma ottengono un workflow opinionated "dammi un DB per l'app X" da una sola riga di YAML — stessa forma dell'[`XApplication`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101.
-- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.2.0-workshop`.
+- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.3.0-workshop`.
 - [Riferimento API Aruba Cloud](https://api.arubacloud.com/docs/) — l'API upstream con cui parla il provider.
