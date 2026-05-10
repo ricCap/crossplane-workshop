@@ -1,9 +1,15 @@
 # Restrict the default Platform project so only admin is a member.
-# Per-user access is granted via VirtualClusterInstance access rules
-# set by the Composition (each pair user can only see their own vcluster).
+# Per-pair access is granted via the per-pair VirtualClusterInstance
+# access rules emitted by the Composition (each pair user can only
+# see their own vcluster).
 #
-# The loft.sh/apply annotation is deliberately omitted so Platform
-# does not re-apply the original wildcard membership.
+# We previously also added `User name: "*"` here as a "soft default"
+# member, which gave every authenticated Loft user `loft-management-
+# project-user` and `get` on members/clusters/templates — i.e. every
+# pair could enumerate every other pair's User name and VCI name
+# (#116). That wildcard is now removed at both the spec level and in
+# the embedded `loft.sh/apply` annotation, so Platform doesn't
+# silently restore it on next reconcile.
 apiVersion: storage.loft.sh/v1
 kind: Project
 metadata:
@@ -11,7 +17,7 @@ metadata:
   annotations:
     loft.sh/project-namespace: p-default
     loft.sh/apply: |
-      {"kind":"Project","apiVersion":"storage.loft.sh/v1","metadata":{"name":"default"},"spec":{"displayName":"Default Project","description":"Workshop participant vclusters","quotas":{},"allowedClusters":[{"name":"*"}],"allowedRunners":[{"name":"*"}],"allowedTemplates":[{"kind":"VirtualClusterTemplate","group":"storage.loft.sh","name":"*"},{"kind":"SpaceTemplate","group":"storage.loft.sh","name":"*"}],"requireTemplate":{},"requirePreset":{},"members":[{"kind":"User","group":"storage.loft.sh","name":"admin","clusterRole":"loft-management-project-admin"},{"kind":"User","group":"storage.loft.sh","name":"*","clusterRole":"loft-management-project-user"}]},"status":{}}
+      {"kind":"Project","apiVersion":"storage.loft.sh/v1","metadata":{"name":"default"},"spec":{"displayName":"Default Project","description":"Workshop participant vclusters","quotas":{},"allowedClusters":[{"name":"*"}],"allowedRunners":[{"name":"*"}],"allowedTemplates":[{"kind":"VirtualClusterTemplate","group":"storage.loft.sh","name":"*"},{"kind":"SpaceTemplate","group":"storage.loft.sh","name":"*"}],"requireTemplate":{},"requirePreset":{},"members":[{"kind":"User","group":"storage.loft.sh","name":"admin","clusterRole":"loft-management-project-admin"}]},"status":{}}
 spec:
   displayName: Default Project
   description: Workshop participant vclusters
@@ -34,20 +40,7 @@ spec:
       group: storage.loft.sh
       name: admin
       clusterRole: loft-management-project-admin
-    - kind: User
-      group: storage.loft.sh
-      name: "*"
-      clusterRole: loft-management-project-user
   access:
     - name: loft-admin-access
       verbs: ["*"]
       users: ["admin"]
-    - name: loft-user-access
-      verbs: ["get"]
-      users: ["*"]
-      subresources:
-        - members
-        - clusters
-        - templates
-        - chartinfo
-        - charts
