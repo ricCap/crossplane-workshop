@@ -54,6 +54,14 @@ shapePolicies:
     # and rack up unbounded billing. Workshop walks through 1
     # Database; allow 1 retry.
     maxCount: 2
+  # `DBaaS` is the headline MR module 06 walks participants through
+  # (`docs/docs/06-crossplane-3xx/07-provider-arubacloud.mdx`). The
+  # apiVersion is `dbaas.arubacloud.crossplane.io/v1alpha1`, distinct
+  # from `database.arubacloud.crossplane.io/v1alpha1/Database` above —
+  # the count cap rule below targets the dbaas group specifically so
+  # we don't conflate the two.
+  dbaas:
+    maxCount: 2
   containerRegistry:
     # Aruba's Container Registry "concurrent users flavor" tier.
     # See provider-arubacloud's containerregistry CRD `settings`

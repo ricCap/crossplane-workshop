@@ -37,6 +37,30 @@ spec:
   validationFailureAction: Enforce
   background: false
   rules:
+    - name: cap-dbaas
+      match:
+        any:
+          - resources:
+              kinds:
+                - dbaas.arubacloud.crossplane.io/v1alpha1/DBaaS
+              operations: [CREATE]
+      context:
+        - name: existingCount
+          apiCall:
+            urlPath: /apis/dbaas.arubacloud.crossplane.io/v1alpha1/dbaas
+            jmesPath: items | length(@)
+      validate:
+        message: >-
+          Per-pair DBaaS cap reached
+          ({{ .Values.shapePolicies.dbaas.maxCount }}). Delete an
+          existing DBaaS before creating a new one.
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ existingCount }}`}}"
+                operator: GreaterThanOrEquals
+                value: {{ .Values.shapePolicies.dbaas.maxCount }}
+
     - name: cap-database
       match:
         any:
