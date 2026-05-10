@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "kubernetes": {
-      "command": "npx",
-      "args": ["-y", "kubernetes-mcp-server@0.0.60", "--read-only"]
-    }
-  }
-}
