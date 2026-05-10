@@ -18,7 +18,7 @@ pairId: ""
 # story (Track 0.4 / `task release`) bumps this when the upstream
 # provider ships a new tag.
 provider:
-  package: ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
+  package: ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
 
 # Shape policies — what participants are allowed to create. Tuned
 # for the smoke-tested ITBG-Bergamo region; override per-event via
