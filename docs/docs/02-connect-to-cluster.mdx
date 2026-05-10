@@ -26,18 +26,32 @@ You're about to: download a kubeconfig, export it, and apply a `hello` pod.
 
 ### 1. Download the kubeconfig file
 
-Your instructor has given you a download link for your pair's kubeconfig. Download the file and keep the path handy — this example assumes `~/Downloads/<pair-id>-kubeconfig.yaml`.
+Your instructor has given you a QR code on the Miro board. Scan it on your laptop (or click the link the instructor posts) and download `<pair-id>.zip` — the kubeconfig is wrapped in a password-protected ZIP so a leaked link alone doesn't grant cluster access.
 
-### 2. Point your shell at it
+### 2. Unzip with the operator-shared password
+
+Your instructor will share the ZIP password verbally or on the live Miro board. Extract the kubeconfig YAML out of the archive — the password is the same for every pair.
+
+- **macOS / Linux:**
+  ```bash
+  cd ~/Downloads
+  unzip <pair-id>.zip
+  # prompts for the password, then writes <pair-id>.yaml next to the zip
+  ```
+- **Windows:** right-click `<pair-id>.zip` → **Extract All…** → enter the password the operator shared → confirm. You'll end up with `<pair-id>.yaml` in the same folder.
+
+### 3. Point your shell at it
 
 ```bash
-export KUBECONFIG=~/Downloads/<pair-id>-kubeconfig.yaml
+export KUBECONFIG=$PWD/<pair-id>.yaml
 kubectl config current-context
 ```
 
-The `current-context` command prints the context name — treat anything non-empty as success. If `kubectl` prints an error, re-check the file path and that the download completed.
+(On Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
 
-### 3. List namespaces as a smoke test
+The `current-context` command prints the context name — treat anything non-empty as success. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
+
+### 4. List namespaces as a smoke test
 
 ```bash
 kubectl get namespaces
@@ -45,7 +59,7 @@ kubectl get namespaces
 
 You should see the standard system namespaces (`default`, `kube-system`, `kube-public`, …). If you see a permission error, check you're using your own pair's kubeconfig — each pair only has access to their own cluster.
 
-### 4. (Optional) Install handy tools
+### 5. (Optional) Install handy tools
 
 These are not required but they'll make the rest of the workshop faster. Skip if you're tight on time.
 

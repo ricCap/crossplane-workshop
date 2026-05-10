@@ -804,17 +804,31 @@ tasks:
 
   pairs:upload-kubeconfigs:
     desc: |
-      Upload the per-pair kubeconfigs in `out/kubeconfigs/` to a
-      shared object store via `rclone` and capture the resulting
-      shareable URLs to `out/urls.txt`. Defaults to a Google Drive
-      remote — operator must have run `rclone config` once
-      interactively to set up Drive OAuth.
+      Wrap each per-pair kubeconfig in `out/kubeconfigs/<pair>.yaml`
+      in a password-protected ZIP (`out/kubeconfigs/<pair>.zip`),
+      delete the plaintext YAMLs, then upload the ZIPs to a shared
+      object store via `rclone` and capture the resulting shareable
+      URLs to `out/urls.txt`. Defaults to a Google Drive remote —
+      operator must have run `rclone config` once interactively to
+      set up Drive OAuth.
 
-      The shareable URL contains a high-entropy file ID (~190 bits on
-      Drive), so leaking the URL is the only way someone outside the
-      workshop can reach the kubeconfig. URLs auto-expire after the
-      duration set by RCLONE_LINK_EXPIRE (default 24h) on backends
-      that support it.
+      The ZIP layer defends against URL-leak scenarios (recorded
+      sessions, screenshotted Miro boards, "I learned Crossplane
+      today!" posts): a leaked link alone no longer yields kubectl
+      access — the recipient also needs the password, which the
+      operator shares verbally / on the live Miro board. Without
+      this, the leaked URL would expose the shared Aruba API key and
+      GitHub App PEM mirrored into every pair vcluster via
+      sync.fromHost.
+
+      The shareable URL itself contains a high-entropy file ID (~190
+      bits on Drive). URLs auto-expire after the duration set by
+      RCLONE_LINK_EXPIRE (default 24h) on backends that support it.
+
+      Required env vars:
+        KUBECONFIG_ZIP_PASSWORD  Shared password used to encrypt every
+                                 pair's ZIP. Operator-shared, not
+                                 per-pair. Fail-fast if unset.
 
       Optional env vars:
         RCLONE_REMOTE       rclone remote name. Default: gdrive.
@@ -824,7 +838,7 @@ tasks:
                             (Go duration syntax). Default: 24h.
 
       Usage:
-        task pairs:upload-kubeconfigs
+        KUBECONFIG_ZIP_PASSWORD=<pw> task pairs:upload-kubeconfigs
     vars:
       RCLONE_REMOTE: '{{.RCLONE_REMOTE | default "gdrive"}}'
       RCLONE_FOLDER: '{{.RCLONE_FOLDER | default "workshop-kubeconfigs"}}'
@@ -832,6 +846,18 @@ tasks:
     cmds:
       - |
         set -euo pipefail
+        if [ -z "${KUBECONFIG_ZIP_PASSWORD:-}" ]; then
+          echo "KUBECONFIG_ZIP_PASSWORD is required but not set." >&2
+          echo "Set a shared password the operator will hand out (verbally / on Miro) so participants" >&2
+          echo "can extract their kubeconfig:" >&2
+          echo "  KUBECONFIG_ZIP_PASSWORD='<pw>' task pairs:upload-kubeconfigs" >&2
+          exit 1
+        fi
+        command -v zip >/dev/null || {
+          echo "zip not found. Install via 'brew install zip' on macOS or 'apt-get install zip' on Debian/Ubuntu." >&2
+          echo "(zip is bundled on most macOS/Linux systems; install only if your minimal image lacks it.)" >&2
+          exit 1
+        }
         command -v rclone >/dev/null || {
           echo "rclone not found. Install via 'brew install rclone' (or your package manager)." >&2
           echo "After install, run 'rclone config' once to set up the '{{.RCLONE_REMOTE}}' remote." >&2
@@ -847,8 +873,24 @@ tasks:
           exit 1
         }
 
-        # Mirror the local directory to the remote folder. --update
-        # avoids re-uploading unchanged files but in practice every
+        # Encrypt each plaintext kubeconfig into a password-protected
+        # ZIP, then delete the YAML so it can't leak into the upload.
+        # -e enables encryption, -j strips path components (participant
+        # gets a flat <pair>.yaml after extract), -P passes the password
+        # on the command line — acceptable here because the value comes
+        # from an operator-controlled env var, not a shared host.
+        for kc in out/kubeconfigs/*.yaml; do
+          [ -e "$kc" ] || continue
+          pair=$(basename "$kc" .yaml)
+          zip_path="out/kubeconfigs/${pair}.zip"
+          rm -f "${zip_path}"
+          zip -q -e -j -P "${KUBECONFIG_ZIP_PASSWORD}" "${zip_path}" "${kc}"
+          rm -f "${kc}"
+          chmod 600 "${zip_path}"
+          echo "  zip: ${pair} → ${zip_path}"
+        done
+
+        # Mirror the local directory to the remote folder. Every
         # `issue-kubeconfigs` run rotates the token, so every file is
         # new content.
         rclone copy out/kubeconfigs/ "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/" --quiet
@@ -858,15 +900,17 @@ tasks:
         # backends without it, the flag is ignored — link still
         # works but never expires; document accordingly.
         : > out/urls.txt
-        for kc in out/kubeconfigs/*.yaml; do
-          pair=$(basename "$kc" .yaml)
-          url=$(rclone link --expire "{{.RCLONE_LINK_EXPIRE}}" "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/${pair}.yaml")
+        for zf in out/kubeconfigs/*.zip; do
+          [ -e "$zf" ] || continue
+          pair=$(basename "$zf" .zip)
+          url=$(rclone link --expire "{{.RCLONE_LINK_EXPIRE}}" "{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/${pair}.zip")
           printf 'pair=%s url=%s\n' "${pair}" "${url}" >> out/urls.txt
           echo "  ok: ${pair} → ${url}"
         done
 
         echo "Done. URLs written to out/urls.txt."
         echo "Next: task pairs:qr"
+        echo "Share KUBECONFIG_ZIP_PASSWORD with participants out-of-band (verbally / live Miro)."
 
   pairs:qr:
     desc: |
@@ -904,16 +948,33 @@ tasks:
   pairs:distribute:
     desc: |
       Umbrella for the everyday workshop-day flow: mint per-pair
-      access keys + kubeconfigs, upload to the shared remote, and
-      generate the QR codes for the Miro board. Equivalent to:
+      access keys + kubeconfigs, wrap them in password-protected
+      ZIPs, upload to the shared remote, and generate the QR codes
+      for the Miro board. Equivalent to:
 
         task pairs:issue-kubeconfigs
         task pairs:upload-kubeconfigs
         task pairs:qr
 
+      Required env vars:
+        KUBECONFIG_ZIP_PASSWORD  Shared password the operator hands
+                                 out (verbally / on the live Miro
+                                 board) so participants can extract
+                                 their kubeconfig. Fail-fast here so
+                                 we don't burn a kubeconfig rotation
+                                 only to error out at upload time.
+
       Usage:
-        task pairs:distribute
+        KUBECONFIG_ZIP_PASSWORD=<pw> task pairs:distribute
     cmds:
+      - |
+        set -euo pipefail
+        if [ -z "${KUBECONFIG_ZIP_PASSWORD:-}" ]; then
+          echo "KUBECONFIG_ZIP_PASSWORD is required but not set." >&2
+          echo "Set a shared password the operator will hand out (verbally / on Miro):" >&2
+          echo "  KUBECONFIG_ZIP_PASSWORD='<pw>' task pairs:distribute" >&2
+          exit 1
+        fi
       - task: pairs:issue-kubeconfigs
       - task: pairs:upload-kubeconfigs
       - task: pairs:qr
