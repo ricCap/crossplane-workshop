@@ -11,7 +11,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 Over the next three hours you will install [Crossplane](https://crossplane.io), use it to compose your own Kubernetes API, and add a Provider that can manage software outside Kubernetes' own kinds. You'll walk away with a working mental model of Crossplane's core objects — XRD, Composition, XR, and Provider — and a cluster you can keep experimenting in afterwards.
 
-**The problem Crossplane solves**, in two sentences: `kubectl apply` is great for one team's manifests, but every real platform fans out into dozens of low-level objects (Deployments, Services, cloud resources, Helm releases) that someone has to coordinate for "an app" or "a database". Crossplane lets you publish your team's own API — a single `XApplication` kind — that quietly creates all those low-level pieces, so other teams consume your platform with one YAML file instead of dozens. The [Cheatsheet's big picture](./cheatsheet#the-big-picture) goes a layer deeper.
+**The problem Crossplane solves**, in two sentences: `kubectl apply` is great for one team's manifests, but every real platform fans out into dozens of low-level objects (Deployments, Services, cloud resources, Helm releases) that someone has to coordinate for "an app" or "a database". Crossplane lets you publish your team's own API — a single `Application` kind — that quietly creates all those low-level pieces, so other teams consume your platform with one YAML file instead of dozens. The [Cheatsheet's big picture](./cheatsheet#the-big-picture) goes a layer deeper.
 
 ## How the workshop is structured
 

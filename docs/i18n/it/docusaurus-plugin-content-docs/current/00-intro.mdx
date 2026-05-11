@@ -2,7 +2,7 @@
 sidebar_position: 1
 slug: /
 title: Introduzione
-translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -12,7 +12,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 Nelle prossime tre ore installerai [Crossplane](https://crossplane.io), lo userai per comporre la tua API Kubernetes e aggiungerai un Provider che può gestire software esterno ai kind nativi di Kubernetes. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR e Provider — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
 
-**Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `XApplication` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
+**Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `Application` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
 
 ## Com'è strutturato il workshop
 

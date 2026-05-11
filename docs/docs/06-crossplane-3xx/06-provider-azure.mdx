@@ -273,7 +273,7 @@ Same `Provider` → `ProviderConfig` → MR shape, applied against Azure. The Az
 Two natural follow-ups:
 
 - **Tighten the role.** `Contributor` scoped to one resource group is fine for a demo; production deployments use a custom role with only the storage actions the provider needs (`Microsoft.Storage/storageAccounts/*`), still scoped to one or more resource groups.
-- **Compose around it.** Wrap `Account` (and its siblings `Container`, `Blob`, `ManagementPolicy`) in an XR like `XBucket` so platform users get an opinionated, encrypted, lifecycle-managed account from one line of YAML — same shape as the [`XApplication`](../crossplane-101/define-application) you wrote in 101 module 4.
+- **Compose around it.** Wrap `Account` (and its siblings `Container`, `Blob`, `ManagementPolicy`) in an XR like `Bucket.workshop.example.io` so platform users get an opinionated, encrypted, lifecycle-managed account from one line of YAML — same shape as the [`Application`](../crossplane-101/define-application) you wrote in 101 module 4.
 
 ### Go deeper
 

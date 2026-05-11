@@ -96,7 +96,7 @@ The `Scope` column has a subtle split. CRDs and XRDs are themselves cluster-scop
 | Object | What it is | Scope (the object itself) | Defines a kind that is |
 |---|---|---|---|
 | **CRD** | Kubernetes Custom Resource Definition. Extends the API server with a new kind. Crossplane auto-generates one when you apply an XRD | Cluster | `Namespaced` or `Cluster`, per `spec.scope` |
-| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `XApplication` with `frontend` + `backend` fields. Applying it makes Crossplane generate the matching CRD | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster` (v1 compat with claims), per `spec.scope` |
+| **Composite Resource Definition (XRD)** | Declares the schema of a new composite kind, e.g. `Application` with `frontend` + `backend` fields. Applying it makes Crossplane generate the matching CRD | Cluster | `Namespaced` (v2 default), `Cluster`, or `LegacyCluster` (v1 compat with claims), per `spec.scope` |
 | **Composite Resource (XR)** | An instance of an XRD. Created by the user; Crossplane composes it into the resources its Composition declares | Per the XRD — `Namespaced` in v2 by default | — |
 | **Composition** | The recipe. "When someone creates this XR, fan it out into these resources." In v2 the composed resources can be plain native Kubernetes objects (ConfigMap, Deployment, …) or Managed Resources from a Provider | Cluster | — |
 | **Composition function** | Pluggable logic the Composition's pipeline runs to produce desired state — `function-patch-and-transform`, `function-go-templating`, `function-kcl`, `function-python`, etc. A Crossplane package | Cluster | — |
@@ -107,35 +107,36 @@ The `Scope` column has a subtle split. CRDs and XRDs are themselves cluster-scop
 
 [Concepts overview (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/)
 
-### Naming convention: XR kinds start with `X`
+### Naming convention: no `X` prefix in v2
 
-[Crossplane recommends](https://docs.crossplane.io/latest/composition/composite-resource-definitions/) starting **the XR kind** with `X` so it cannot collide with downstream API kinds the Composition might emit: `Application` is an ArgoCD kind, `Database` ships in several providers, `Bucket` is an S3 MR. Naming your XR `XApplication` keeps yours and theirs unambiguous in `kubectl get`.
+You will see older Crossplane material recommending an `X` prefix on XR kinds — `XApplication`, `XPostgreSQLInstance`, `XBucket`. That was a **v1** convention: in v1 every composite kind had a sibling *claim* kind, and the `X` prefix distinguished the cluster-scoped XR (`XApplication`) from the namespaced claim (`Application`) end-users actually wrote.
 
-The convention is on the **kind only**. Two follow-ons drop out of that:
+**Crossplane v2 dropped claims**, so the prefix has no reason to exist. Upstream is mid-cleanup ([crossplane/docs#1056](https://github.com/crossplane/docs/issues/1056)); this workshop uses the v2 naming throughout — plain kinds like `Application`, `Hello`, no `X`.
 
-- The XRD's `metadata.name` is `<plural>.<group>`, and the plural derives from the kind — so `XApplication` gives `xapplications.workshop.example.io`. That's mechanical, not a separate rule.
-- The XRD object's own kind is always `CompositeResourceDefinition` — never X-prefixed. The prefix applies to the kind it *defines*, not to itself.
+Collisions with provider kinds (`Application` exists in ArgoCD, `Bucket` is an S3 MR) are handled by giving your XRD its own **API group**. This workshop uses `workshop.example.io`, so an `Application.workshop.example.io` is unambiguous against ArgoCD's `Application.argoproj.io` — and `kubectl get application.workshop.example.io` always selects yours.
 
-What is **not** part of the convention:
+What follows from that:
 
-- The `Composition`'s `metadata.name` — it can be anything. This workshop names it the same as the XRD purely for clarity (one Composition per XRD).
-- The XR instance's `metadata.name` — `wall-tile`, `hello-world`, whatever you pick. No X prefix.
+- The XRD's `metadata.name` is `<plural>.<group>` — so kind `Application` gives `applications.workshop.example.io`. Mechanical, not a separate rule.
+- The XRD object's own kind is always `CompositeResourceDefinition` — it's the kind it *defines* that follows the naming rule.
+- The `Composition`'s `metadata.name` can be anything. This workshop names it the same as the XRD purely for clarity (one Composition per XRD).
+- The XR instance's `metadata.name` — `wall-tile`, `hello-world`, whatever you pick.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2
-kind: CompositeResourceDefinition           # XRD object — never X-prefixed
+kind: CompositeResourceDefinition           # the XRD object's own kind
 metadata:
-  name: xapplications.workshop.example.io   # <plural-of-XR-kind>.<group>
+  name: applications.workshop.example.io    # <plural-of-XR-kind>.<group>
 spec:
   group: workshop.example.io
   names:
-    kind: XApplication                       # ← the only place the convention applies
-    plural: xapplications
+    kind: Application                        # the kind the XRD defines
+    plural: applications
 ---
 apiVersion: workshop.example.io/v1alpha1
-kind: XApplication                           # XR instance carries the X-kind…
+kind: Application                            # an XR instance of that kind
 metadata:
-  name: wall-tile                            # …but its own name does not
+  name: wall-tile
 ```
 
 ### When to reach for what

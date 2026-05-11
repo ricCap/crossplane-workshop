@@ -9,20 +9,20 @@ title: Process automation
 
 ## What you're building
 
-An XR — call it `XSecurityReview` (`X` prefix per the [naming convention](../cheatsheet#naming-convention-xr-kinds-start-with-x)) — that represents one application going through the review process. Underneath, a set of [provider-http](https://github.com/crossplane-contrib/provider-http) `DisposableRequest`s poll each department's endpoint until it returns the expected condition. The Composition advances the review stage by stage and emits a single Ready=True when every check has passed.
+An XR — call it `SecurityReview` (no `X` prefix — v2 dropped that convention, see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2)) — that represents one application going through the review process. Underneath, a set of [provider-http](https://github.com/crossplane-contrib/provider-http) `DisposableRequest`s poll each department's endpoint until it returns the expected condition. The Composition advances the review stage by stage and emits a single Ready=True when every check has passed.
 
 ## Suggested steps
 
-1. Define the `XSecurityReview` XRD. One spec input (application ID), one status field per check, one overall phase. The pattern from [Define an Application](../crossplane-101/define-application) translates directly — same XRD shape, different composed kinds.
+1. Define the `SecurityReview` XRD. One spec input (application ID), one status field per check, one overall phase. The pattern from [Define an Application](../crossplane-101/define-application) translates directly — same XRD shape, different composed kinds.
 2. Install [provider-http](https://github.com/crossplane-contrib/provider-http). Each department's check becomes a `DisposableRequest` MR: GET the endpoint, parse the response, succeed when the condition matches.
-3. Compose the `DisposableRequest`s behind the `XSecurityReview` XR. Each request reads its target URL from the XR's spec; each request's outcome lands on a dedicated status field.
-4. Surface multi-step status with [`function-status-transformer`](https://github.com/crossplane-contrib/function-status-transformer). Map each composed-request condition to a meaningful condition on the XR (`SecurityCheckPassed`, `LegalCheckPassed`, etc.) so `kubectl describe xsecurityreview` reads like a checklist.
+3. Compose the `DisposableRequest`s behind the `SecurityReview` XR. Each request reads its target URL from the XR's spec; each request's outcome lands on a dedicated status field.
+4. Surface multi-step status with [`function-status-transformer`](https://github.com/crossplane-contrib/function-status-transformer). Map each composed-request condition to a meaningful condition on the XR (`SecurityCheckPassed`, `LegalCheckPassed`, etc.) so `kubectl describe securityreview` reads like a checklist.
 5. Derive overall readiness with [`function-auto-ready`](https://github.com/crossplane-contrib/function-auto-ready). The XR is `Ready=True` only once every composed `DisposableRequest` is ready.
-6. Drive sequencing with [Crossplane Operations](../crossplane-2xx/operations). A `WatchOperation` on the `XSecurityReview` advances the stage when the previous check goes green; a `CronOperation` re-polls stuck checks on a cadence.
+6. Drive sequencing with [Crossplane Operations](../crossplane-2xx/operations). A `WatchOperation` on the `SecurityReview` advances the stage when the previous check goes green; a `CronOperation` re-polls stuck checks on a cadence.
 
 ## Stretch goals
 
-- Gate a downstream action on the review passing. Compose a [provider-github](../crossplane-3xx/provider-github) `Repository` release that only reconciles once the `XSecurityReview` is Ready.
+- Gate a downstream action on the review passing. Compose a [provider-github](../crossplane-3xx/provider-github) `Repository` release that only reconciles once the `SecurityReview` is Ready.
 - Validate the Composition pipeline locally with [the Crossplane CLI](../crossplane-2xx/crossplane-cli) `render` before each change — much faster than a round-trip through the cluster.
 - Persist a full audit trail by emitting per-stage Events from the Composition; `kubectl events` then reads as a timeline.
 

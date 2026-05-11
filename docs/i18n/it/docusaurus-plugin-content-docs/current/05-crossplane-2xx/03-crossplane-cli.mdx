@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: (Guidato) Usa la CLI Crossplane
-translation_source_commit: 8a65f995bb042bc519a5eefeb7c7c3b7c621d18d
+translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -28,7 +28,7 @@ In questo modulo eserciterai tre subcomandi:
 
 Questo modulo **non ha tile di validazione**. La CLI gira sul tuo laptop e il lavoro che fa (output su file, rendering locale) non raggiunge il tuo cluster del workshop, quindi non c'è un segnale onesto server-side da controllare. Saprai che ha funzionato quando i comandi stamperanno quello che dovrebbero.
 
-Stai per: installare il binario, fare il render della Composition del modulo 5 contro un XR di esempio, fare il trace della tua XApplication `wall-tile` live, e validare un manifest offline.
+Stai per: installare il binario, fare il render della Composition del modulo 5 contro un XR di esempio, fare il trace della tua Application `wall-tile` live, e validare un manifest offline.
 
 ## 5.2 Installa la CLI ⏱️ 2m
 
@@ -56,8 +56,8 @@ Server Version: v2.2.0-up.5
 ### 1. Estrai XRD e Composition dal tuo cluster
 
 ```bash
-kubectl get xrd xapplications.workshop.example.io -o yaml > xrd.yaml
-kubectl get composition xapplications.workshop.example.io -o yaml > composition.yaml
+kubectl get xrd applications.workshop.example.io -o yaml > xrd.yaml
+kubectl get composition applications.workshop.example.io -o yaml > composition.yaml
 ```
 
 ### 2. Scrivi un manifest Function render-friendly
@@ -83,7 +83,7 @@ EOF
 ```bash
 cat <<'EOF' > xr.yaml
 apiVersion: workshop.example.io/v1alpha1
-kind: XApplication
+kind: Application
 metadata:
   name: render-demo
   namespace: default
@@ -104,7 +104,7 @@ Output atteso (abbreviato):
 ```
 ---
 apiVersion: workshop.example.io/v1alpha1
-kind: XApplication
+kind: Application
 metadata:
   name: render-demo
   namespace: default
@@ -144,23 +144,23 @@ Stai vedendo le stesse cinque MR `Object` che la Composition creerebbe se applic
 
 ## 5.4 Trace di un XR live con `beta trace` ⏱️ 5m
 
-`render` mostra cosa la Composition *produrrebbe*. `beta trace` mostra cosa ha *effettivamente prodotto*, contro un XR live. Elenca le tue XApplication:
+`render` mostra cosa la Composition *produrrebbe*. `beta trace` mostra cosa ha *effettivamente prodotto*, contro un XR live. Elenca le tue Application:
 
 ```bash
-kubectl get xapplications.workshop.example.io -A
+kubectl get applications.workshop.example.io -A
 ```
 
 Poi fai il trace di quella che hai applicato nel modulo 5:
 
 ```bash
-crossplane beta trace xapplication.workshop.example.io/wall-tile -n default
+crossplane beta trace application.workshop.example.io/wall-tile -n default
 ```
 
 Output atteso:
 
 ```
 NAME                                          SYNCED   READY   STATUS
-XApplication/wall-tile (default)              True     True    Available
+Application/wall-tile (default)               True     True    Available
 ├─ Object/wall-tile-168d13498528 (default)    True     True    Available
 ├─ Object/wall-tile-508db5bb1b1c (default)    True     True    Available
 └─ Object/wall-tile-...                       True     True    Available
@@ -169,7 +169,7 @@ XApplication/wall-tile (default)              True     True    Available
 I nomi degli `Object` composti sono auto-generati da Crossplane (nome dell'XR + un breve suffisso casuale), non i resource name dalla tua Composition. Per mappare una riga indietro all'entry della pipeline, lancia con `-o wide`:
 
 ```bash
-crossplane beta trace xapplication.workshop.example.io/wall-tile -n default -o wide
+crossplane beta trace application.workshop.example.io/wall-tile -n default -o wide
 ```
 
 `-o wide` aggiunge una colonna `RESOURCE` con il nome friendly (`backend-deployment`, `frontend-configmap`, …) e il messaggio completo di reconcile su ogni riga. Usa `-o dot` per fare pipe in Graphviz. Quando qualcosa è bloccato, `beta trace` è più veloce che inseguire `kubectl describe` attraverso ogni risorsa composta a mano — ogni riga porta la condizione che la sta bloccando.
@@ -187,7 +187,7 @@ crossplane beta validate xrd.yaml xr.yaml
 Output atteso:
 
 ```
-[✓] workshop.example.io/v1alpha1, Kind=XApplication, render-demo validated successfully
+[✓] workshop.example.io/v1alpha1, Kind=Application, render-demo validated successfully
 Total 1 resources: 0 missing schemas, 1 success cases, 0 failure cases
 ```
 
@@ -204,7 +204,7 @@ crossplane beta validate xrd.yaml xr.yaml
 Output atteso:
 
 ```
-[x] schema validation error workshop.example.io/v1alpha1, Kind=XApplication, render-demo : spec.message: Required value
+[x] schema validation error workshop.example.io/v1alpha1, Kind=Application, render-demo : spec.message: Required value
 Total 1 resources: 0 missing schemas, 0 success cases, 1 failure cases
 crossplane: error: cannot validate resources: could not validate all resources
 ```

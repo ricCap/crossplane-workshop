@@ -79,8 +79,8 @@ var checkLabels = map[string]string{
 	"cluster-reachable":             "Cluster reachable",
 	"hello-pod":                     "Hello pod Running",
 	"crossplane-installed":          "Crossplane installed",
-	"hello-xr-ready":                "First Composition (XHello XR)",
-	"application-ready":             "XApplication Ready",
+	"hello-xr-ready":                "First Composition (Hello XR)",
+	"application-ready":             "Application Ready",
 	"helm-release-ready":            "Helm Release Ready",
 	"provider-kubernetes-installed": "provider-kubernetes Healthy",
 	"provider-helm-installed":       "provider-helm Healthy",
@@ -312,25 +312,25 @@ func checkProviderHealthy(ctx context.Context, client dynamic.Interface, name st
 	return false, fmt.Sprintf("%s exists but no Healthy condition found in status.conditions", name), nil
 }
 
-// checkHelloXRReady looks for at least one XHello XR
+// checkHelloXRReady looks for at least one Hello XR
 // (workshop.example.io/v1alpha1) with condition type=Ready, status=True
 // anywhere in the vcluster. This is the validator gate for the new
 // "first Composition" module: a participant who has applied an XRD,
-// a Composition, and an XHello XR — and granted Crossplane core RBAC to
+// a Composition, and a Hello XR — and granted Crossplane core RBAC to
 // compose ConfigMaps — should see this go Ready within seconds.
 func checkHelloXRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	hellosGVR := schema.GroupVersionResource{
 		Group:    "workshop.example.io",
 		Version:  "v1alpha1",
-		Resource: "xhellos",
+		Resource: "hellos",
 	}
 
 	list, err := client.Resource(hellosGVR).Namespace("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return false, fmt.Sprintf("could not list XHello XRs: %v", err), nil
+		return false, fmt.Sprintf("could not list Hello XRs: %v", err), nil
 	}
 	if len(list.Items) == 0 {
-		return false, "no XHello XRs found in the cluster", nil
+		return false, "no Hello XRs found in the cluster", nil
 	}
 
 	for _, item := range list.Items {
@@ -344,13 +344,13 @@ func checkHelloXRReady(ctx context.Context, client dynamic.Interface) (bool, str
 				continue
 			}
 			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return true, fmt.Sprintf("XHello %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+				return true, fmt.Sprintf("Hello %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
 			}
 		}
 	}
 
 	first := list.Items[0]
-	return false, fmt.Sprintf("XHello %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+	return false, fmt.Sprintf("Hello %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // checkHelmReleaseReady looks for at least one Release.helm.m.crossplane.io/v1beta1
@@ -400,7 +400,7 @@ func checkHelmReleaseReady(ctx context.Context, client dynamic.Interface) (bool,
 	return false, fmt.Sprintf("Release %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
-// checkApplicationReady looks for at least one XApplication XR
+// checkApplicationReady looks for at least one Application XR
 // (workshop.example.io/v1alpha1) with condition type=Ready, status=True
 // anywhere in the vcluster. The XR name is returned in the details so
 // the docs tile can show participants what materialized.
@@ -408,15 +408,15 @@ func checkApplicationReady(ctx context.Context, client dynamic.Interface) (bool,
 	applicationsGVR := schema.GroupVersionResource{
 		Group:    "workshop.example.io",
 		Version:  "v1alpha1",
-		Resource: "xapplications",
+		Resource: "applications",
 	}
 
 	list, err := client.Resource(applicationsGVR).Namespace("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return false, fmt.Sprintf("could not list XApplication XRs: %v", err), nil
+		return false, fmt.Sprintf("could not list Application XRs: %v", err), nil
 	}
 	if len(list.Items) == 0 {
-		return false, "no XApplication XRs found in the vcluster", nil
+		return false, "no Application XRs found in the vcluster", nil
 	}
 
 	for _, item := range list.Items {
@@ -430,13 +430,13 @@ func checkApplicationReady(ctx context.Context, client dynamic.Interface) (bool,
 				continue
 			}
 			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return true, fmt.Sprintf("XApplication %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+				return true, fmt.Sprintf("Application %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
 			}
 		}
 	}
 
 	first := list.Items[0]
-	return false, fmt.Sprintf("XApplication %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+	return false, fmt.Sprintf("Application %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // expectedArubaClusterPolicies is the closed list of Kyverno policies the

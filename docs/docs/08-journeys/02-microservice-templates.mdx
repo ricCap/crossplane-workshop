@@ -5,25 +5,25 @@ title: Microservice templates
 
 # Microservice templates
 
-> You're a platform engineer. Your developers should be able to request a new `XApplication` and get an opinionated golden path back: a managed database, a GitHub repo wired up for CI, the workloads it needs in the cluster, and the glue between them. Everything they don't want to think about is decided for them.
+> You're a platform engineer. Your developers should be able to request a new `Application` and get an opinionated golden path back: a managed database, a GitHub repo wired up for CI, the workloads it needs in the cluster, and the glue between them. Everything they don't want to think about is decided for them.
 
 ## What you're building
 
-An XR — call it `XApplication` (`X` prefix per the [naming convention](../cheatsheet#naming-convention-xr-kinds-start-with-x)) — that takes a handful of inputs (name, team, database flavour) and composes everything a new microservice needs. One XR per service. Developers never write a Deployment, a Bucket MR, or a GitHub Repository directly; they edit one short YAML and push it.
+An XR — call it `Application` (no `X` prefix; v2 dropped that convention along with claims — see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2)) — that takes a handful of inputs (name, team, database flavour) and composes everything a new microservice needs. One XR per service. Developers never write a Deployment, a Bucket MR, or a GitHub Repository directly; they edit one short YAML and push it.
 
 ## Suggested steps
 
 1. Start from the [Define an Application](../crossplane-101/define-application) module — the namespaced XRD + Composition that emits frontend/backend Deployments and a ConfigMap. That is the shape you'll grow into a full platform XR.
 2. Add a managed database. Pick whichever cloud your team already uses: [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), or [provider-azure](../crossplane-3xx/provider-azure). The modules walk you through one MR (a bucket); the same setup unlocks every other resource the provider exposes — including the managed-database CRDs.
-3. Add a GitHub repo per `XApplication` with [provider-github](../crossplane-3xx/provider-github). Reuse the same `XApplication` XR — let the Composition emit a `Repository` MR alongside the workloads.
+3. Add a GitHub repo per `Application` with [provider-github](../crossplane-3xx/provider-github). Reuse the same `Application` XR — let the Composition emit a `Repository` MR alongside the workloads.
 4. Package the whole platform as an OCI artifact with [Package as a Configuration](../crossplane-3xx/configurations). Pin its provider/function dependencies. Now another cluster can install your IDP with one `kubectl apply`.
 5. Validate Compositions before merging changes by running [the Crossplane CLI](../crossplane-2xx/crossplane-cli) `render` and `beta validate` locally.
 
 ## Stretch goals
 
-- Surface readiness from every composed resource onto the `XApplication` XR with [`function-auto-ready`](https://github.com/crossplane-contrib/function-auto-ready).
+- Surface readiness from every composed resource onto the `Application` XR with [`function-auto-ready`](https://github.com/crossplane-contrib/function-auto-ready).
 - Add a `tier` input (`free`, `paid`) and switch between provider families inside the Composition with [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating).
-- Self-service through ArgoCD: each `XApplication` XR is a file in a git repo developers PR against.
+- Self-service through ArgoCD: each `Application` XR is a file in a git repo developers PR against.
 
 ## References
 
