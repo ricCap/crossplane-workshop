@@ -12,7 +12,7 @@ import PairId from '@site/src/components/PairId';
 
 ## 6.1 Prima di iniziare ⏱️ 3m
 
-In [Definisci un'Application](../crossplane-101/define-application) hai scritto un XRD e una Composition applicando YAML direttamente al tuo cluster del workshop. Funziona su un cluster. Il problema successivo è la distribuzione: come fa un altro team — o il te-stesso-del-futuro su un cluster fresco — a installare la stessa API `XApplication` in un solo passo?
+In [Definisci un'Application](../crossplane-101/define-application) hai scritto un XRD e una Composition applicando YAML direttamente al tuo cluster del workshop. Funziona su un cluster. Il problema successivo è la distribuzione: come fa un altro team — o il te-stesso-del-futuro su un cluster fresco — a installare la stessa API `Application` in un solo passo?
 
 Un [**package Configuration**](https://docs.crossplane.io/latest/packages/configurations/) è la risposta. È un'immagine OCI che impacchetta i tuoi XRD e Composition insieme ai Provider e alle Function da cui dipendono, e dichiara esplicitamente le versioni delle dipendenze. Il cluster ricevente scarica una sola immagine; Crossplane risolve il resto.
 
@@ -22,7 +22,7 @@ Tre motivi per cui conta:
 - **Igiene delle dipendenze.** Il manifest del package pinna le esatte versioni di provider e function rispetto alle quali la tua Composition è stata scritta, così installandolo non finisci silenziosamente su un provider più nuovo con cambiamenti di schema breaking.
 - **Lifecycle.** Crossplane riconcilia una risorsa `Configuration` allo stesso modo in cui riconcilia un `Provider` — `kubectl get configuration` mostra revisioni, salute e stato di roll-back.
 
-Stai per leggere tre brevi pagine upstream, e poi decidere se costruire e pubblicare davvero la tua API `XApplication` come Configuration.
+Stai per leggere tre brevi pagine upstream, e poi decidere se costruire e pubblicare davvero la tua API `Application` come Configuration.
 
 ## 6.2 Suggerimenti ⏱️ 12m
 
@@ -34,4 +34,4 @@ Questo è un modulo 3XX — pointer, non una ricetta. Apri la documentazione ups
 - **Installalo.** Applica una risorsa `Configuration` (`apiVersion: pkg.crossplane.io/v1`, `kind: Configuration`, `spec.package: <registry>/<image>:<tag>`) su un cluster target. Vedi [Install a configuration](https://docs.crossplane.io/latest/packages/configurations/#install-a-configuration) per `revisionHistoryLimit`, `packagePullPolicy` e i flag di dependency-resolution.
 - **Guarda le dipendenze risolversi.** [Manage dependencies](https://docs.crossplane.io/latest/packages/configurations/#manage-dependencies) copre come Crossplane installa i provider e le function da cui la tua Configuration dipende, e come fare debug di una revisione `Healthy=False` quando i vincoli di versione confliggono.
 
-Un esercizio pratico: prendi l'XRD + Composition che hai applicato nel modulo 5, mettili in una directory accanto a un `crossplane.yaml` che dipende da `provider-kubernetes` e `function-patch-and-transform` alle versioni che hai usato, costruisci il package, pubblicalo su un registry che controlli, e installalo su un cluster `kind` fresco. Se lo stesso XR `XApplication` che hai usato nel modulo 5 riconcilia a Ready senza nessun altro YAML applicato, il package sta facendo il suo lavoro.
+Un esercizio pratico: prendi l'XRD + Composition che hai applicato nel modulo 5, mettili in una directory accanto a un `crossplane.yaml` che dipende da `provider-kubernetes` e `function-patch-and-transform` alle versioni che hai usato, costruisci il package, pubblicalo su un registry che controlli, e installalo su un cluster `kind` fresco. Se lo stesso XR `Application` che hai usato nel modulo 5 riconcilia a Ready senza nessun altro YAML applicato, il package sta facendo il suo lavoro.

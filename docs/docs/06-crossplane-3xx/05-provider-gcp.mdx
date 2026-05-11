@@ -249,7 +249,7 @@ Same `Provider` → `ProviderConfig` → MR shape, applied against GCP. The only
 Two natural follow-ups:
 
 - **Tighten the IAM scope.** `roles/storage.admin` is broad; the production-grade move is a custom role granting only `storage.buckets.create`, `storage.buckets.delete`, `storage.buckets.update` and binding it at the project level. The provider will manage hundreds of buckets with that custom role and never need wider rights.
-- **Compose around it.** Wrap `Bucket` (and its siblings `BucketIAMPolicy`, `BucketObject`) in an XR like `XBucket` so platform users get an encrypted, retention-policied, uniform-access bucket from a single line of YAML.
+- **Compose around it.** Wrap `Bucket` (and its siblings `BucketIAMPolicy`, `BucketObject`) in an XR like `Bucket.workshop.example.io` so platform users get an encrypted, retention-policied, uniform-access bucket from a single line of YAML. (The custom group disambiguates from the GCP `Bucket.storage.gcp.upbound.io` MR — see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2) for why v2 dropped the old `X` prefix.)
 
 ### Go deeper
 

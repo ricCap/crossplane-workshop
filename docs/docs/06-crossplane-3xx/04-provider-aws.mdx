@@ -235,7 +235,7 @@ You proved that the same `Provider` → `ProviderConfig` → MR shape you used f
 Two natural follow-ups:
 
 - **Tighten the IAM scope.** `AmazonS3FullAccess` is fine for a demo; for production, a custom policy granting only `s3:CreateBucket`, `s3:DeleteBucket`, `s3:PutBucketTagging` on a wildcarded bucket prefix is the actual least-privilege shape. The provider can manage hundreds of buckets with such a policy and never need root-level rights.
-- **Compose around it.** Wrap `Bucket` (and its sibling `BucketAcl`, `BucketPolicy`, `BucketServerSideEncryptionConfiguration`) in an XR like `XBucket` so platform users get an opinionated, encrypted-by-default bucket from a single line of YAML. That's the same pattern you used in 101 module 5 to wrap `Release.helm.m.crossplane.io`.
+- **Compose around it.** Wrap `Bucket` (and its sibling `BucketAcl`, `BucketPolicy`, `BucketServerSideEncryptionConfiguration`) in an XR like `Bucket.workshop.example.io` so platform users get an opinionated, encrypted-by-default bucket from a single line of YAML. (The custom group disambiguates from the AWS `Bucket.s3.aws.upbound.io` MR — that's how you avoid kind collisions in v2 without the old `X` prefix; see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2).) That's the same pattern you used in 101 module 5 to wrap `Release.helm.m.crossplane.io`.
 
 ### Go deeper
 

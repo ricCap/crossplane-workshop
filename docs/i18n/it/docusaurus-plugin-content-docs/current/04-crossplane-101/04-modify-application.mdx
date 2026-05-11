@@ -17,9 +17,9 @@ Stessi comandi. La tua tile è su `/team/local/`. Vedi [Setup locale solo (k3d)]
 
 ## 6.1 Prima di iniziare ⏱️ 3m
 
-Finora la tua Composition è statica: ogni `XApplication` produce lo stesso layout HTML, gli stessi font, la stessa struttura di pagina. In questo modulo modificherai la Composition e guarderai la tua tile aggiornarsi **senza** ri-applicare l'XR.
+Finora la tua Composition è statica: ogni `Application` produce lo stesso layout HTML, gli stessi font, la stessa struttura di pagina. In questo modulo modificherai la Composition e guarderai la tua tile aggiornarsi **senza** ri-applicare l'XR.
 
-Questo è il punto della composition: l'astrazione (`XApplication`) sopravvive, l'implementazione (le risorse dietro di essa) cambia. I team di piattaforma lo fanno di continuo — aggiungendo container sidecar, scambiando immagini base, stringendo i default di sicurezza — e i consumatori non se ne accorgono mai.
+Questo è il punto della composition: l'astrazione (`Application`) sopravvive, l'implementazione (le risorse dietro di essa) cambia. I team di piattaforma lo fanno di continuo — aggiungendo container sidecar, scambiando immagini base, stringendo i default di sicurezza — e i consumatori non se ne accorgono mai.
 
 Stai per: editare la Composition in-place, vedere la ConfigMap a valle aggiornarsi, ricaricare la tile.
 
@@ -28,7 +28,7 @@ Stai per: editare la Composition in-place, vedere la ConfigMap a valle aggiornar
 ### 1. Apri la Composition per l'editing
 
 ```bash
-kubectl edit composition xapplications.workshop.example.io
+kubectl edit composition applications.workshop.example.io
 ```
 
 Trova la risorsa `frontend-configmap` (la prima sotto `spec.pipeline[0].input.resources`) e modifica l'HTML dentro `base.data.index.html`.
@@ -69,15 +69,15 @@ kubectl rollout restart deployment frontend
 
 ### 5. Ricarica la tile
 
-Apri il [muro del workshop](/wall) in una nuova scheda e clicca **Refresh**. La tua tile dovrebbe mostrare il nuovo HTML / CSS che hai editato. Il tuo XR `XApplication` è ancora `wall-tile`, intatto — il cambiamento è venuto dal rimodellare la Composition.
+Apri il [muro del workshop](/wall) in una nuova scheda e clicca **Refresh**. La tua tile dovrebbe mostrare il nuovo HTML / CSS che hai editato. Il tuo XR `Application` è ancora `wall-tile`, intatto — il cambiamento è venuto dal rimodellare la Composition.
 
 <ValidateCheck check="application-ready" />
 
-Il check è ancora verde perché nessuna delle condizioni che osserva è cambiata — l'XApplication è ancora Ready. Questo è il punto.
+Il check è ancora verde perché nessuna delle condizioni che osserva è cambiata — l'Application è ancora Ready. Questo è il punto.
 
 ## 6.3 Cosa è appena successo
 
-Hai cambiato la piattaforma senza cambiare il consumatore. Lo YAML dell'`XApplication` che l'utente ha applicato è identico; le cinque risorse che produce sono diverse. In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API.
+Hai cambiato la piattaforma senza cambiare il consumatore. Lo YAML dell'`Application` che l'utente ha applicato è identico; le cinque risorse che produce sono diverse. In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API.
 
 ### Per approfondire
 

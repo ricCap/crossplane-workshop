@@ -17,7 +17,7 @@ Stesso cluster, stessi comandi. La tua tile su `/team/local/` si accenderà appe
 
 ## 5.1 Prima di iniziare ⏱️ 3m
 
-Questo è il modulo in cui il workshop fa clic. Hai incontrato la forma XRD-Composition-XR nel [modulo 4](./first-composition) su un piccolo esempio `XHello` — un XR si dirama in una ConfigMap. Questo modulo usa la stessa forma su qualcosa di utile: un kind di alto livello `XApplication` che si dirama in un frontend, un backend e la ConfigMap che li collega. (Il prefisso `X` è la convenzione del [cheatsheet](../cheatsheet#naming-convention-xr-kinds-start-with-x).)
+Questo è il modulo in cui il workshop fa clic. Hai incontrato la forma XRD-Composition-XR nel [modulo 4](./first-composition) su un piccolo esempio `Hello` — un XR si dirama in una ConfigMap. Questo modulo usa la stessa forma su qualcosa di utile: un kind di alto livello `Application` che si dirama in un frontend, un backend e la ConfigMap che li collega. (Niente prefisso `X` — vedi il [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2) per il motivo per cui la vecchia convenzione tipo `XApplication` non c'è più in v2.)
 
 Come ripasso: un XR fa partire una Composition; la pipeline della Composition esegue una function (`function-patch-and-transform` qui, installata nel modulo 4); l'output della function è lo YAML di stato desiderato che Crossplane poi applica al cluster.
 
@@ -52,20 +52,20 @@ Stai per: applicare un XRD, applicare una Composition che usa tutti e tre questi
 
 ### 1. Applica l'XRD
 
-L'XRD dichiara la tua nuova API. `XApplication` sarà **namespaced** (default v2) con due campi: un `message` (obbligatorio) e un `color` (opzionale, con default).
+L'XRD dichiara la tua nuova API. `Application` sarà **namespaced** (default v2) con due campi: un `message` (obbligatorio) e un `color` (opzionale, con default).
 
 ```bash
 kubectl apply -f - <<'EOF'
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: xapplications.workshop.example.io
+  name: applications.workshop.example.io
 spec:
   scope: Namespaced
   group: workshop.example.io
   names:
-    kind: XApplication
-    plural: xapplications
+    kind: Application
+    plural: applications
   versions:
     - name: v1alpha1
       served: true
@@ -90,28 +90,28 @@ EOF
 Verifica:
 
 ```bash
-kubectl get xrd xapplications.workshop.example.io
+kubectl get xrd applications.workshop.example.io
 ```
 
 Output atteso:
 
 ```
 NAME                                ESTABLISHED   OFFERED   AGE
-xapplications.workshop.example.io   True                    5s
+applications.workshop.example.io    True                    5s
 ```
 
-`ESTABLISHED=True` significa che il CRD `XApplication` è registrato; ora puoi applicare XR. La colonna `OFFERED` resta vuota perché v2 non genera un kind di claim — in v1 mostrerebbe `True` se l'XRD dichiarasse `claimNames`, ma v2 ti lascia applicare l'XR direttamente, quindi non c'è niente da offrire.
+`ESTABLISHED=True` significa che il CRD `Application` è registrato; ora puoi applicare XR. La colonna `OFFERED` resta vuota perché v2 non genera un kind di claim — in v1 mostrerebbe `True` se l'XRD dichiarasse `claimNames`, ma v2 ti lascia applicare l'XR direttamente, quindi non c'è niente da offrire.
 
 ### 2. Applica la Composition
 
-La Composition è la ricetta. Crea sei risorse quando esiste un `XApplication`. L'immagine, poi la tabella, poi lo YAML.
+La Composition è la ricetta. Crea sei risorse quando esiste un `Application`. L'immagine, poi la tabella, poi lo YAML.
 
 #### Il fan-out, in un'immagine
 
 ```mermaid
 flowchart TB
-  xr["XApplication XR<br/>spec.message<br/>spec.color"]
-  comp["Composition<br/>xapplications.workshop.example.io"]
+  xr["Application XR<br/>spec.message<br/>spec.color"]
+  comp["Composition<br/>applications.workshop.example.io"]
   fn["function-patch-and-transform"]
 
   subgraph composed["Composed resources (default namespace)"]
@@ -137,11 +137,11 @@ La freccia tratteggiata che parte dall'XR è la patch — l'unico punto in cui i
 
 | Risorsa composta (`resources[].name`) | Base kind | Perché c'è | Patch applicate | Check di readiness |
 |---|---|---|---|---|
-| `frontend-configmap` | `ConfigMap` | Contiene l'HTML statico che il nginx frontend serve. Spedisce uno `<script>` inline che fa fetch di `./api/message` e renderizza il JSON come contenuto della tile | nessuna — ogni `XApplication` ottiene lo stesso HTML | `type: None` — le ConfigMap non espongono una Ready condition; trattate come Ready all'osservazione |
-| `frontend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta la ConfigMap qui sopra in `/usr/share/nginx/html` | nessuna — la shape del Deployment è identica per ogni XApplication | `type: MatchCondition` che aspetta `Available=True` |
+| `frontend-configmap` | `ConfigMap` | Contiene l'HTML statico che il nginx frontend serve. Spedisce uno `<script>` inline che fa fetch di `./api/message` e renderizza il JSON come contenuto della tile | nessuna — ogni `Application` ottiene lo stesso HTML | `type: None` — le ConfigMap non espongono una Ready condition; trattate come Ready all'osservazione |
+| `frontend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta la ConfigMap qui sopra in `/usr/share/nginx/html` | nessuna — la shape del Deployment è identica per ogni Application | `type: MatchCondition` che aspetta `Available=True` |
 | `frontend-service` | `Service` | Espone il frontend sulla porta 80; selezionato da `app: frontend`. L'iframe del wall punta a `/team/<pair>/` che la HTTPRoute del workshop risolve a questo Service | nessuna | `type: None` |
 | `backend-configmap` | `ConfigMap` | Contiene il body JSON che il JS del frontend fa fetch da `/api/message`. I campi `message` e `color` dell'XR fluiscono nel campo `data.message` di questa ConfigMap via la patch | **una** — `CombineFromComposite` scrive una stringa formattata JSON in `data.message` | `type: None` |
-| `backend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta `backend-configmap` in `/usr/share/nginx/html/api/` così le richieste a `/api/message` ritornano la entry della ConfigMap patchata direttamente | nessuna — la shape del Deployment è identica per ogni XApplication | `type: MatchCondition` che aspetta `Available=True` |
+| `backend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta `backend-configmap` in `/usr/share/nginx/html/api/` così le richieste a `/api/message` ritornano la entry della ConfigMap patchata direttamente | nessuna — la shape del Deployment è identica per ogni Application | `type: MatchCondition` che aspetta `Available=True` |
 | `backend-service` | `Service` | Espone il backend sulla porta 5678 esternamente; inoltra a nginx su `targetPort: 80`. La HTTPRoute risolve `/team/<pair>/api/` a questo Service | nessuna | `type: None` |
 
 Il cablaggio interessante è la patch su `backend-configmap`. L'XR spedisce due campi scalari:
@@ -176,11 +176,11 @@ kubectl apply -f - <<'EOF'
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xapplications.workshop.example.io
+  name: applications.workshop.example.io
 spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1
-    kind: XApplication
+    kind: Application
   mode: Pipeline
   pipeline:
     - step: patch-and-transform
@@ -345,14 +345,14 @@ EOF
 
 Una stranezza di v2 vale la pena tirare fuori prima di andare avanti: il `CompositeResourceDefinition` qui sopra è `apiextensions.crossplane.io/v2`, ma la `Composition` qui è ancora `apiextensions.crossplane.io/v1`. **Non è un typo** — in Crossplane v2 il group dell'API XRD è salito a `/v2` per esprimere XR namespaced, ma `Composition` resta su `/v1`. Mischiarli è atteso.
 
-### 3. Applica il tuo XR XApplication
+### 3. Applica il tuo XR Application
 
 Ora che l'API esiste, applica un'istanza. Cambia `message` con quello che vuoi — è il testo che la tua tile mostrerà.
 
 ```bash
 kubectl apply -f - <<'EOF'
 apiVersion: workshop.example.io/v1alpha1
-kind: XApplication
+kind: Application
 metadata:
   name: wall-tile
   namespace: default
@@ -365,15 +365,15 @@ EOF
 Guarda tutto materializzarsi:
 
 ```bash
-kubectl get xapplication wall-tile -n default
+kubectl get application.workshop.example.io wall-tile -n default
 kubectl get deploy,svc,cm -n default
 ```
 
 Output atteso (abbreviato):
 
 ```
-NAME        SYNCED   READY   COMPOSITION                          AGE
-wall-tile   True     True    xapplications.workshop.example.io    30s
+NAME        SYNCED   READY   COMPOSITION                         AGE
+wall-tile   True     True    applications.workshop.example.io    30s
 
 NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/backend    1/1     1            1           25s
@@ -386,7 +386,7 @@ Quando la tile diventa verde, apri il [wall del workshop](/wall) e clicca **Refr
 
 ## 5.3 Cosa è appena successo
 
-Hai esteso Kubernetes con un kind `XApplication`. Un `kubectl apply` adesso si dirama in sei risorse che Crossplane compone direttamente: due Deployment, due Service e due ConfigMap. I campi `message` e `color` dell'XR fluiscono attraverso la patch della Composition nel `data.message` della ConfigMap del backend, che nginx serve verbatim — quindi hai un'interfaccia tipata, guidata da campi, verso uno stack a più risorse, e sei rimasto sul percorso providerless v2 che hai usato nel modulo 4.
+Hai esteso Kubernetes con un kind `Application`. Un `kubectl apply` adesso si dirama in sei risorse che Crossplane compone direttamente: due Deployment, due Service e due ConfigMap. I campi `message` e `color` dell'XR fluiscono attraverso la patch della Composition nel `data.message` della ConfigMap del backend, che nginx serve verbatim — quindi hai un'interfaccia tipata, guidata da campi, verso uno stack a più risorse, e sei rimasto sul percorso providerless v2 che hai usato nel modulo 4.
 
 Quello è il valore centrale di Crossplane: **componi le tue API**, e lascia che Kubernetes e i Provider facciano il resto.
 
