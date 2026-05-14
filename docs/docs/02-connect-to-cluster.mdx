@@ -57,6 +57,27 @@ workshop-<pair-id>
 
 The `workshop-` prefix is your visual cue that you're on the right cluster. If you see `docker-desktop`, `minikube`, `k3d-…`, or anything that doesn't start with `workshop-`, the `export` didn't take effect in this shell — re-run it in the same terminal where you'll run the rest of the workshop. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
 
+:::tip The `export` only lives in this terminal
+Open a new tab or window and the variable is gone — you'll see your *original* context (often `docker-desktop`) and any `kubectl` command will hit the wrong cluster. Three ways to handle it, easiest first:
+
+1. **Just re-run the export.** Cheapest option for a 3-hour workshop. Keep the docs open and copy-paste the line into any new terminal you spawn.
+2. **Persist for the workshop (no other clusters on your laptop).** Move the file somewhere tidy and point your shell profile at it once:
+   ```bash
+   mkdir -p ~/.kube
+   mv <pair-id>.yaml ~/.kube/workshop.yaml
+   echo 'export KUBECONFIG=$HOME/.kube/workshop.yaml' >> ~/.zshrc   # or ~/.bashrc
+   ```
+   Open a new terminal — `kubectl config current-context` should print `workshop-<pair-id>` without any manual export. Remove the `~/.zshrc` line and delete `~/.kube/workshop.yaml` once the workshop is done.
+3. **Already a daily `kubectl` user with a populated `~/.kube/config`?** Don't overwrite it — that would silently destroy every other context you have. *Merge* the workshop file in:
+   ```bash
+   KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+     kubectl config view --flatten > ~/.kube/config.new
+   mv ~/.kube/config.new ~/.kube/config
+   kubectl config use-context workshop-<pair-id>
+   ```
+   Now `kubectx` lists `workshop-<pair-id>` alongside your normal contexts and you can switch between them. After the workshop, clean up with `kubectl config delete-context workshop-<pair-id>` (plus the matching `delete-cluster` and `delete-user`).
+:::
+
 ### 4. List namespaces as a smoke test
 
 ```bash
