@@ -226,6 +226,8 @@ Se ti dimentichi, il tuo istruttore farà ripulisce tutto al teardown del worksh
 
 ## 7.6 Cosa è appena successo
 
+Un file YAML nel tuo cluster ha tirato su un database MySQL vero nel cloud di Aruba — un'istanza managed con il suo endpoint, pronta perché un'app si ci colleghi. Non hai aperto un portale del vendor, non hai incollato una carta di credito, non hai nemmeno visto la chiave API. Dal tuo posto sembra esattamente come creare una risorsa Kubernetes: scrivi YAML, applichi, aspetti Ready. Dal lato di Aruba, un database vero sta ronzando su hardware vero.
+
 Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applicata contro Aruba. Le differenze interessanti:
 
 - **La credenziale è gestita dalla piattaforma.** Non hai mai visto la chiave API Aruba; il team di piattaforma l'ha iniettata nel tuo cluster in modo sicuro prima del tuo login. Questo è il pattern di produzione per l'isolamento degli account cloud — gli sviluppatori richiedono risorse senza mai detenere la credenziale.

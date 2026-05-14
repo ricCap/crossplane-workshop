@@ -236,6 +236,10 @@ Cloud-provider modules in `06-crossplane-3xx/` use one of two title shapes depen
 
 Any module that has participants create real billed cloud resources opens with a `:::warning Real cloud, real bills` admonition stating which resource is billed, in whose account, and that cleanup is mandatory. *Because:* the existing modules' "not yet end-to-end tested" warning exists for a different reason; cost is its own concern and deserves its own callout right where the participant decides whether to start the module. *Decided while authoring `07-provider-arubacloud.mdx`.*
 
+### "What just happened" sections lead with a beginner-friendly recap (2026-05-14)
+
+Every "What just happened" post-task section opens with a plain-English recap aimed at a participant who is still building intuition: name what was done in concrete terms, avoid Crossplane jargon in the first sentence or two, and only then transition into the technical explanation (mechanics, follow-ups, links). *Because:* this section is where a stuck or skim-reading pair re-anchors before moving on — if it opens with `XRD` / `Composition` / `reconciliation` they bounce; if it opens with "you taught Kubernetes a new word and made it produce a ConfigMap" they get back on the rails. The deeper explanation is still valuable and stays, just one paragraph later.
+
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--

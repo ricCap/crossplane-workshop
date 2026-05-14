@@ -224,6 +224,8 @@ Se vuoi spingerti oltre, fai lo scaffold di un pacchetto Configuration da `confi
 
 ## 5.7 Cosa è appena successo
 
+Fino a ora hai visto l'output di una Composition solo *dopo* averla applicata — facevi `kubectl apply`, aspettavi e poi rovistavi nello stato del cluster. La CLI `crossplane` ti dà un modo per chiedere "cosa farebbe?" e "cosa sta facendo adesso?" senza costringere il cluster a indovinare per te. È la differenza tra debuggare per tentativi ed errori e debuggare guardando.
+
 Ora hai tre lenti su una Composition: `render` per "cosa dovrebbe produrre", `beta trace` per "cosa sta effettivamente facendo" e `beta validate` per "l'input è anche solo valido". Insieme coprono il loop di debug interno che altrimenti spenderesti cercando di leggerlo dal cluster.
 
 ### Per approfondire

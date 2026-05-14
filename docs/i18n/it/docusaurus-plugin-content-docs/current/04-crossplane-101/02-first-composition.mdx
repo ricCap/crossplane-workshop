@@ -250,6 +250,8 @@ Quando la tile diventa verde, la tua prima Composition funziona end-to-end.
 
 ## 4.7 Cosa è appena successo
 
+Hai insegnato al tuo cluster una parola nuova di zecca — `Hello` — e hai descritto cosa deve succedere quando qualcuno la usa. Poi l'hai usata una volta, ed è apparsa una `ConfigMap`. È tutto il loop: inventi un kind di alto livello che si adatta al modo in cui *tu* pensi alle cose, scrivi la ricetta che lo trasforma in risorse Kubernetes ordinarie, e da quel momento ogni `Hello` che applichi produce automaticamente la stessa forma.
+
 Hai definito una nuova API Kubernetes — `Hello` — e hai insegnato a Crossplane come trasformare ogni `Hello` in una `ConfigMap`. Dal punto di vista di un partecipante, è tutto il contratto di Crossplane: dichiari un kind di alto livello, dichiari una ricetta, applichi istanze.
 
 La forma si ripete nel modulo 5 con una ricetta più interessante: l'XR `Application` del prossimo modulo si trasforma in un frontend, un backend e la ConfigMap che li collega — stesso pattern XRD-e-Composition, solo cinque risorse invece di una.

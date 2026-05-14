@@ -230,6 +230,8 @@ Verify the bucket is gone from the S3 console. Then either delete the IAM user o
 
 ## 6.6 What just happened
 
+A YAML file in your cluster created a real bucket in your real AWS account. Nothing in the AWS console, no `aws s3 mb`, no Terraform plan — `kubectl apply` and a bucket exists. If someone deletes that bucket from the AWS console, Crossplane will notice on its next reconcile and put it back. Your cluster is now the source of truth for a piece of cloud infrastructure that lives in AWS.
+
 You proved that the same `Provider` → `ProviderConfig` → MR shape you used for `provider-helm` in 101 works against AWS unchanged. The only thing that varies is what's on the other side of the API.
 
 Two natural follow-ups:

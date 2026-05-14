@@ -78,6 +78,8 @@ Il check è ancora verde perché nessuna delle condizioni che osserva è cambiat
 
 ## 6.3 Cosa è appena successo
 
+Pensa alla Composition come alla cucina e all'XR come al biglietto dell'ordine. Hai cambiato la cucina — ingredienti diversi, presentazione diversa — e ogni ordine già esistente è uscito automaticamente nella nuova forma, senza che nessuno riemettesse un biglietto. Il partecipante che ha applicato l'`Application` non ha toccato nulla; la sua risorsa non è cambiata; i suoi pod sono ancora Ready. Quel divario tra "cosa l'utente ha chiesto" e "cosa la piattaforma produce" è l'intero motivo per cui i team di piattaforma usano Crossplane.
+
 Hai cambiato la piattaforma senza cambiare il consumatore. Lo YAML dell'`Application` che l'utente ha applicato è identico; le cinque risorse che produce sono diverse. In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API.
 
 ### Per approfondire

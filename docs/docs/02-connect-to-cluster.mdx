@@ -107,6 +107,8 @@ When the tile turns green, your kubeconfig is good and `kubectl apply` works end
 
 ## 2.4 What just happened
 
+You pointed your terminal at a remote Kubernetes cluster and asked it to run a tiny container — and it did. The kubeconfig file is the address book: it tells `kubectl` which cluster to talk to, who you are, and how to authenticate. The `hello` Pod is the smallest possible "is this thing on?" — one container, no networking, no storage — and the fact that it reached `Running` proves the whole chain works.
+
 You told your shell which cluster to talk to and proved the connection by writing a resource that the validator can read back. Everything from module 3 onward assumes this works.
 
 ### Go deeper

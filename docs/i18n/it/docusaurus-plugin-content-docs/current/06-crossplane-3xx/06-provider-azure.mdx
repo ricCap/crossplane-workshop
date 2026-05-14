@@ -269,6 +269,8 @@ Poi o cancella il service principal, oppure ruota il suo secret — `az ad sp de
 
 ## 6.6 Cosa è appena successo
 
+Un file YAML nel tuo cluster ha creato uno storage account vero nella tua subscription Azure vera. Nessun click nel portal, nessun `az storage account create`, nessun Terraform — `kubectl apply` e Azure ti ha consegnato un endpoint storage con nome pubblico. Se qualcuno cambia quell'account dal portal, Crossplane lo riconcilierà tornando al tuo YAML. Il tuo cluster è ora la fonte di verità per un pezzo di infrastruttura cloud che vive in Azure.
+
 Stessa forma `Provider` → `ProviderConfig` → MR, applicata contro Azure. I bit specifici di Azure sono: i Resource Group (il container parent), i service principal (la credenziale) e un nome storage account globalmente unico che fa anche da DNS.
 
 Due seguiti naturali:

@@ -110,6 +110,8 @@ If you want to leave it running through the rest of the workshop: good. Switch t
 
 ## 3.4 What just happened
 
+One Helm command added a small program — Crossplane — to your cluster. From your point of view, the cluster now understands a few new words on top of the built-in Kubernetes ones (`Deployment`, `Service`, `ConfigMap`, …). It's listening, but nobody has spoken any of the new words yet, so nothing visibly happens.
+
 You installed a Kubernetes controller. The five Pods in `crossplane-system` are the Crossplane core controller plus its companions; together they're a long-running program that watches certain *kinds* — `Provider`, `Function`, `CompositeResourceDefinition` (XRD), `Composition`, and any composite-resource (XR) kinds you define — and runs a reconciliation loop on each one.
 
 Right now Crossplane is watching for those five built-in kinds but no instances of them exist yet, so the loop has nothing to do. In the next four modules you'll feed it work:

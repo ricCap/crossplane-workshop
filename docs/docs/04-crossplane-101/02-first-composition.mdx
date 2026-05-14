@@ -249,6 +249,8 @@ When the tile turns green, your first Composition is working end-to-end.
 
 ## 4.7 What just happened
 
+You taught your cluster a brand-new word — `Hello` — and described what should happen whenever someone uses it. Then you used it once, and a `ConfigMap` appeared. That's the whole loop: invent a high-level kind that fits the way *you* think about things, write down the recipe that turns it into ordinary Kubernetes resources, and from then on every `Hello` you apply produces the same shape automatically.
+
 You defined a new Kubernetes API — `Hello` — and taught Crossplane how to turn each `Hello` into a `ConfigMap`. From a participant's view, that's the entire Crossplane contract: declare a high-level kind, declare a recipe, apply instances.
 
 The shape repeats in module 5 with a more interesting recipe: the next module's `Application` XR turns into a frontend, a backend, and the ConfigMap that wires them together — same XRD-and-Composition pattern, just five resources instead of one.

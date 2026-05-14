@@ -77,6 +77,8 @@ The check is still green because none of the conditions it watches have changed 
 
 ## 6.3 What just happened
 
+Think of the Composition as the kitchen and the XR as the order ticket. You edited the kitchen — different ingredients, different presentation — and every existing order automatically came out the new way, without anyone reissuing a ticket. The participant who applied the `Application` didn't touch a thing; their resource hasn't changed; their pods still come up Ready. That gap between "what the user asked for" and "what the platform produces" is the whole reason platform teams use Crossplane.
+
 You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
 
 ### Go deeper

@@ -225,6 +225,8 @@ If you forget, your instructor sweeps up everything at workshop teardown — but
 
 ## 7.6 What just happened
 
+A YAML file in your cluster spun up a real MySQL database in Aruba's cloud — a managed instance with its own endpoint, ready for an app to connect to. You didn't open a vendor portal, you didn't paste a credit card, you didn't even see the API key. From your seat it looks exactly like creating a Kubernetes resource: write YAML, apply, wait for Ready. From Aruba's side, a real database is humming away on real hardware.
+
 Same `Provider` → `ProviderConfig` → MR shape as AWS / GCP / Azure, applied against Aruba. The interesting differences:
 
 - **The credential is platform-managed.** You never saw the Aruba API key; the platform team injected it into your cluster securely before you logged in. This is the production pattern for cloud-account isolation — developers request resources without ever holding the credential.

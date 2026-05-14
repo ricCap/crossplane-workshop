@@ -223,6 +223,8 @@ If you want to take this further, scaffold a Configuration package from `configu
 
 ## 5.7 What just happened
 
+Up to now you've only ever seen a Composition's output *after* applying it — you'd `kubectl apply`, wait, then dig through cluster state. The `crossplane` CLI gives you a way to ask "what would this do?" and "what is this doing right now?" without making the cluster guess on your behalf. That's the difference between debugging by trial-and-error and debugging by looking.
+
 You now have three lenses on a Composition: `render` for "what should this produce", `beta trace` for "what is it actually doing", and `beta validate` for "is the input even valid". Together they cover the inner debug loop you'd otherwise spend trying to read it out of the cluster.
 
 ### Go deeper

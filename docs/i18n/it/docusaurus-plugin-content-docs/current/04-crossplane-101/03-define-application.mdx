@@ -386,6 +386,8 @@ Quando la tile diventa verde, apri il [wall del workshop](/wall) e clicca **Refr
 
 ## 5.3 Cosa è appena successo
 
+Hai scritto una riga di YAML — un `Application` — e in cambio hai ottenuto una piccola web app funzionante: un frontend, un backend e la configurazione che li collega. Senza Crossplane, lo stesso risultato avrebbe significato scrivere a mano sei risorse Kubernetes separate e tenerle coerenti. Qui, la tua singola risorsa è l'input, e Crossplane la espande nel resto. I due campi custom che hai esposto (`message` e `color`) sono le uniche manopole che uno sviluppatore deve conoscere — tutto il resto vive nella ricetta.
+
 Hai esteso Kubernetes con un kind `Application`. Un `kubectl apply` adesso si dirama in sei risorse che Crossplane compone direttamente: due Deployment, due Service e due ConfigMap. I campi `message` e `color` dell'XR fluiscono attraverso la patch della Composition nel `data.message` della ConfigMap del backend, che nginx serve verbatim — quindi hai un'interfaccia tipata, guidata da campi, verso uno stack a più risorse, e sei rimasto sul percorso providerless v2 che hai usato nel modulo 4.
 
 Quello è il valore centrale di Crossplane: **componi le tue API**, e lascia che Kubernetes e i Provider facciano il resto.
