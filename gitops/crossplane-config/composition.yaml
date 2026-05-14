@@ -100,14 +100,30 @@ spec:
                             - name: platform-api-key
                               mountPath: /var/vcluster/platform
                               readOnly: true
+                        # Per-pair vcluster control-plane sizing.
+                        # This one StatefulSet pod runs the inner
+                        # apiserver, the syncer, and kine — and it
+                        # caches every object the participant creates
+                        # inside the vcluster (informers + watch
+                        # caches), plus mirrors svc/secret/cm to the
+                        # host. With the pair-quota allowing up to 90
+                        # pods / 200 services / 150 secrets / 90 cm
+                        # plus the workshop's Crossplane MR/XR/
+                        # Composition state and the Kyverno policy
+                        # set, the original 256Mi req / 1Gi limit was
+                        # OOM-bait under module 06's load. Headroom
+                        # below is sized so kine compaction bursts
+                        # and full-resync churn don't translate into
+                        # apiserver pauses participants would
+                        # interpret as "the cluster broke".
                         resources:
                           requests:
-                            cpu: 100m
-                            memory: 256Mi
+                            cpu: 250m
+                            memory: 512Mi
                             ephemeral-storage: 500Mi
                           limits:
-                            cpu: 500m
-                            memory: 1Gi
+                            cpu: "2"
+                            memory: 4Gi
                             ephemeral-storage: 5Gi
                     sync:
                       toHost:
@@ -328,10 +344,30 @@ spec:
                       namespace: placeholder
                     spec:
                       hard:
-                        pods: "30"
-                        services: "20"
-                        configmaps: "30"
-                        secrets: "50"
+                        # Defaults bumped from the original
+                        # 30/20/30/50 cohort sizing — module 06's
+                        # provider stack (provider-arubacloud +
+                        # provider-github + Kyverno + UXP webui) plus
+                        # learner-installed extras pushed pairs into
+                        # the original caps. Headroom now is
+                        # comfortable for the ~2-pair cohort and
+                        # leaves room for participants to experiment.
+                        #
+                        # `services` is bumped harder (20 → 200)
+                        # because the binding cap is not at the host
+                        # namespace quota layer but inside the
+                        # vcluster: every Service the participant
+                        # creates inside the vcluster mirrors 1:1 to
+                        # this host namespace via
+                        # `sync.toHost.services`, and the syncer
+                        # surfaces "host services quota exhausted"
+                        # as a vcluster-side mirror failure rather
+                        # than as a normal admission rejection a
+                        # participant can debug. Keep this generous.
+                        pods: "90"
+                        services: "200"
+                        configmaps: "90"
+                        secrets: "150"
                         persistentvolumeclaims: "5"
                         # PVC size cap (#82) — the count cap above
                         # only stops "5 × 100Gi PVCs" if we also bound
