@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: Definisci un'Application
-translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
+translation_source_commit: 50d1f65d002099bfd6041989ce3a3ce8e2fde0dd
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -203,25 +203,25 @@ spec:
                   <html><head><meta charset="utf-8"><title>Tile</title>
                   <style>
                     body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
-                    #tile { font-size: 2rem; font-weight: 700; }
+                    #title { font-size: 2rem; font-weight: 700; }
                   </style>
                   </head><body>
-                  <div id="tile">Loading...</div>
+                  <div id="title">Loading...</div>
                   <script>
                     fetch('./api/message')
                       .then(r => r.text())
                       .then(txt => {
                         try {
                           const d = JSON.parse(txt);
-                          const el = document.getElementById('tile');
+                          const el = document.getElementById('title');
                           el.innerText = d.message || '(no message)';
                           if (d.color) el.style.color = d.color;
                         } catch (e) {
-                          document.getElementById('tile').innerText = 'Bad response: ' + txt;
+                          document.getElementById('title').innerText = 'Bad response: ' + txt;
                         }
                       })
                       .catch(e => {
-                        document.getElementById('tile').innerText = 'Error: ' + e.message;
+                        document.getElementById('title').innerText = 'Error: ' + e.message;
                       });
                   </script>
                   </body></html>
