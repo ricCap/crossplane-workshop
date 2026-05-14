@@ -1,0 +1,39 @@
+---
+sidebar_position: 9
+title: Recap
+---
+
+# Crossplane 101 — Recap
+
+Nicely done. You've finished the guided core of the workshop. Take a breath — what you have in your cluster right now is enough to build real platforms on.
+
+## What you built
+
+| Module | What you have running now |
+|---|---|
+| Install Crossplane | UXP v2 in `crossplane-system`, plus the read-only Web UI |
+| Your first Composition | `function-patch-and-transform` installed, a `Hello` XRD + Composition, one XR that composed a `ConfigMap` — no Provider involved |
+| Define an Application | An `Application` XRD + Composition that fans out into a frontend Deployment, a backend Deployment, two Services, and a ConfigMap — all from one XR |
+| Modify your Application | A Composition edit that reshaped the running frontend without anyone touching the XR |
+| Add a Provider | `provider-helm` installed, a `ClusterProviderConfig` and a namespaced `ProviderConfig`, and one `Release` MR installing the `podinfo` chart |
+
+## What you now know
+
+You've seen both halves of Crossplane. The **composition half** — XRD plus Composition plus a function — lets you publish your own Kubernetes API from a pipeline of plain manifests, no Provider required. The **provider half** — Provider plus ProviderConfig plus Managed Resource — extends Crossplane to talk to anything outside the cluster (a Helm registry today; cloud APIs and other clusters tomorrow). Real platforms mix both.
+
+The single biggest takeaway: **a Composition edit reshaped real workloads without the consumer doing anything.** That property — change the recipe, every existing instance reconciles — is the primitive every Crossplane platform is built on.
+
+## Where to go next
+
+The rest of the workshop is choose-your-own-adventure. Pick whichever fits where your pair wants to push next:
+
+| Section | Shape | Pick this if you want to… |
+|---|---|---|
+| [Crossplane 2XX](../crossplane-2xx/overview) | Mix of guided walkthroughs and open-ended pointers | Learn the Crossplane CLI, run imperative `Operation` pipelines, or internalise the Provider/ProviderConfig/MR pattern before touching real clouds |
+| [Crossplane 3XX](../crossplane-3xx/overview) | Pointer-driven medium-difficulty tasks | Provision real resources — a repo in GitHub, a bucket in AWS / GCP / Azure, or a MySQL database in your platform's Aruba project — and package your 101 XRD as a `Configuration` |
+| [Crossplane 4XX](../crossplane-4xx/overview) | Upstream-doc threads | Generate a Provider from Terraform with Upjet, or walk a real v1→v2 upgrade |
+| [Journeys](../journeys/overview) | Cross-cutting scenarios | Stitch the standalone tasks into a real-world story — an internal developer platform, a cloud landing zone, or a long-running automated process |
+
+If you're not sure where to land, the safe default is to open the [2XX overview](../crossplane-2xx/overview) and pick a `(Guided)` task — those carry the same step-by-step shape as the 101 modules you just finished. From there, jump into 3XX once you want to point a Provider at real cloud credentials.
+
+Either way, the [Cheatsheet](../cheatsheet) and [Troubleshooting](../troubleshooting) pages are the two tabs to keep open while you explore.
