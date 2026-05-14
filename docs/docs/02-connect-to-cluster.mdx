@@ -76,19 +76,21 @@ Don't overwrite `~/.kube/config` with the workshop file — that wipes out every
 Merge them with `kubectl`'s built-in support:
 
 ```bash
-KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
-  kubectl config view --flatten --raw > ~/.kube/config.new \
+cp -p ~/.kube/config ~/.kube/config.bak.$(date +%Y%m%d-%H%M%S) \
+  && KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+       kubectl config view --flatten --raw > ~/.kube/config.new \
   && mv ~/.kube/config.new ~/.kube/config \
   && chmod 600 ~/.kube/config \
   && kubectl config use-context workshop-<pair-id>
 ```
 
-The `mv` does replace `~/.kube/config`, but it's safe: the previous line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove it:
+The first line snapshots your current `~/.kube/config` to a timestamped backup so you can restore it (`mv ~/.kube/config.bak.<timestamp> ~/.kube/config`) if anything looks wrong afterward. The `mv` on line 4 then replaces `~/.kube/config`, but it's safe: the `kubectl config view` line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove the workshop entries (and the backup, once you've confirmed everything is fine):
 
 ```bash
 kubectl config delete-context workshop-<pair-id>
 kubectl config delete-cluster workshop-<pair-id>
 kubectl config delete-user    workshop-<pair-id>
+rm ~/.kube/config.bak.*
 ```
 
 </details>
