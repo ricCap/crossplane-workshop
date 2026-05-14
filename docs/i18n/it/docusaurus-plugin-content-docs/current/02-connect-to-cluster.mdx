@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: e625278c4d39893fec6d21ddb62e12d95391689b
+translation_source_commit: b3d3005aee5a0d0a06862c420ef3ac22d313dbd5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -84,7 +84,7 @@ KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
   && kubectl config use-context workshop-<pair-id>
 ```
 
-`kubectx` adesso elenca `workshop-<pair-id>` accanto ai tuoi context abituali. A workshop finito, rimuovilo:
+La `mv` *sostituisce* davvero `~/.kube/config`, ma è sicura: la riga precedente legge *entrambi* i file (è quello che fa `KUBECONFIG=A:B` — `kubectl` li mergia in memoria) e scrive l'unione in `config.new`, quindi il file che stai spostando contiene già ogni cluster, context e utente che era nel tuo vecchio `~/.kube/config`, più le voci del workshop. `kubectx` adesso elenca `workshop-<pair-id>` accanto ai tuoi context abituali. A workshop finito, rimuovilo:
 
 ```bash
 kubectl config delete-context workshop-<pair-id>
