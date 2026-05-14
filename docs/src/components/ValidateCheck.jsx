@@ -37,34 +37,43 @@ const STATUS = {
 const chipStyle = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '6px',
-  padding: '4px 12px',
+  gap: '8px',
+  padding: '10px 20px',
   borderRadius: '999px',
-  fontWeight: 600,
-  fontSize: '0.85rem',
+  fontWeight: 700,
+  fontSize: '0.95rem',
   cursor: 'pointer',
-  border: 'none',
+  border: '1px solid transparent',
   userSelect: 'none',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+  transition: 'transform 80ms ease, box-shadow 120ms ease',
 };
 
-// Use Infima's per-status contrast palette: --ifm-color-{x}-contrast-background
-// and -contrast-foreground are defined for both light and dark themes by
-// Docusaurus, so the chip stays legible in either mode without us reasoning
-// about it. IDLE falls back to neutral emphasis tokens.
+// Use Infima's per-status contrast palette for the *result* states
+// (--ifm-color-{success,danger,warning,info}-contrast-background and
+// -contrast-foreground) so the chip stays legible in light and dark
+// themes after a check runs. The IDLE state uses `--ifm-color-primary-darker`
+// (not `--ifm-color-primary`) so white text clears WCAG AA on this
+// site's #02a688 teal palette — the base primary is borderline on a
+// white doc background.
 const colors = {
-  [STATUS.IDLE]:    { bg: 'var(--ifm-color-emphasis-200)', fg: 'var(--ifm-color-emphasis-800)' },
+  [STATUS.IDLE]:    { bg: 'var(--ifm-color-primary-darker)',              fg: '#fff' },
   [STATUS.LOADING]: { bg: 'var(--ifm-color-info-contrast-background)',    fg: 'var(--ifm-color-info-contrast-foreground)' },
   [STATUS.PASS]:    { bg: 'var(--ifm-color-success-contrast-background)', fg: 'var(--ifm-color-success-contrast-foreground)' },
   [STATUS.FAIL]:    { bg: 'var(--ifm-color-danger-contrast-background)',  fg: 'var(--ifm-color-danger-contrast-foreground)' },
   [STATUS.ERROR]:   { bg: 'var(--ifm-color-warning-contrast-background)', fg: 'var(--ifm-color-warning-contrast-foreground)' },
 };
 
+// Each non-loading label ends in an explicit verb so participants
+// understand the chip is re-runnable — earlier copy ("✅ Pass") read
+// as a static result, and people didn't realise they could click again
+// after fixing something.
 const labels = {
-  [STATUS.IDLE]:    '▶ Run check',
+  [STATUS.IDLE]:    '▶ Verify this step',
   [STATUS.LOADING]: '⏳ Checking…',
-  [STATUS.PASS]:    '✅ Pass',
-  [STATUS.FAIL]:    '❌ Fail',
-  [STATUS.ERROR]:   '⚠ Error',
+  [STATUS.PASS]:    '✅ Passed — click to recheck',
+  [STATUS.FAIL]:    '❌ Failed — click to retry',
+  [STATUS.ERROR]:   '⚠ Error — click to retry',
 };
 
 /**
@@ -135,7 +144,7 @@ export default function ValidateCheck({ check, pairId: propPairId }) {
   const { bg, fg } = colors[status];
 
   return (
-    <div style={{ margin: '0.75rem 0' }}>
+    <div style={{ margin: '1.25rem 0' }}>
       <button
         style={{ ...chipStyle, backgroundColor: bg, color: fg }}
         onClick={runCheck}
@@ -143,7 +152,7 @@ export default function ValidateCheck({ check, pairId: propPairId }) {
         aria-label={`Run check: ${check}`}
       >
         {labels[status]}
-        <span style={{ fontWeight: 400, fontSize: '0.8rem' }}>{check}</span>
+        <span style={{ fontWeight: 500, fontSize: '0.8rem', opacity: 0.85 }}>{check}</span>
       </button>
       {details && (
         <pre style={{

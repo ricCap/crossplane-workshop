@@ -1,0 +1,12 @@
+/* Copied from @docusaurus/theme-classic/lib/theme/Navbar/Content/styles.module.css
+ * — see index.js comment for why this is ejected. */
+
+@media (max-width: 996px) {
+  .colorModeToggle {
+    display: none;
+  }
+}
+
+:global(.navbar__items--right) > :last-child {
+  padding-right: 0;
+}
