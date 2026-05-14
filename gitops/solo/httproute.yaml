@@ -19,6 +19,11 @@ spec:
       namespace: envoy-gateway-system
       sectionName: http
   rules:
+    # ReplacePrefixMatch is /api (not /) because the participants'
+    # Application Composition mounts the `backend` ConfigMap at
+    # /usr/share/nginx/html/api — the JSON body lives at
+    # /api/message, not /message. Strip only the `/team/local`
+    # segment and keep the `/api` so nginx finds the file.
     - matches:
         - path:
             type: PathPrefix
@@ -28,7 +33,7 @@ spec:
           urlRewrite:
             path:
               type: ReplacePrefixMatch
-              replacePrefixMatch: /
+              replacePrefixMatch: /api
       backendRefs:
         - name: backend
           port: 5678

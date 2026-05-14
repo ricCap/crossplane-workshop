@@ -211,6 +211,15 @@ spec:
                       rules:
                         # API route — longest prefix wins over the
                         # catch-all frontend route below.
+                        #
+                        # ReplacePrefixMatch is /api (not /) because
+                        # the backend Deployment in the participants'
+                        # Application Composition mounts the
+                        # `backend` ConfigMap at
+                        # /usr/share/nginx/html/api — the JSON body
+                        # lives at /api/message, not /message. Strip
+                        # only the `/team/PAIR` segment and keep the
+                        # `/api` so nginx finds the file.
                         - matches:
                             - path:
                                 type: PathPrefix
@@ -220,7 +229,7 @@ spec:
                               urlRewrite:
                                 path:
                                   type: ReplacePrefixMatch
-                                  replacePrefixMatch: /
+                                  replacePrefixMatch: /api
                           backendRefs:
                             - name: backend-x-default-x-PAIR
                               port: 5678
