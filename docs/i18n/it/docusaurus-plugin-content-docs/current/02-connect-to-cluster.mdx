@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: b3d3005aee5a0d0a06862c420ef3ac22d313dbd5
+translation_source_commit: 2d26c1a6b30bbeab17b8b370d6b714004dd98db3
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -77,19 +77,21 @@ Non sovrascrivere `~/.kube/config` col file del workshop — perderesti ogni alt
 Falli mergiare a `kubectl`, che ha il supporto integrato:
 
 ```bash
-KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
-  kubectl config view --flatten --raw > ~/.kube/config.new \
+cp -p ~/.kube/config ~/.kube/config.bak.$(date +%Y%m%d-%H%M%S) \
+  && KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+       kubectl config view --flatten --raw > ~/.kube/config.new \
   && mv ~/.kube/config.new ~/.kube/config \
   && chmod 600 ~/.kube/config \
   && kubectl config use-context workshop-<pair-id>
 ```
 
-La `mv` *sostituisce* davvero `~/.kube/config`, ma è sicura: la riga precedente legge *entrambi* i file (è quello che fa `KUBECONFIG=A:B` — `kubectl` li mergia in memoria) e scrive l'unione in `config.new`, quindi il file che stai spostando contiene già ogni cluster, context e utente che era nel tuo vecchio `~/.kube/config`, più le voci del workshop. `kubectx` adesso elenca `workshop-<pair-id>` accanto ai tuoi context abituali. A workshop finito, rimuovilo:
+La prima riga fa uno snapshot del tuo `~/.kube/config` attuale in un backup con timestamp, così puoi ripristinarlo (`mv ~/.kube/config.bak.<timestamp> ~/.kube/config`) se qualcosa sembra storto dopo. La `mv` alla riga 4 *sostituisce* davvero `~/.kube/config`, ma è sicura: la riga `kubectl config view` legge *entrambi* i file (è quello che fa `KUBECONFIG=A:B` — `kubectl` li mergia in memoria) e scrive l'unione in `config.new`, quindi il file che stai spostando contiene già ogni cluster, context e utente che era nel tuo vecchio `~/.kube/config`, più le voci del workshop. `kubectx` adesso elenca `workshop-<pair-id>` accanto ai tuoi context abituali. A workshop finito, rimuovi le voci del workshop (e il backup, una volta che hai verificato che tutto è ok):
 
 ```bash
 kubectl config delete-context workshop-<pair-id>
 kubectl config delete-cluster workshop-<pair-id>
 kubectl config delete-user    workshop-<pair-id>
+rm ~/.kube/config.bak.*
 ```
 
 </details>
