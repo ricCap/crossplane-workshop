@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: c7c46a1e5e4bf3975f2ee36c5d17356f67a557c4
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -50,7 +50,13 @@ kubectl config current-context
 
 (Su Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
 
-Il comando `current-context` stampa il nome del context — considera qualsiasi output non vuoto come successo. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che l'estrazione abbia effettivamente prodotto il YAML.
+Output atteso:
+
+```
+workshop-<pair-id>
+```
+
+Il prefisso `workshop-` è il tuo segnale visivo che sei sul cluster giusto. Se vedi `docker-desktop`, `minikube`, `k3d-…` o qualsiasi cosa che non inizi con `workshop-`, l'`export` non ha avuto effetto in questa shell — rieseguilo nello stesso terminale in cui lancerai il resto del workshop. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che l'estrazione abbia effettivamente prodotto il YAML.
 
 ### 4. Elenca i namespace come smoke test
 
@@ -69,6 +75,10 @@ brew install kubectx k9s helm      # macOS / Linuxbrew
 ```
 
 I link di installazione per Windows / Linux puro sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+
+### 6. (Fortemente consigliato) Mostra il cluster nel prompt della shell
+
+Il modo più efficace per evitare di lanciare `kubectl apply` o `helm install` sul cluster sbagliato è rendere il context attivo visibile nel prompt della shell. Installa [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) oppure abilita il modulo [`kubernetes`](https://starship.rs/config/#kubernetes) di [Starship](https://starship.rs) — entrambi mostrano il context corrente accanto a ogni prompt. Quando vedi `(workshop-<pair-id>)` sei al sicuro; quando vedi `(docker-desktop)` sai di sistemare la cosa prima di digitare. Le indicazioni di installazione sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
 ## 2.3 Smoke test — applica un pod `hello` ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
 
