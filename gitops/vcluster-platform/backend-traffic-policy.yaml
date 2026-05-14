@@ -1,0 +1,33 @@
+# Per-source-IP rate limiting on the vCluster Platform login route only.
+# Mitigates brute-force on the Platform UI, which is the actual unauthenticated
+# attack surface on the Gateway. Uses Local rate limiting (no Redis needed —
+# single Envoy replica).
+#
+# Scoped to the platform HTTPRoute (not the whole Gateway) so it does NOT
+# apply to the per-participant vcluster-apiserver routes. Those routes can
+# burst ~50–100 req/s during a single `helm install` (parallel API discovery),
+# and an earlier Gateway-wide cap shared one bucket across all participants
+# on the same WiFi — which would 429 legitimate workshop traffic. Keeping
+# the cap on the login route alone preserves brute-force protection without
+# throttling kubectl/helm against participant vclusters.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: workshop-rate-limit
+  namespace: vcluster-platform
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: vcluster-platform
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        - clientSelectors:
+            - sourceCIDR:
+                value: "0.0.0.0/0"
+                type: Distinct
+          limit:
+            requests: 200
+            unit: Second
