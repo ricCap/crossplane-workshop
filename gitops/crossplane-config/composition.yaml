@@ -36,19 +36,32 @@ spec:
                       # with whatever securityContext a participant
                       # set inside their vcluster — the syncer doesn't
                       # strip privileged / hostPath / hostNetwork.
-                      # Without this label a participant could mount
-                      # `hostPath: /` and escape to the node, bypassing
-                      # the per-pair quota entirely.
                       #
-                      # `baseline` blocks privileged, hostNetwork,
-                      # hostPID, hostIPC, hostPath, plus a few other
-                      # obviously-host-impacting fields. `restricted`
-                      # is stronger but breaks upstream provider
-                      # charts that run as root (UXP Apollo) — bump
-                      # later if calibration permits.
+                      # `baseline` was the original choice (blocks
+                      # hostPath, hostNetwork, privileged, etc.) but
+                      # it rejects UXP Apollo on install: the Apollo
+                      # pod mounts `etc-ca-certificates` and `k8s-certs`
+                      # as hostPath volumes, so the syncer-created
+                      # mirror in `participant-<pair>` fails admission
+                      # and Crossplane never starts. Baseline therefore
+                      # makes the workshop unusable.
+                      #
+                      # We drop enforce to `privileged` so Crossplane
+                      # installs cleanly, and keep `baseline` at warn
+                      # /audit so violations still surface in logs and
+                      # kubectl output. This matches the friendly-
+                      # attendees threat model already documented in
+                      # AGENTS.md (shared Aruba API key, demo GitHub
+                      # App). Hardening back to `baseline` requires
+                      # either patching Apollo's hostPath usage out or
+                      # syncing those volumes some other way.
                       labels:
-                        pod-security.kubernetes.io/enforce: baseline
+                        pod-security.kubernetes.io/enforce: privileged
                         pod-security.kubernetes.io/enforce-version: latest
+                        pod-security.kubernetes.io/warn: baseline
+                        pod-security.kubernetes.io/warn-version: latest
+                        pod-security.kubernetes.io/audit: baseline
+                        pod-security.kubernetes.io/audit-version: latest
             patches:
               - type: CombineFromComposite
                 combine:
