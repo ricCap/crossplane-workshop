@@ -13,17 +13,17 @@ graph TB
     subgraph ArubaCloud["ArubaCloud Managed Kubernetes"]
         direction TB
         ArgoCD["ArgoCD<br/>app-of-apps"]:::ctrl
-        XDevEnv["Crossplane<br/>XDeveloperEnvironment"]:::ctrl
+        DevEnv["Crossplane<br/>DeveloperEnvironment"]:::ctrl
         Gateway["Envoy Gateway<br/>TLS · rate limiting"]:::edge
         Docs["Docs pod<br/>Docusaurus + validator"]:::ctrl
         Platform["vCluster Platform"]:::ctrl
         Pair["Per-pair sandbox<br/>namespace · vCluster · HTTPRoute<br/>ResourceQuota · platform user"]:::tenant
 
-        ArgoCD -->|syncs| XDevEnv
+        ArgoCD -->|syncs| DevEnv
         ArgoCD -->|syncs| Gateway
         ArgoCD -->|syncs| Docs
         ArgoCD -->|syncs| Platform
-        XDevEnv -.->|composes| Pair
+        DevEnv -.->|composes| Pair
         Gateway --> Docs
         Gateway --> Pair
         Gateway --> Platform
@@ -37,10 +37,10 @@ graph TB
     classDef tenant fill:#f5f5f4,stroke:#57534e,color:#1c1917
 ```
 
-Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition. The "Per-pair sandbox" node represents the namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user that the `XDeveloperEnvironment` Composition produces for each participant pair.
+Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition. The "Per-pair sandbox" node represents the namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user that the `DeveloperEnvironment` Composition produces for each participant pair.
 
 
-**Routing**: Envoy Gateway terminates TLS for `crossplane.workshops.riccardocapraro.it` and `platform-crossplane.workshops.riccardocapraro.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the XDeveloperEnvironment Composition.
+**Routing**: Envoy Gateway terminates TLS for `crossplane.workshops.riccardocapraro.it` and `platform-crossplane.workshops.riccardocapraro.it`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the DeveloperEnvironment Composition.
 
 ## Prerequisites
 
@@ -97,7 +97,7 @@ against the raw `gitops/solo/all.yaml`, public GHCR images, nothing else).
 
 ```yaml
 apiVersion: workshop.example.io/v1alpha1
-kind: XDeveloperEnvironment
+kind: DeveloperEnvironment
 metadata:
   name: brave-mango
 spec:
@@ -106,7 +106,7 @@ spec:
 
 2. Commit and push.
 
-Crossplane reconciles the XDeveloperEnvironment into a namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user within ~2 minutes. No tasks or manual steps.
+Crossplane reconciles the DeveloperEnvironment into a namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user within ~2 minutes. No tasks or manual steps.
 
 To register new vclusters with the Platform UI, run `task platform:register-vclusters`.
 

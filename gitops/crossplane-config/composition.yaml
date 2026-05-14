@@ -1,4 +1,4 @@
-# Composition that turns an XDeveloperEnvironment XR (Crossplane v2,
+# Composition that turns a DeveloperEnvironment XR (Crossplane v2,
 # cluster-scoped, no claim layer) into a complete participant
 # environment: namespace, vcluster Helm release, per-pair HTTPRoute
 # for /team/<pair>/ routing via Gateway API, and a ResourceQuota.
@@ -9,7 +9,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: workshop.example.io/v1alpha1
-    kind: XDeveloperEnvironment
+    kind: DeveloperEnvironment
   mode: Pipeline
   pipeline:
     - step: patch-and-transform
@@ -317,7 +317,7 @@ spec:
           # --- 4. ResourceQuota ---
           # Bounds per-pair resource and object-count consumption on
           # the host namespace. Values are patched from spec.quota.*
-          # on the XDeveloperEnvironment XR; the XRD defines defaults
+          # on the DeveloperEnvironment XR; the XRD defines defaults
           # so XRs without explicit quota still get sensible limits.
           #
           # The CPU/memory/ephemeral-storage caps and the LimitRange

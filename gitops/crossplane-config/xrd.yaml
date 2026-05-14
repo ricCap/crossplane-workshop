@@ -1,4 +1,4 @@
-# XDeveloperEnvironment — the management-cluster API that provisions
+# DeveloperEnvironment — the management-cluster API that provisions
 # participant developer environments. Each XR currently produces a
 # Helm release of the loft-sh/vcluster chart via provider-helm, but
 # the abstraction is intentionally implementation-agnostic: a future
@@ -7,7 +7,7 @@
 # rename.
 #
 # Crossplane v2 XRD, no claim layer — participants and tooling apply
-# `XDeveloperEnvironment` resources directly. Scope is `Cluster`
+# `DeveloperEnvironment` resources directly. Scope is `Cluster`
 # because the Composition emits cluster-scoped MRs (provider-helm
 # `Release`, provider-kubernetes `Object`); v2 forbids a namespaced
 # XR from composing cluster-scoped resources. Revisit once
@@ -19,13 +19,13 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: xdeveloperenvironments.workshop.example.io
+  name: developerenvironments.workshop.example.io
 spec:
   scope: Cluster
   group: workshop.example.io
   names:
-    kind: XDeveloperEnvironment
-    plural: xdeveloperenvironments
+    kind: DeveloperEnvironment
+    plural: developerenvironments
   versions:
     - name: v1alpha1
       served: true

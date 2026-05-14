@@ -8,12 +8,12 @@ Roadmap and decision log for the Crossplane workshop GitOps scaffolding. See [AG
 - **Sponsor**: ArubaCloud, €500 in credits.
 - **Format**: 3 hours. Participants work in pairs on a single management cluster; each pair gets an isolated vCluster sandbox.
 - **Hard constraint**: participants install nothing on workshop day (venue network risk). Everything runs on the remote cluster; participants just connect.
-- **Pedagogical goal**: the "gotcha moment" — the vcluster participants have used the whole time is revealed to be produced by a Crossplane Composition. The `XDeveloperEnvironment` XR + Composition under `gitops/crossplane-config/` is the reveal.
+- **Pedagogical goal**: the "gotcha moment" — the vcluster participants have used the whole time is revealed to be produced by a Crossplane Composition. The `DeveloperEnvironment` XR + Composition under `gitops/crossplane-config/` is the reveal.
 - **Central UI**: vCluster Platform on the management cluster, exposed at `https://platform-crossplane.workshops.riccardocapraro.it`. Participants log in with the per-pair credentials the Composition generates.
 
 ## Status
 
-The scaffolding has shipped: local vind path, Aruba bootstrap, the `XDeveloperEnvironment` Composition that produces the per-pair Namespace + Helm Release + HTTPRoute + ResourceQuota + Loft User/VCI, the docs pod + validator, modules 00–07 + 99, and both verify paths (`verify:pair` operator-side, `verify:pair:platform` participant-side, plus `verify:all MODE=…`).
+The scaffolding has shipped: local vind path, Aruba bootstrap, the `DeveloperEnvironment` Composition that produces the per-pair Namespace + Helm Release + HTTPRoute + ResourceQuota + Loft User/VCI, the docs pod + validator, modules 00–07 + 99, and both verify paths (`verify:pair` operator-side, `verify:pair:platform` participant-side, plus `verify:all MODE=…`).
 
 For commit-level history of what was done and when, use `git log` — it's already authoritative and growing in this file was just creating a parallel changelog.
 

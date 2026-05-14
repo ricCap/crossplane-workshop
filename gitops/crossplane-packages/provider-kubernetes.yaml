@@ -1,4 +1,4 @@
-# provider-kubernetes on the management cluster — used by the XDeveloperEnvironment
+# provider-kubernetes on the management cluster — used by the DeveloperEnvironment
 # Composition to create Ingress and ResourceQuota objects per pair.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider

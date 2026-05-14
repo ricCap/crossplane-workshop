@@ -249,7 +249,7 @@ var vcClientCache sync.Map // map[string]dynamic.Interface
 
 // vclientForPair loads the kubeconfig secret for a pair from the
 // management cluster and builds a dynamic client to that pair's vcluster.
-// The secret name / namespace convention matches what the XDeveloperEnvironment
+// The secret name / namespace convention matches what the DeveloperEnvironment
 // Composition writes: secret `vc-<pair>` in namespace `participant-<pair>`.
 //
 // In local mode, pairs don't have per-pair vclusters — the synthetic

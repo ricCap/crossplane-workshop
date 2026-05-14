@@ -9,11 +9,11 @@ reconciles its own subdirectory.
 |---|---|
 | `apps/` | ArgoCD Applications and ApplicationSets — the app-of-apps children. |
 | `cert-manager/` | Let's Encrypt `ClusterIssuer` for TLS certificates. |
-| `crossplane-config/` | `XDeveloperEnvironment` XRD, Composition, and ProviderConfigs. |
+| `crossplane-config/` | `DeveloperEnvironment` XRD, Composition, and ProviderConfigs. |
 | `crossplane-packages/` | Crossplane Providers, Functions, and their RBAC. |
 | `docs/` | Workshop docs site Deployment, Service, RBAC, and HTTPRoute. |
 | `envoy-gateway/` | Gateway API `GatewayClass`, `Gateway`, and traffic policies. |
-| `participant-xrs/` | One `XDeveloperEnvironment` XR per participant pair — the scale lever. (Crossplane v2, no claim layer.) |
+| `participant-xrs/` | One `DeveloperEnvironment` XR per participant pair — the scale lever. (Crossplane v2, no claim layer.) |
 | `projects/` | ArgoCD `AppProject` definitions. |
 | `vcluster-platform/` | vCluster Platform `Project` config and HTTPRoute. |
 

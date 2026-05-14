@@ -355,7 +355,7 @@ tasks:
   bootstrap:aruba-cloud-credentials:
     desc: |
       Install the shared Aruba Cloud API key as a Secret on the
-      management cluster. The XDeveloperEnvironment Composition's
+      management cluster. The DeveloperEnvironment Composition's
       vcluster Helm Release projects this Secret into every per-pair
       vcluster's `aruba-system` namespace via `sync.fromHost.secrets`,
       so the participant-side Aruba provider (installed by the
@@ -407,7 +407,7 @@ tasks:
       cluster, holding the four shared workshop network references
       (Aruba project ID + VPC URI + subnet URI + security group URI)
       participants reference from their Database MRs. The
-      XDeveloperEnvironment Composition's vcluster Helm Release
+      DeveloperEnvironment Composition's vcluster Helm Release
       projects this ConfigMap into every per-pair vcluster's
       `default` namespace via `sync.fromHost.configMaps`, so module
       7 §7.3 can read it with `kubectl get configmap
@@ -592,12 +592,12 @@ tasks:
       Install the `vcluster-platform-api-key` Secret in every
       `participant-*` namespace so each per-pair vcluster syncer can
       phone home to vCluster Platform. Without this Secret, the
-      `VirtualClusterInstance` composed by the XDeveloperEnvironment
+      `VirtualClusterInstance` composed by the DeveloperEnvironment
       Composition stays in `phase: Pending` with
       `Condition SpaceSynced is missing`. Idempotent.
 
       This task does NOT call `vcluster platform add vcluster`. The
-      XDeveloperEnvironment Composition already creates one VCI per
+      DeveloperEnvironment Composition already creates one VCI per
       pair (project `default`, `external: true`) via
       provider-kubernetes, so Platform-side registration is
       GitOps-managed. This task only handles the syncer-side
@@ -649,7 +649,7 @@ tasks:
         # syncer picks up the credential without a manual nudge.
         pairs=$(kubectl get ns -o name | sed 's|namespace/||' | grep '^participant-' || true)
         [ -n "$pairs" ] || {
-          echo "No participant-* namespaces found. Either no XDeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
+          echo "No participant-* namespaces found. Either no DeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
           exit 1
         }
 
@@ -681,7 +681,7 @@ tasks:
     desc: |
       Install the `github-app-credentials` Secret in every
       `participant-*` namespace on the management cluster. The
-      XDeveloperEnvironment Composition wires `sync.fromHost.secrets`
+      DeveloperEnvironment Composition wires `sync.fromHost.secrets`
       on each pair's vCluster so this Secret is mirrored into the
       pair's `crossplane-system` namespace, where the participant's
       `provider-github` ProviderConfig reads it. Idempotent.
@@ -746,7 +746,7 @@ tasks:
 
         pairs=$(kubectl get ns -o name | sed 's|namespace/||' | grep '^participant-' || true)
         [ -n "$pairs" ] || {
-          echo "No participant-* namespaces found. Either no XDeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
+          echo "No participant-* namespaces found. Either no DeveloperEnvironment XRs are reconciled yet, or you're on the wrong cluster." >&2
           exit 1
         }
 
@@ -1368,7 +1368,7 @@ tasks:
       - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
       - kubectl -n {{.ARGOCD_NS}} get application root-app
       - kubectl -n {{.ARGOCD_NS}} get application participant-vclusters
-      - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
+      - kubectl get developerenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       # Operator-side inner-vcluster smoke test. Pull the kubeconfig
@@ -1515,7 +1515,7 @@ tasks:
         1. vCluster Platform is exposed at PLATFORM_HOST (defaults to
            https://platform-crossplane.workshops.riccardocapraro.it).
         2. The pair's VirtualClusterInstance is registered in project
-           `default` (the XDeveloperEnvironment Composition creates it,
+           `default` (the DeveloperEnvironment Composition creates it,
            but Platform-side registration is currently a manual step
            on Aruba — see AGENTS.md "Known broken / deferred").
         3. You are logged in with the Platform CLI:
@@ -1536,7 +1536,7 @@ tasks:
       - helm list -n {{.ARGOCD_NS}} | grep -q '^argo-cd'
       - kubectl -n {{.ARGOCD_NS}} get application root-app
       - kubectl -n {{.ARGOCD_NS}} get application participant-vclusters
-      - kubectl get xdeveloperenvironments.workshop.example.io {{.PAIR}}
+      - kubectl get developerenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       # Same path participants take. `vcluster platform connect
@@ -1630,7 +1630,7 @@ tasks:
         # that the XR exists and the pod is Ready, which is correlated
         # but weaker than the explicit condition.
         for pair in $pairs; do
-          synced=$(kubectl get xdeveloperenvironments.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}' 2>/dev/null || echo "")
+          synced=$(kubectl get developerenvironments.workshop.example.io "$pair" -o jsonpath='{.status.conditions[?(@.type=="Synced")].status}' 2>/dev/null || echo "")
           [ "$synced" = "True" ] || fail "$pair: Synced=$synced (expected True)"
         done
 

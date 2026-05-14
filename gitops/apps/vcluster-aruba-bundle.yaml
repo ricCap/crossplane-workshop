@@ -6,7 +6,7 @@
 # in the argocd namespace whose label `workshop.example.io/pair-id`
 # is set. Those Secrets are written by `task workshop:enable-aruba
 # PAIR=<id>` (registers the vcluster + immediately syncs the
-# bundle), NOT by the XDeveloperEnvironment Composition. That keeps
+# bundle), NOT by the DeveloperEnvironment Composition. That keeps
 # pair creation (automatic) and Aruba bundle sync (workshop owner's
 # explicit gate) cleanly separated.
 #
