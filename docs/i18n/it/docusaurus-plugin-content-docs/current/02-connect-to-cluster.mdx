@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: c7c46a1e5e4bf3975f2ee36c5d17356f67a557c4
+translation_source_commit: a4920613dbe9c24d2203d7694c5d8d2655d64128
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -57,6 +57,27 @@ workshop-<pair-id>
 ```
 
 Il prefisso `workshop-` è il tuo segnale visivo che sei sul cluster giusto. Se vedi `docker-desktop`, `minikube`, `k3d-…` o qualsiasi cosa che non inizi con `workshop-`, l'`export` non ha avuto effetto in questa shell — rieseguilo nello stesso terminale in cui lancerai il resto del workshop. Se `kubectl` stampa un errore, ricontrolla il percorso del file e che l'estrazione abbia effettivamente prodotto il YAML.
+
+:::tip L'`export` vive solo in questo terminale
+Apri una nuova tab o finestra e la variabile sparisce — vedrai il tuo context *originale* (spesso `docker-desktop`) e qualunque comando `kubectl` colpirà il cluster sbagliato. Tre modi per gestirla, dal più semplice in poi:
+
+1. **Rilancia l'export.** L'opzione più economica per un workshop di 3 ore. Tieni la doc aperta e copia-incolla la riga in ogni nuovo terminale che apri.
+2. **Persisti per il workshop (nessun altro cluster sul laptop).** Sposta il file in un posto pulito e fai puntare una volta il tuo profilo di shell:
+   ```bash
+   mkdir -p ~/.kube
+   mv <pair-id>.yaml ~/.kube/workshop.yaml
+   echo 'export KUBECONFIG=$HOME/.kube/workshop.yaml' >> ~/.zshrc   # oppure ~/.bashrc
+   ```
+   Apri un nuovo terminale — `kubectl config current-context` dovrebbe stampare `workshop-<pair-id>` senza alcun export manuale. Rimuovi la riga da `~/.zshrc` ed elimina `~/.kube/workshop.yaml` a workshop finito.
+3. **Sei un utente `kubectl` quotidiano con un `~/.kube/config` già popolato?** Non sovrascriverlo — distruggerebbe in silenzio ogni altro context che hai. *Fai il merge* del file del workshop:
+   ```bash
+   KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+     kubectl config view --flatten > ~/.kube/config.new
+   mv ~/.kube/config.new ~/.kube/config
+   kubectl config use-context workshop-<pair-id>
+   ```
+   Ora `kubectx` elenca `workshop-<pair-id>` accanto ai tuoi context abituali e puoi switchare. A workshop finito, pulisci con `kubectl config delete-context workshop-<pair-id>` (più le corrispondenti `delete-cluster` e `delete-user`).
+:::
 
 ### 4. Elenca i namespace come smoke test
 
