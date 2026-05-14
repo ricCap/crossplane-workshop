@@ -83,7 +83,7 @@ KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
   && kubectl config use-context workshop-<pair-id>
 ```
 
-`kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove it:
+The `mv` does replace `~/.kube/config`, but it's safe: the previous line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove it:
 
 ```bash
 kubectl config delete-context workshop-<pair-id>
