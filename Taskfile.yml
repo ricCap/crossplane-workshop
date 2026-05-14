@@ -842,18 +842,18 @@ tasks:
         apiVersion: v1
         kind: Config
         clusters:
-          - name: ${pair}
+          - name: workshop-${pair}
             cluster:
               server: {{.PLATFORM_HOST}}/kubernetes/project/{{.PLATFORM_PROJECT}}/virtualcluster/${pair}
         contexts:
           - name: workshop-${pair}
             context:
-              cluster: ${pair}
-              user: ${pair}
+              cluster: workshop-${pair}
+              user: workshop-${pair}
               namespace: default
         current-context: workshop-${pair}
         users:
-          - name: ${pair}
+          - name: workshop-${pair}
             user:
               token: ${token}
         EOF

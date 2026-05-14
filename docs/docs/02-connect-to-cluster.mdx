@@ -71,11 +71,17 @@ Open a new tab or window and the variable is gone — you'll see your *original*
 3. **Already a daily `kubectl` user with a populated `~/.kube/config`?** Don't overwrite it — that would silently destroy every other context you have. *Merge* the workshop file in:
    ```bash
    KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
-     kubectl config view --flatten > ~/.kube/config.new
-   mv ~/.kube/config.new ~/.kube/config
-   kubectl config use-context workshop-<pair-id>
+     kubectl config view --flatten --raw > ~/.kube/config.new \
+     && mv ~/.kube/config.new ~/.kube/config \
+     && chmod 600 ~/.kube/config \
+     && kubectl config use-context workshop-<pair-id>
    ```
-   Now `kubectx` lists `workshop-<pair-id>` alongside your normal contexts and you can switch between them. After the workshop, clean up with `kubectl config delete-context workshop-<pair-id>` (plus the matching `delete-cluster` and `delete-user`).
+   `--raw` keeps the token (and any cert data) intact; `--flatten` inlines file references; the `&&` chain prevents a failed `view` from replacing your real config with a half-written file; `chmod 600` because the merged file now contains the bearer token. Now `kubectx` lists `workshop-<pair-id>` alongside your normal contexts and you can switch between them. After the workshop, clean up:
+   ```bash
+   kubectl config delete-context workshop-<pair-id>
+   kubectl config delete-cluster workshop-<pair-id>
+   kubectl config delete-user    workshop-<pair-id>
+   ```
 :::
 
 ### 4. List namespaces as a smoke test
