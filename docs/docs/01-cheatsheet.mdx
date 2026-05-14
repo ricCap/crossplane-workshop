@@ -107,38 +107,6 @@ The `Scope` column has a subtle split. CRDs and XRDs are themselves cluster-scop
 
 [Concepts overview (docs.crossplane.io)](https://docs.crossplane.io/latest/concepts/)
 
-### Naming convention: no `X` prefix in v2
-
-You will see older Crossplane material recommending an `X` prefix on XR kinds — `XApplication`, `XPostgreSQLInstance`, `XBucket`. That was a **v1** convention: in v1 every composite kind had a sibling *claim* kind, and the `X` prefix distinguished the cluster-scoped XR (`XApplication`) from the namespaced claim (`Application`) end-users actually wrote.
-
-**Crossplane v2 dropped claims**, so the prefix has no reason to exist. Upstream is mid-cleanup ([crossplane/docs#1056](https://github.com/crossplane/docs/issues/1056)); this workshop uses the v2 naming throughout — plain kinds like `Application`, `Hello`, no `X`.
-
-Collisions with provider kinds (`Application` exists in ArgoCD, `Bucket` is an S3 MR) are handled by giving your XRD its own **API group**. This workshop uses `workshop.example.io`, so an `Application.workshop.example.io` is unambiguous against ArgoCD's `Application.argoproj.io` — and `kubectl get application.workshop.example.io` always selects yours.
-
-What follows from that:
-
-- The XRD's `metadata.name` is `<plural>.<group>` — so kind `Application` gives `applications.workshop.example.io`. Mechanical, not a separate rule.
-- The XRD object's own kind is always `CompositeResourceDefinition` — it's the kind it *defines* that follows the naming rule.
-- The `Composition`'s `metadata.name` can be anything. This workshop names it the same as the XRD purely for clarity (one Composition per XRD).
-- The XR instance's `metadata.name` — `wall-tile`, `hello-world`, whatever you pick.
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v2
-kind: CompositeResourceDefinition           # the XRD object's own kind
-metadata:
-  name: applications.workshop.example.io    # <plural-of-XR-kind>.<group>
-spec:
-  group: workshop.example.io
-  names:
-    kind: Application                        # the kind the XRD defines
-    plural: applications
----
-apiVersion: workshop.example.io/v1alpha1
-kind: Application                            # an XR instance of that kind
-metadata:
-  name: wall-tile
-```
-
 ### When to reach for what
 
 | Goal | Use this |
@@ -172,6 +140,9 @@ In **Crossplane v2** — what you're using today — XRs are first-class and can
 | Composition style | Patch-and-transform (declarative), Functions (later addition) | Functions are the default |
 | XRD `claimNames` | Required for claim-backed XRDs | Not required for claim-free XRDs |
 | API group (XR types) | `apiextensions.crossplane.io/v1` | `apiextensions.crossplane.io/v2` |
+| XR kind naming | `X`-prefixed (e.g. `XApplication`) — distinguished the cluster-scoped XR from its namespaced claim sibling | Plain kind (e.g. `Application`) — no claim sibling, so the prefix had no reason to stick around ([crossplane/docs#1056](https://github.com/crossplane/docs/issues/1056)) |
+
+That last row is why older Crossplane material you'll find online still leads with `XFoo`-style kinds. v2 dropped the convention along with claims; this workshop uses the v2 naming throughout.
 
 [v2 migration guide (docs.crossplane.io)](https://docs.crossplane.io/latest/whats-new/)
 

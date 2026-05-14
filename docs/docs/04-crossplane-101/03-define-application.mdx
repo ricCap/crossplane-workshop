@@ -16,7 +16,7 @@ Same cluster, same commands. Your tile at `/team/local/` will light up once the 
 
 ## 5.1 Before you start ⏱️ 3m
 
-This is the module where the workshop clicks together. You met the XRD-Composition-XR shape in [module 4](./first-composition) on a tiny `Hello` example — one XR fanned out into one ConfigMap. This module uses the same shape on something useful: a high-level `Application` kind that fans out into a frontend, a backend, and the ConfigMap that wires them together. (No `X` prefix — see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2) for why the old `XApplication`-style convention is gone in v2.)
+This is the module where the workshop clicks together. You met the XRD-Composition-XR shape in [module 4](./first-composition) on a tiny `Hello` example — one XR fanned out into one ConfigMap. This module uses the same shape on something useful: a high-level `Application` kind that fans out into a frontend, a backend, and the ConfigMap that wires them together.
 
 As a refresher: an XR triggers a Composition; the Composition's pipeline runs a function (`function-patch-and-transform` here, installed in module 4); the function's output is the desired-state YAML Crossplane then applies to the cluster.
 
