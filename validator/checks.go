@@ -35,7 +35,6 @@ var checks = map[string]Check{
 	"hello-xr-ready":                checkHelloXRReady,
 	"application-ready":             checkApplicationReady,
 	"helm-release-ready":            checkHelmReleaseReady,
-	"provider-kubernetes-installed": checkProviderKubernetesInstalled,
 	"first-mr-ready":                checkFirstMRReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
 	"provider-github-installed":     checkProviderGithubInstalled,
@@ -61,7 +60,6 @@ var orderedCheckIDs = []string{
 	"hello-xr-ready",
 	"application-ready",
 	"helm-release-ready",
-	"provider-kubernetes-installed",
 	"provider-helm-installed",
 	"first-mr-ready",
 	"provider-github-installed",
@@ -82,7 +80,6 @@ var checkLabels = map[string]string{
 	"hello-xr-ready":                "First Composition (Hello XR)",
 	"application-ready":             "Application Ready",
 	"helm-release-ready":            "Helm Release Ready",
-	"provider-kubernetes-installed": "provider-kubernetes Healthy",
 	"provider-helm-installed":       "provider-helm Healthy",
 	"first-mr-ready":                "First MR Ready",
 	"provider-github-installed":     "provider-github Healthy",
@@ -248,11 +245,6 @@ func checkFirstMRReady(ctx context.Context, client dynamic.Interface) (bool, str
 // checkProviderHelmInstalled asserts that Provider/provider-helm is Healthy.
 func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	return checkProviderHealthy(ctx, client, "provider-helm")
-}
-
-// checkProviderKubernetesInstalled asserts that Provider/provider-kubernetes is Healthy.
-func checkProviderKubernetesInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
-	return checkProviderHealthy(ctx, client, "provider-kubernetes")
 }
 
 // checkProviderGithubInstalled asserts that Provider/provider-github is Healthy.

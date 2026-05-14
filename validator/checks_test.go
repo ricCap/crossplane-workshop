@@ -182,41 +182,6 @@ func TestCheckCrossplaneInstalled_Progressing(t *testing.T) {
 	}
 }
 
-// --- checkProviderKubernetesInstalled -------------------------------------
-
-func TestCheckProviderKubernetesInstalled_Healthy(t *testing.T) {
-	p := u("pkg.crossplane.io/v1", "Provider", "", "provider-kubernetes", []map[string]interface{}{
-		cond("Healthy", "True", "HealthyPackageRevision", "healthy"),
-	})
-	client := newFakeClient(t, p)
-	pass, details, err := checkProviderKubernetesInstalled(context.Background(), client)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !pass {
-		t.Fatalf("expected pass=true, got details=%q", details)
-	}
-}
-
-func TestCheckProviderKubernetesInstalled_Missing(t *testing.T) {
-	client := newFakeClient(t)
-	pass, details, _ := checkProviderKubernetesInstalled(context.Background(), client)
-	if pass {
-		t.Fatalf("expected pass=false for missing Provider, details=%q", details)
-	}
-}
-
-func TestCheckProviderKubernetesInstalled_Unhealthy(t *testing.T) {
-	p := u("pkg.crossplane.io/v1", "Provider", "", "provider-kubernetes", []map[string]interface{}{
-		cond("Healthy", "False", "UnhealthyPackageRevision", "image pull backoff"),
-	})
-	client := newFakeClient(t, p)
-	pass, details, _ := checkProviderKubernetesInstalled(context.Background(), client)
-	if pass {
-		t.Fatalf("expected pass=false for unhealthy Provider, details=%q", details)
-	}
-}
-
 // --- checkFirstMRReady ----------------------------------------------------
 
 func TestCheckFirstMRReady_Ready_Namespaced(t *testing.T) {
