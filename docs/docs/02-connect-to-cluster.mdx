@@ -49,7 +49,13 @@ kubectl config current-context
 
 (On Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
 
-The `current-context` command prints the context name — treat anything non-empty as success. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
+Expected output:
+
+```
+workshop-<pair-id>
+```
+
+The `workshop-` prefix is your visual cue that you're on the right cluster. If you see `docker-desktop`, `minikube`, `k3d-…`, or anything that doesn't start with `workshop-`, the `export` didn't take effect in this shell — re-run it in the same terminal where you'll run the rest of the workshop. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
 
 ### 4. List namespaces as a smoke test
 
@@ -68,6 +74,10 @@ brew install kubectx k9s helm      # macOS / Linuxbrew
 ```
 
 Windows / plain Linux install links are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+
+### 6. (Strongly recommended) Show the cluster in your shell prompt
+
+The single most effective way to avoid running `kubectl apply` or `helm install` against the wrong cluster is to make the active context visible in your shell prompt. Install [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) or enable [Starship](https://starship.rs)'s `kubernetes` module — both render the current context next to every prompt. When you see `(workshop-<pair-id>)` you're safe; when you see `(docker-desktop)` you know to fix it before typing. Install pointers are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
 ## 2.3 Smoke test — apply a `hello` pod ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
 

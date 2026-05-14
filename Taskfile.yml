@@ -846,12 +846,12 @@ tasks:
             cluster:
               server: {{.PLATFORM_HOST}}/kubernetes/project/{{.PLATFORM_PROJECT}}/virtualcluster/${pair}
         contexts:
-          - name: ${pair}
+          - name: workshop-${pair}
             context:
               cluster: ${pair}
               user: ${pair}
               namespace: default
-        current-context: ${pair}
+        current-context: workshop-${pair}
         users:
           - name: ${pair}
             user:
