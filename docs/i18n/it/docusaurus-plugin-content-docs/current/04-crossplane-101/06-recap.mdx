@@ -1,0 +1,40 @@
+---
+sidebar_position: 9
+title: Riepilogo
+translation_source_commit: 9993e9b6cf207fb370937627dc86dac1d4e66947
+---
+
+# Crossplane 101 — Riepilogo
+
+Ottimo lavoro. Hai finito il percorso guidato centrale del workshop. Fai un respiro — quello che hai nel tuo cluster adesso è già abbastanza per costruirci sopra piattaforme reali.
+
+## Cosa hai costruito
+
+| Modulo | Cosa sta girando ora |
+|---|---|
+| Installa Crossplane | UXP v2 in `crossplane-system`, più la Web UI in sola lettura |
+| La tua prima Composition | `function-patch-and-transform` installata, un XRD `Hello` + Composition, un XR che ha composto una `ConfigMap` — senza alcun Provider |
+| Definisci un'Application | Un XRD `Application` + Composition che si dispiega in un Deployment frontend, un Deployment backend, due Service e una ConfigMap — il tutto da un solo XR |
+| Modifica la tua Application | Una modifica della Composition che ha rimodellato il frontend in esecuzione senza che nessuno toccasse l'XR |
+| Aggiungi un Provider | `provider-helm` installato, un `ClusterProviderConfig` e un `ProviderConfig` namespaced, e una MR `Release` che installa la chart `podinfo` |
+
+## Cosa sai adesso
+
+Hai visto entrambe le metà di Crossplane. La **metà composition** — XRD più Composition più una function — ti permette di pubblicare la tua API Kubernetes a partire da una pipeline di manifesti, senza alcun Provider. La **metà provider** — Provider più ProviderConfig più Managed Resource — estende Crossplane per parlare con qualsiasi cosa fuori dal cluster (oggi una registry Helm; domani API cloud e altri cluster). Le piattaforme reali mescolano entrambe.
+
+Il singolo punto da portarsi a casa: **una modifica della Composition ha rimodellato workload reali senza che il consumatore facesse nulla.** Quella proprietà — cambia la ricetta, ogni istanza esistente riconcilia — è il primitivo su cui è costruita ogni piattaforma Crossplane.
+
+## Dove andare adesso
+
+Il resto del workshop è choose-your-own-adventure. Scegli quello che si adatta a dove la tua coppia vuole spingersi:
+
+| Sezione | Forma | Scegli questa se vuoi… |
+|---|---|---|
+| [Crossplane 2XX](../crossplane-2xx/overview) | Mix di walkthrough guidati e puntatori aperti | Imparare la CLI di Crossplane, eseguire pipeline imperative `Operation`, o interiorizzare il pattern Provider/ProviderConfig/MR prima di toccare cloud reali |
+| [Crossplane 3XX](../crossplane-3xx/overview) | Task a media difficoltà guidati da puntatori | Provisionare risorse reali — un repo su GitHub, un bucket su AWS / GCP / Azure, o un database MySQL nel progetto Aruba della tua piattaforma — e impacchettare l'XRD di 101 come `Configuration` |
+| [Crossplane 4XX](../crossplane-4xx/overview) | Tracce da documentazione upstream | Generare un Provider da Terraform con Upjet, o fare un vero upgrade v1→v2 |
+| [Journey](../journeys/overview) | Scenari trasversali | Unire i task standalone in una storia del mondo reale — una piattaforma sviluppo interna, una landing zone cloud, o un processo automatizzato a lunga durata |
+
+Se non sai dove andare, il default sicuro è aprire la [panoramica 2XX](../crossplane-2xx/overview) e scegliere un task `(Guided)` — quelli portano la stessa forma passo-passo dei moduli 101 che hai appena finito. Da lì, salta in 3XX quando vuoi puntare un Provider a credenziali cloud reali.
+
+In ogni caso, il [Cheatsheet](../cheatsheet) e la pagina [Troubleshooting](../troubleshooting) sono le due tab da tenere aperte mentre esplori.
