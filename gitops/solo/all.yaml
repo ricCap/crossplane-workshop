@@ -155,7 +155,7 @@ spec:
     - type: URLRewrite
       urlRewrite:
         path:
-          replacePrefixMatch: /
+          replacePrefixMatch: /api
           type: ReplacePrefixMatch
     matches:
     - path:
