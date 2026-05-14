@@ -34,7 +34,25 @@ env:
 # On pull_request, the build runs but does not push, and the merge job is
 # skipped — so a broken Dockerfile fails CI before it can land on main.
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+      - name: Install
+        working-directory: docs
+        run: npm ci
+      - name: Test
+        working-directory: docs
+        run: npm test --silent
+
   build:
+    needs: test
     strategy:
       fail-fast: true
       matrix:

@@ -161,6 +161,12 @@ tasks:
   # PR. See AGENTS.md §Localization for the full workflow.
   # ------------------------------------------------------------------
 
+  docs:test:
+    desc: "Run the docs site's component unit tests (vitest + @testing-library/react)."
+    dir: docs
+    cmds:
+      - npm test --silent
+
   docs:i18n:check:
     desc: "Verify every English doc has an in-sync translation in every locale."
     cmds:

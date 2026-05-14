@@ -22,6 +22,10 @@ function resolvePairId(propPairId) {
   return null;
 }
 
+// Must match the event name PairId dispatches when it writes localStorage,
+// so this component re-renders after the user saves a pair ID on the same page.
+const PAIR_ID_CHANGE_EVENT = 'workshop:pair-id-changed';
+
 const STATUS = {
   IDLE: 'idle',
   LOADING: 'loading',
@@ -71,8 +75,18 @@ const labels = {
 export default function ValidateCheck({ check, pairId: propPairId }) {
   const [status, setStatus] = useState(STATUS.IDLE);
   const [details, setDetails] = useState('');
+  const [pairId, setPairId] = useState(() => resolvePairId(propPairId));
 
-  const pairId = resolvePairId(propPairId);
+  useEffect(() => {
+    setPairId(resolvePairId(propPairId));
+    const refresh = () => setPairId(resolvePairId(propPairId));
+    window.addEventListener(PAIR_ID_CHANGE_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(PAIR_ID_CHANGE_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, [propPairId]);
 
   const runCheck = useCallback(async () => {
     if (!pairId) {
