@@ -1,6 +1,12 @@
 # Per-source-IP rate limiting on all Gateway listeners.
 # Mitigates brute-force on the Platform login and general abuse.
 # Uses Local rate limiting (no Redis needed — single Envoy replica).
+#
+# Limit must accommodate `helm install` against the participant vcluster
+# apiserver: a single install (e.g. UXP) bursts ~50–100 req/s during
+# parallel discovery and resource existence checks. 20 rps caused 429s on
+# `helm install` (see ClusterRoleBinding discovery 429 incident). 200 rps
+# leaves comfortable headroom while still capping abusive traffic.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata:
@@ -20,5 +26,5 @@ spec:
                 value: "0.0.0.0/0"
                 type: Distinct
           limit:
-            requests: 20
+            requests: 200
             unit: Second
