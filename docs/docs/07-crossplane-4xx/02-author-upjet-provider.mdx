@@ -1,0 +1,40 @@
+---
+sidebar_position: 2
+title: Author a provider with Upjet
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Author a provider with Upjet ⏱️ 30m
+
+<PairId />
+
+:::note Running solo locally?
+Your kubeconfig points at your k3d cluster and your pair ID is `local`.
+See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 7.1 Before you start ⏱️ 5m
+
+In [Crossplane 3XX](../crossplane-3xx) you installed providers other people wrote — `provider-github`, `provider-aws-s3`, `provider-arubacloud`. Most of them have something in common: they were not hand-written. They were generated from an existing **Terraform provider** by [Upjet](https://github.com/crossplane/upjet), the code generator the Crossplane community uses to lift the entire ecosystem of Terraform providers into Crossplane Managed Resources.
+
+This module is a pointer-driven walk through Upjet's [Generating a Crossplane provider](https://github.com/crossplane/upjet/blob/main/docs/generating-a-provider.md) guide. The end state is a small Crossplane provider you generated yourself — CRDs, controllers, an OCI package — backed by a Terraform provider of your choice.
+
+You're about to scaffold a provider repository from `upjet-provider-template`, point it at a Terraform provider, write a couple of resource configurations, run `make generate`, and reconcile a real Managed Resource against it.
+
+## 7.2 Hints ⏱️ 25m
+
+This is a 4XX module — pointers, not a recipe. Open the upstream guide and work through it in this order. The example below uses the [Terraform GitHub provider](https://registry.terraform.io/providers/integrations/github/latest/docs) so you can compare your output against the [`provider-upjet-github`](https://github.com/crossplane-contrib/provider-upjet-github) reference implementation — but the same flow applies to any Terraform provider with published resources.
+
+- **Scaffold the repo.** Click "Use this template" on [`crossplane/upjet-provider-template`](https://github.com/crossplane/upjet-provider-template) to create a new repo named `provider-<name>` (the `./hack/prepare.sh` script later assumes that prefix). Clone it, run `make submodules` to pull in [`crossplane/build`](https://github.com/crossplane/build), then `./hack/prepare.sh` to rewrite the template's placeholder names.
+- **Pick the Terraform provider.** Find it on the [Terraform Registry](https://registry.terraform.io/browse/providers) and open the "Use Provider" dropdown — that gives you `TERRAFORM_PROVIDER_SOURCE` (e.g. `integrations/github`) and `TERRAFORM_PROVIDER_VERSION`. Set those plus `TERRAFORM_PROVIDER_REPO`, `TERRAFORM_PROVIDER_DOWNLOAD_NAME`, `TERRAFORM_NATIVE_PROVIDER_BINARY`, and `TERRAFORM_DOCS_PATH` in the `Makefile`. The values for the GitHub provider are listed verbatim in the upstream guide.
+- **Wire up the ProviderConfig.** Edit `internal/clients/<name>.go` to read the Terraform provider's auth keys (e.g. `token`, `owner`, `base_url` for GitHub) out of the Secret referenced by the `ProviderConfig`. The template already has the boilerplate; you fill in the keys.
+- **Choose which resources to generate.** Upjet skips any Terraform resource that does not have an [external name configuration](https://github.com/crossplane/upjet/blob/main/docs/configuring-a-resource.md#external-name). Add one entry per Terraform resource you want to expose to `ExternalNameConfigs` in `config/external_name.go` — `config.NameAsIdentifier` for resources whose name is the import ID, `config.TemplatedStringAsIdentifier(...)` for composite IDs.
+- **Group resources and add references.** Per resource, create `config/cluster/<group>/config.go` and `config/namespaced/<group>/config.go` files that override `r.ShortGroup` and declare `r.References["..."]` to other generated resources (e.g. a Branch references a Repository). Register the new packages in `config/provider.go` for both `GetProvider` and `GetProviderNamespaced`. Cross-resource references are what make `repositoryRef` work in YAML — without them, participants would have to hard-code IDs.
+- **Generate.** `go install golang.org/x/tools/cmd/goimports@latest`, then `make generate`. This produces `apis/`, `internal/controller/`, and `package/crds/` from the Terraform provider's schema. Re-run after every config change.
+- **Run it against your workshop cluster.** Apply the generated CRDs (`kubectl apply -f package/crds`), set `KUBECONFIG` to the link your instructor has given you, then `make run` in one terminal. In another, apply a `ProviderConfig` Secret with your real Terraform-provider credentials and one MR (e.g. a `Repository`). `kubectl get managed -A` should flip to `READY=True` within a minute.
+- **Package and ship (optional).** Once it works locally, `make build` produces a Crossplane package image. Push it to any OCI registry (`xpkg.upbound.io`, `ghcr.io/<you>/...`) and install it on a fresh cluster with a `Provider` resource — same install path as `provider-github` from [Crossplane 3XX](../crossplane-3xx/provider-github). At that point you have a real, distributable provider.
+
+A working exercise: pick a Terraform provider you actually use (GitHub, Cloudflare, Hetzner, anything with a couple of small resources), generate one resource end-to-end, and reconcile it against your workshop cluster. Most of the cloud providers you installed in [Crossplane 3XX](../crossplane-3xx) were generated this exact way — `provider-aws`, `provider-gcp`, and `provider-azure` are all Upjet output from their respective Terraform providers.
+
+Beyond this guide, the next two upstream docs to read are [Configuring a resource](https://github.com/crossplane/upjet/blob/main/docs/configuring-a-resource.md) (deeper coverage of references, late-initialization, sensitive fields, `MoveStateFunc`) and [Testing with Uptest](https://github.com/crossplane/upjet/blob/main/docs/testing-with-uptest.md) (how the contrib providers run example MRs against a real Terraform binary in CI).

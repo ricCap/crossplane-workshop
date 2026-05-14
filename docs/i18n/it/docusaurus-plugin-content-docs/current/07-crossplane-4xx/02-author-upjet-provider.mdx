@@ -1,0 +1,41 @@
+---
+sidebar_position: 2
+title: Scrivi un provider con Upjet
+translation_source_commit: ff00a042c886900528d0e606ce89e249eee846aa
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Scrivi un provider con Upjet ⏱️ 30m
+
+<PairId />
+
+:::note Stai facendo il workshop in solo, in locale?
+Il tuo kubeconfig punta al tuo cluster k3d e il tuo pair ID è `local`.
+Vedi [Setup locale in solo (k3d)](../solo-local-setup).
+:::
+
+## 7.1 Prima di iniziare ⏱️ 5m
+
+In [Crossplane 3XX](../crossplane-3xx) hai installato provider scritti da altre persone — `provider-github`, `provider-aws-s3`, `provider-arubacloud`. La maggior parte di loro ha qualcosa in comune: non sono stati scritti a mano. Sono stati generati a partire da un **provider Terraform** esistente da [Upjet](https://github.com/crossplane/upjet), il generatore di codice che la community Crossplane usa per portare l'intero ecosistema dei provider Terraform dentro le Managed Resource Crossplane.
+
+Questo modulo è una camminata pointer-driven attraverso la guida [Generating a Crossplane provider](https://github.com/crossplane/upjet/blob/main/docs/generating-a-provider.md) di Upjet. Lo stato finale è un piccolo provider Crossplane che hai generato tu — CRD, controller, un package OCI — appoggiato a un provider Terraform a tua scelta.
+
+Stai per fare lo scaffold di un repository di provider partendo da `upjet-provider-template`, puntarlo a un provider Terraform, scrivere un paio di configurazioni di risorse, lanciare `make generate`, e riconciliare una vera Managed Resource contro di esso.
+
+## 7.2 Suggerimenti ⏱️ 25m
+
+Questo è un modulo 4XX — pointer, non una ricetta. Apri la guida upstream e attraversala in questo ordine. L'esempio sotto usa il [provider Terraform GitHub](https://registry.terraform.io/providers/integrations/github/latest/docs) così puoi confrontare il tuo output con l'implementazione di riferimento [`provider-upjet-github`](https://github.com/crossplane-contrib/provider-upjet-github) — ma lo stesso flusso si applica a qualsiasi provider Terraform con risorse pubblicate.
+
+- **Fai lo scaffold del repo.** Clicca "Use this template" su [`crossplane/upjet-provider-template`](https://github.com/crossplane/upjet-provider-template) per creare un nuovo repo chiamato `provider-<nome>` (lo script `./hack/prepare.sh` più avanti assume quel prefisso). Clonalo, lancia `make submodules` per tirare giù [`crossplane/build`](https://github.com/crossplane/build), poi `./hack/prepare.sh` per riscrivere i nomi placeholder del template.
+- **Scegli il provider Terraform.** Trovalo sul [Terraform Registry](https://registry.terraform.io/browse/providers) e apri il dropdown "Use Provider" — quello ti dà `TERRAFORM_PROVIDER_SOURCE` (es. `integrations/github`) e `TERRAFORM_PROVIDER_VERSION`. Imposta quelli più `TERRAFORM_PROVIDER_REPO`, `TERRAFORM_PROVIDER_DOWNLOAD_NAME`, `TERRAFORM_NATIVE_PROVIDER_BINARY` e `TERRAFORM_DOCS_PATH` nel `Makefile`. I valori per il provider GitHub sono elencati alla lettera nella guida upstream.
+- **Cabla il ProviderConfig.** Modifica `internal/clients/<nome>.go` per leggere le chiavi di autenticazione del provider Terraform (es. `token`, `owner`, `base_url` per GitHub) dal Secret referenziato dal `ProviderConfig`. Il template ha già il boilerplate; tu riempi le chiavi.
+- **Scegli quali risorse generare.** Upjet salta qualsiasi risorsa Terraform che non abbia una [external name configuration](https://github.com/crossplane/upjet/blob/main/docs/configuring-a-resource.md#external-name). Aggiungi un'entry per ogni risorsa Terraform che vuoi esporre a `ExternalNameConfigs` in `config/external_name.go` — `config.NameAsIdentifier` per risorse il cui nome è l'import ID, `config.TemplatedStringAsIdentifier(...)` per ID composti.
+- **Raggruppa le risorse e aggiungi reference.** Per ogni risorsa, crea i file `config/cluster/<gruppo>/config.go` e `config/namespaced/<gruppo>/config.go` che fanno override di `r.ShortGroup` e dichiarano `r.References["..."]` ad altre risorse generate (es. una Branch referenzia una Repository). Registra i nuovi package in `config/provider.go` sia per `GetProvider` sia per `GetProviderNamespaced`. Le reference cross-resource sono ciò che fa funzionare `repositoryRef` nello YAML — senza, le coppie dovrebbero hard-codare gli ID.
+- **Genera.** `go install golang.org/x/tools/cmd/goimports@latest`, poi `make generate`. Questo produce `apis/`, `internal/controller/`, e `package/crds/` dallo schema del provider Terraform. Rilancialo dopo ogni cambio di config.
+- **Eseguilo contro il tuo cluster del workshop.** Applica i CRD generati (`kubectl apply -f package/crds`), imposta `KUBECONFIG` al link che il tuo istruttore ti ha dato, poi `make run` in un terminale. In un altro, applica un Secret per il `ProviderConfig` con le tue vere credenziali del provider Terraform e una MR (es. una `Repository`). `kubectl get managed -A` dovrebbe passare a `READY=True` entro un minuto.
+- **Pacchettizza e distribuisci (opzionale).** Una volta che funziona in locale, `make build` produce un'immagine package Crossplane. Pushala su un qualsiasi registry OCI (`xpkg.upbound.io`, `ghcr.io/<tu>/...`) e installala su un cluster fresco con una risorsa `Provider` — stesso percorso di installazione di `provider-github` da [Crossplane 3XX](../crossplane-3xx/provider-github). A quel punto hai un vero provider distribuibile.
+
+Un esercizio funzionante: scegli un provider Terraform che usi davvero (GitHub, Cloudflare, Hetzner, qualsiasi cosa con un paio di risorse piccole), genera una risorsa end-to-end, e riconciliala contro il tuo cluster del workshop. La maggior parte dei cloud provider che hai installato in [Crossplane 3XX](../crossplane-3xx) sono stati generati esattamente in questo modo — `provider-aws`, `provider-gcp` e `provider-azure` sono tutti output Upjet dai rispettivi provider Terraform.
+
+Oltre a questa guida, le prossime due pagine upstream da leggere sono [Configuring a resource](https://github.com/crossplane/upjet/blob/main/docs/configuring-a-resource.md) (copertura più approfondita di reference, late-initialization, campi sensibili, `MoveStateFunc`) e [Testing with Uptest](https://github.com/crossplane/upjet/blob/main/docs/testing-with-uptest.md) (come i provider contrib eseguono MR di esempio contro un binario Terraform reale in CI).

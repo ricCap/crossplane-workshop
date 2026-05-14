@@ -1,13 +1,17 @@
 ---
 sidebar_position: 1
 title: Panoramica
-translation_source_commit: 134f6e161aed90d95f656ffc4056a585a44dbfc5
+translation_source_commit: ff00a042c886900528d0e606ce89e249eee846aa
 ---
 
 # Crossplane 4XX — Panoramica
 
 Filoni avanzati per coppie pronte a uscire dai binari. Argomenti come generare provider da Terraform con Upjet o aggiornare i provider da v1 a v2. Per lo più pointer alla documentazione upstream — tracci tu il tuo percorso.
 
-:::note In arrivo
-Questa sezione è un placeholder. La lista completa dei task è in fase di scrittura.
-:::
+## Moduli disponibili
+
+| Modulo | ⏱️ | Argomento |
+|---|---|---|
+| [Scrivi un provider con Upjet](./author-upjet-provider) | 30m | Crea uno scaffold di un provider Crossplane partendo da `upjet-provider-template`, puntalo a un qualsiasi provider Terraform del registry, scrivi le configurazioni di external-name e di gruppo per una o due risorse, lancia `make generate`, e riconcilia una vera Managed Resource sul tuo cluster del workshop. |
+
+Altri task atterreranno qui man mano che vengono scritti — migrazione provider v1→v2, Composition Functions personalizzate in Go, e altri argomenti "ormai i binari ti stanno stretti".
