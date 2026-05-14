@@ -9,7 +9,7 @@ title: Process automation
 
 ## What you're building
 
-An XR — call it `SecurityReview` (no `X` prefix — v2 dropped that convention, see the [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2)) — that represents one application going through the review process. Underneath, a set of [provider-http](https://github.com/crossplane-contrib/provider-http) `DisposableRequest`s poll each department's endpoint until it returns the expected condition. The Composition advances the review stage by stage and emits a single Ready=True when every check has passed.
+An XR — call it `SecurityReview` — that represents one application going through the review process. Underneath, a set of [provider-http](https://github.com/crossplane-contrib/provider-http) `DisposableRequest`s poll each department's endpoint until it returns the expected condition. The Composition advances the review stage by stage and emits a single Ready=True when every check has passed.
 
 ## Suggested steps
 

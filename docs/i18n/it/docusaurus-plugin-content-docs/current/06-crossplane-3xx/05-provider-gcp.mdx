@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Crea risorse in GCP
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -250,7 +250,7 @@ Stessa forma `Provider` → `ProviderConfig` → MR, applicata contro GCP. L'uni
 Due naturali sviluppi:
 
 - **Stringi lo scope IAM.** `roles/storage.admin` è ampio; la mossa production-grade è un ruolo custom che concede solo `storage.buckets.create`, `storage.buckets.delete`, `storage.buckets.update` e lo lega al livello di progetto. Il provider gestirà centinaia di bucket con quel ruolo custom e non avrà mai bisogno di diritti più larghi.
-- **Componici sopra.** Avvolgi `Bucket` (e i suoi parenti `BucketIAMPolicy`, `BucketObject`) in un XR come `Bucket.workshop.example.io` così gli utenti della piattaforma ottengono un bucket cifrato, con retention policy, ad accesso uniforme, da una sola riga di YAML. (Il group custom disambigua dall'MR GCP `Bucket.storage.gcp.upbound.io` — vedi il [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2) per il motivo per cui v2 ha tolto il vecchio prefisso `X`.)
+- **Componici sopra.** Avvolgi `Bucket` (e i suoi parenti `BucketIAMPolicy`, `BucketObject`) in un XR come `Bucket.workshop.example.io` così gli utenti della piattaforma ottengono un bucket cifrato, con retention policy, ad accesso uniforme, da una sola riga di YAML. Il group custom (`workshop.example.io`) disambigua dall'MR GCP `Bucket.storage.gcp.upbound.io`.
 
 ### Per approfondire
 

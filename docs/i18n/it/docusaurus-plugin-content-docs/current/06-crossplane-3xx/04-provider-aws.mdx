@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Crea risorse in AWS
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -236,7 +236,7 @@ Hai dimostrato che la stessa forma `Provider` → `ProviderConfig` → MR che ha
 Due naturali sviluppi:
 
 - **Stringi lo scope IAM.** `AmazonS3FullAccess` va bene per una demo; in produzione, una policy custom che concede solo `s3:CreateBucket`, `s3:DeleteBucket`, `s3:PutBucketTagging` su un prefisso di bucket con wildcard è la vera forma a privilegio minimo. Il provider può gestire centinaia di bucket con una policy del genere e non ha mai bisogno di diritti a livello root.
-- **Componici sopra.** Avvolgi `Bucket` (e i suoi parenti `BucketAcl`, `BucketPolicy`, `BucketServerSideEncryptionConfiguration`) in un XR come `Bucket.workshop.example.io` così gli utenti della piattaforma ottengono un bucket opinionated, cifrato di default, da una sola riga di YAML. (Il group custom disambigua dall'MR AWS `Bucket.s3.aws.upbound.io` — è così che si evitano collisioni di kind in v2 senza il vecchio prefisso `X`; vedi il [cheatsheet](../cheatsheet#naming-convention-no-x-prefix-in-v2).) È lo stesso pattern che hai usato nel modulo 5 del 101 per avvolgere `Release.helm.m.crossplane.io`.
+- **Componici sopra.** Avvolgi `Bucket` (e i suoi parenti `BucketAcl`, `BucketPolicy`, `BucketServerSideEncryptionConfiguration`) in un XR come `Bucket.workshop.example.io` così gli utenti della piattaforma ottengono un bucket opinionated, cifrato di default, da una sola riga di YAML. Il group custom (`workshop.example.io`) disambigua dall'MR AWS `Bucket.s3.aws.upbound.io`. È lo stesso pattern che hai usato nel modulo 5 del 101 per avvolgere `Release.helm.m.crossplane.io`.
 
 ### Per approfondire
 
