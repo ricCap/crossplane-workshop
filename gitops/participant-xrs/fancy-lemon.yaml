@@ -1,6 +1,0 @@
-apiVersion: workshop.example.io/v1alpha1
-kind: XDeveloperEnvironment
-metadata:
-  name: fancy-lemon
-spec:
-  pairId: fancy-lemon
