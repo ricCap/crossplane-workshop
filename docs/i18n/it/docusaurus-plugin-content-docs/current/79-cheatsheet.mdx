@@ -1,7 +1,7 @@
 ---
 sidebar_position: 79
 title: Cheatsheet
-translation_source_commit: 72071510ead2f880858424c1c1cf757fadff2141
+translation_source_commit: c7c46a1e5e4bf3975f2ee36c5d17356f67a557c4
 ---
 
 # Cheatsheet
@@ -76,6 +76,8 @@ Non ti serve nessuno di questi per finire il workshop — `kubectl` da solo bast
 | [`k9s`](https://k9scli.io) | Dashboard a schermo intero da terminale per osservare le risorse | `brew install k9s` |
 | [`kubectx`](https://github.com/ahmetb/kubectx) | Cambia tra context kubeconfig: `kubectx prod` | `brew install kubectx` |
 | [`kubens`](https://github.com/ahmetb/kubectx) | Cambia il namespace di default: `kubens crossplane-system` | Incluso con `kubectx` |
+| [`kube-ps1`](https://github.com/jonmosco/kube-ps1) | Mostra il context kubeconfig attivo nel prompt Bash/Zsh — così non lanci mai `kubectl apply` sul cluster sbagliato | `brew install kube-ps1`, poi segui il [setup nel file della shell](https://github.com/jonmosco/kube-ps1#installing) |
+| [Starship](https://starship.rs) (alternativa) | Prompt cross-shell con un modulo [`kubernetes`](https://starship.rs/config/#kubernetes) integrato — stessa visibilità, funziona anche su PowerShell | `brew install starship`, poi abilita il modulo in `~/.config/starship.toml` |
 
 ## 1.3 Terminologia Crossplane
 

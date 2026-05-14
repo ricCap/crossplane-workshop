@@ -49,7 +49,52 @@ kubectl config current-context
 
 (On Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
 
-The `current-context` command prints the context name — treat anything non-empty as success. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
+Expected output:
+
+```
+workshop-<pair-id>
+```
+
+The `workshop-` prefix is your visual cue that you're on the right cluster. If you see `docker-desktop`, `minikube`, `k3d-…`, or anything that doesn't start with `workshop-`, the `export` didn't take effect in this shell — re-run it in the same terminal where you'll run the rest of the workshop. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
+
+:::tip The `export` only lives in this terminal
+Open a new tab or window and the variable is gone — `kubectl` falls back to whichever cluster it was talking to before (often `docker-desktop`). Two simple ways out:
+
+- **Re-run the export in each new terminal.** Copy-paste the same line. Fine for a 3-hour workshop.
+- **Persist with one line in your shell startup file:**
+  ```bash
+  mkdir -p ~/.kube && mv <pair-id>.yaml ~/.kube/workshop.yaml
+  echo 'export KUBECONFIG=$HOME/.kube/workshop.yaml' >> ~/.zshrc   # or ~/.bashrc
+  ```
+  New terminals pick it up automatically. Once the workshop is over, delete that line and `rm ~/.kube/workshop.yaml`.
+
+<details>
+<summary>Already use <code>kubectl</code> with other clusters and don't want to lose them?</summary>
+
+Don't overwrite `~/.kube/config` with the workshop file — that wipes out every other context. Don't `cat <pair-id>.yaml >> ~/.kube/config` either: a kubeconfig is a single YAML document, not a stream, so appending two of them produces duplicate top-level keys and `kubectl` can't parse the result.
+
+Merge them with `kubectl`'s built-in support:
+
+```bash
+cp -p ~/.kube/config ~/.kube/config.bak.$(date +%Y%m%d-%H%M%S) \
+  && KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+       kubectl config view --flatten --raw > ~/.kube/config.new \
+  && mv ~/.kube/config.new ~/.kube/config \
+  && chmod 600 ~/.kube/config \
+  && kubectl config use-context workshop-<pair-id>
+```
+
+The first line snapshots your current `~/.kube/config` to a timestamped backup so you can restore it (`mv ~/.kube/config.bak.<timestamp> ~/.kube/config`) if anything looks wrong afterward. The `mv` on line 4 then replaces `~/.kube/config`, but it's safe: the `kubectl config view` line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove the workshop entries (and the backup, once you've confirmed everything is fine):
+
+```bash
+kubectl config delete-context workshop-<pair-id>
+kubectl config delete-cluster workshop-<pair-id>
+kubectl config delete-user    workshop-<pair-id>
+rm ~/.kube/config.bak.*
+```
+
+</details>
+:::
 
 ### 4. List namespaces as a smoke test
 
@@ -68,6 +113,10 @@ brew install kubectx k9s helm      # macOS / Linuxbrew
 ```
 
 Windows / plain Linux install links are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+
+### 6. (Strongly recommended) Show the cluster in your shell prompt
+
+The single most effective way to avoid running `kubectl apply` or `helm install` against the wrong cluster is to make the active context visible in your shell prompt. Install [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) or enable [Starship](https://starship.rs)'s `kubernetes` module — both render the current context next to every prompt. When you see `(workshop-<pair-id>)` you're safe; when you see `(docker-desktop)` you know to fix it before typing. Install pointers are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
 ## 2.3 Smoke test — apply a `hello` pod ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
 
