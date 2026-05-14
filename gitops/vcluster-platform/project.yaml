@@ -5,7 +5,7 @@
 # project and they cannot reach their vcluster (verified live: pure
 # admin-only membership left participants locked out, even though
 # the per-pair `VirtualClusterInstance.spec.access` rules emitted
-# by the XDeveloperEnvironment Composition were correctly in place).
+# by the DeveloperEnvironment Composition were correctly in place).
 #
 # The wildcard `User: "*"` member with `loft-management-project-user`
 # below restores that UI access. Trade-off (#116): an authenticated

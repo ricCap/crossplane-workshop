@@ -7,7 +7,7 @@
 #    needs cluster-wide list. Namespaces have no secret content.
 #
 # 2. Per-pair get on `secrets/vc-<pair>` in `participant-<pair>`,
-#    granted via Role+RoleBinding emitted by the XDeveloperEnvironment
+#    granted via Role+RoleBinding emitted by the DeveloperEnvironment
 #    Composition (see gitops/crossplane-config/composition.yaml). RBAC
 #    cluster-rules can't constrain by name, so we use namespace-scoped
 #    Roles with `resourceNames` instead — that way the validator can

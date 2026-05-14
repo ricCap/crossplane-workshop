@@ -84,7 +84,7 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     # `delete` is required so provider-kubernetes can clean up the
-    # per-pair Namespace Object when an XDeveloperEnvironment XR is
+    # per-pair Namespace Object when a DeveloperEnvironment XR is
     # deleted — without it, the Object hangs in `Deleting` and the XR
     # never finishes garbage collection.
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

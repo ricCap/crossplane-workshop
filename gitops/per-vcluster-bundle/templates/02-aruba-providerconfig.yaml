@@ -3,7 +3,7 @@
 #
 # `secretRef.namespace: aruba-system` + `name: aruba-creds` matches
 # the destination of the host->vcluster Secret mirror set up in the
-# XDeveloperEnvironment Composition (see Track 1, PR #78). The
+# DeveloperEnvironment Composition (see Track 1, PR #78). The
 # Secret holds a JSON object with `api_key` and `api_secret` keys —
 # the format the upjet-based provider expects per the underlying
 # Terraform provider's schema (ricCap/provider-arubacloud#6, fixed

@@ -1,6 +1,6 @@
 # Each file in gitops/participant-xrs/ is a cluster-scoped
-# XDeveloperEnvironment XR (Crossplane v2, no claim layer). The
-# XDeveloperEnvironment Composition reconciles each one into a full
+# DeveloperEnvironment XR (Crossplane v2, no claim layer). The
+# DeveloperEnvironment Composition reconciles each one into a full
 # participant environment: Namespace, vcluster Helm Release, per-pair
 # HTTPRoute, and ResourceQuota.
 #
