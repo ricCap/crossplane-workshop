@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: a4920613dbe9c24d2203d7694c5d8d2655d64128
+translation_source_commit: 45f96229b9c445f8dfd44fe2dcfdc55954f9b9ae
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -72,11 +72,17 @@ Apri una nuova tab o finestra e la variabile sparisce — vedrai il tuo context 
 3. **Sei un utente `kubectl` quotidiano con un `~/.kube/config` già popolato?** Non sovrascriverlo — distruggerebbe in silenzio ogni altro context che hai. *Fai il merge* del file del workshop:
    ```bash
    KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
-     kubectl config view --flatten > ~/.kube/config.new
-   mv ~/.kube/config.new ~/.kube/config
-   kubectl config use-context workshop-<pair-id>
+     kubectl config view --flatten --raw > ~/.kube/config.new \
+     && mv ~/.kube/config.new ~/.kube/config \
+     && chmod 600 ~/.kube/config \
+     && kubectl config use-context workshop-<pair-id>
    ```
-   Ora `kubectx` elenca `workshop-<pair-id>` accanto ai tuoi context abituali e puoi switchare. A workshop finito, pulisci con `kubectl config delete-context workshop-<pair-id>` (più le corrispondenti `delete-cluster` e `delete-user`).
+   `--raw` mantiene intatto il token (e gli eventuali dati certificato); `--flatten` inlina i riferimenti a file; la catena `&&` evita che un `view` fallito sostituisca il tuo config vero con un file a metà; `chmod 600` perché il file mergiato ora contiene il bearer token. Ora `kubectx` elenca `workshop-<pair-id>` accanto ai tuoi context abituali e puoi switchare. A workshop finito, pulisci:
+   ```bash
+   kubectl config delete-context workshop-<pair-id>
+   kubectl config delete-cluster workshop-<pair-id>
+   kubectl config delete-user    workshop-<pair-id>
+   ```
 :::
 
 ### 4. Elenca i namespace come smoke test
