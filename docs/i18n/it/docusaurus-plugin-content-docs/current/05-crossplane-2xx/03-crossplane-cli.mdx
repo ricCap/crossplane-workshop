@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: (Guidato) Usa la CLI Crossplane
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: 0f1fd1efabdcd0d978a3f8150e133f33cc8653f4
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -51,7 +51,7 @@ Server Version: v2.2.0-up.5
 
 ## 5.3 Anteprima di una Composition con `render` ⏱️ 5m
 
-`crossplane render` esegue la pipeline di function della tua Composition contro un XR localmente e stampa le managed resource risultanti su stdout. Ha bisogno di Docker sul tuo laptop perché fa pull e run dell'immagine della function. Se Docker non è disponibile, salta avanti a [§5.4](#54-trace-a-live-xr-with-beta-trace-).
+`crossplane render` esegue la pipeline di function della tua Composition contro un XR localmente e stampa le managed resource risultanti su stdout. Ha bisogno di Docker sul tuo laptop perché fa pull e run dell'immagine della function. Se Docker non è disponibile, salta avanti a [§5.4](#54-trace-a-live-xr-with-beta-trace).
 
 ### 1. Estrai XRD e Composition dal tuo cluster
 
@@ -142,7 +142,7 @@ metadata:
 
 Stai vedendo le stesse cinque MR `Object` che la Composition creerebbe se applicassi questo XR — senza che nessuna di loro atterri nel cluster. Il primo blocco è l'XR stesso, con un `status.conditions` sintetico che riporta `Unready` (niente è stato ancora riconciliato — `render` non parla con un cluster). Ogni blocco successivo è una risorsa composta; l'annotazione `composition-resource-name` la mappa indietro all'entry nella pipeline della tua Composition. Questo è il loop in cui passerai la maggior parte del tuo tempo di authoring di Composition.
 
-## 5.4 Trace di un XR live con `beta trace` ⏱️ 5m
+## 5.4 Trace di un XR live con `beta trace` ⏱️ 5m {#54-trace-a-live-xr-with-beta-trace}
 
 `render` mostra cosa la Composition *produrrebbe*. `beta trace` mostra cosa ha *effettivamente prodotto*, contro un XR live. Elenca le tue Application:
 
