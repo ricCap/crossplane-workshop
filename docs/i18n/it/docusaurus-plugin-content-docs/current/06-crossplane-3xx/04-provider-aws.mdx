@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Crea risorse in AWS
-translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -230,6 +230,8 @@ kubectl delete bucket.s3.aws.m.upbound.io pair-<your-pair-id>-hello
 Verifica che il bucket sia sparito dalla console S3. Poi cancella l'IAM user oppure ruota la sua access key — la credenziale che hai creato in §6.3 ha pieno accesso S3 sul tuo account, quindi non lasciarla a marcire nello storico della shell.
 
 ## 6.6 Cosa è appena successo
+
+Un file YAML nel tuo cluster ha creato un bucket vero nel tuo account AWS vero. Niente nella console AWS, nessun `aws s3 mb`, nessun Terraform plan — `kubectl apply` e il bucket esiste. Se qualcuno cancella quel bucket dalla console AWS, Crossplane se ne accorgerà alla prossima riconciliazione e lo riporterà su. Il tuo cluster è ora la fonte di verità per un pezzo di infrastruttura cloud che vive in AWS.
 
 Hai dimostrato che la stessa forma `Provider` → `ProviderConfig` → MR che hai usato per `provider-helm` in 101 funziona invariata contro AWS. L'unica cosa che cambia è cosa c'è dall'altra parte dell'API.
 

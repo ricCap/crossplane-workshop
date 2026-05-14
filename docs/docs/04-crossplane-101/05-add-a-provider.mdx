@@ -265,6 +265,8 @@ When the tile turns green, Crossplane has installed a real Helm chart through a 
 
 ## 7.5 What just happened
 
+So far Crossplane only knew how to create things *inside* your cluster. By installing a Provider, you taught it to reach *out* — in this case, to run a Helm install on your behalf. From your side it still looks the same: you wrote one YAML file, ran `kubectl apply`, and a thing appeared. The novelty is that Crossplane is no longer just stitching together Kubernetes resources; it's now a hands-on operator of an external tool, with the same reconcile-until-Ready behaviour you've already gotten used to.
+
 You installed your first Provider. `provider-helm` extended Crossplane with a new managed-resource kind (`Release.helm.m.crossplane.io`); a `ClusterProviderConfig` and a `ProviderConfig` told the provider how to authenticate; one `Release` MR drove `helm install` against the cluster.
 
 The pattern is identical for every other Provider in the [Crossplane Marketplace](https://marketplace.upbound.io/) — `provider-aws-s3`, `provider-gcp-storage`, `provider-azure-storage`, `provider-kubernetes`, dozens more. The package name and the kinds change; the Provider → ProviderConfig → MR shape doesn't.

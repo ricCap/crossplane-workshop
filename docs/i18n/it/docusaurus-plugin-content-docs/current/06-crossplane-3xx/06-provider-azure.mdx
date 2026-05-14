@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: Crea risorse in Azure
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -268,6 +268,8 @@ az group delete --name crossplane-workshop --yes
 Poi o cancella il service principal, oppure ruota il suo secret — `az ad sp delete --id <appId>` lo rimuove.
 
 ## 6.6 Cosa è appena successo
+
+Un file YAML nel tuo cluster ha creato uno storage account vero nella tua subscription Azure vera. Nessun click nel portal, nessun `az storage account create`, nessun Terraform — `kubectl apply` e Azure ti ha consegnato un endpoint storage con nome pubblico. Se qualcuno cambia quell'account dal portal, Crossplane lo riconcilierà tornando al tuo YAML. Il tuo cluster è ora la fonte di verità per un pezzo di infrastruttura cloud che vive in Azure.
 
 Stessa forma `Provider` → `ProviderConfig` → MR, applicata contro Azure. I bit specifici di Azure sono: i Resource Group (il container parent), i service principal (la credenziale) e un nome storage account globalmente unico che fa anche da DNS.
 

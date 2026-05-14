@@ -189,6 +189,8 @@ Refresh the GitHub page — the topic appears. Same reconcile loop as every othe
 
 ## 6.5 What just happened
 
+You wrote a YAML file in your cluster and a GitHub repo appeared on the public internet. No clicks in the GitHub UI, no `gh repo create`, no Terraform — just `kubectl apply` and Crossplane went off to call GitHub's API for you. From here on, that repo is "managed": if someone changes its description in the UI, Crossplane will quietly put it back to what your YAML says the next time it reconciles. Your cluster is now the source of truth for something that lives outside it.
+
 You proved that Crossplane MRs can drive a SaaS API the same way they drive Kubernetes resources. The mechanics — `Provider`, `ProviderConfig`, MR with a `forProvider` spec, Ready/Synced conditions — are identical. The only new thing is that the credential lives in a Secret your `ProviderConfig` references, instead of being implicit in a ServiceAccount token. That same shape works for any provider that takes a Secret-based credential — AWS, GCP, Azure, Vault, Datadog, you name it.
 
 ### Go deeper

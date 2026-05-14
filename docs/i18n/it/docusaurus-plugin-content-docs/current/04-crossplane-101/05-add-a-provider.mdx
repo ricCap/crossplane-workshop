@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: Aggiungi un Provider
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -265,6 +265,8 @@ Output atteso (abbreviato):
 Quando la tile diventa verde, Crossplane ha installato una vera Helm chart attraverso un Provider. Stesso contratto di lifecycle di un XR `Hello` o di un XR `Application` — `kubectl delete release podinfo -n workshop-helm` e la chart se ne va con lui.
 
 ## 7.5 Cosa è appena successo
+
+Finora Crossplane sapeva solo creare cose *dentro* il tuo cluster. Installando un Provider, gli hai insegnato ad andare *fuori* — in questo caso, a eseguire un'installazione Helm per conto tuo. Dal tuo lato sembra ancora la stessa cosa: hai scritto un file YAML, hai eseguito `kubectl apply` ed è apparsa una cosa. La novità è che Crossplane non sta più solo cucendo insieme risorse Kubernetes; ora è un operatore pratico di uno strumento esterno, con lo stesso comportamento di reconcile-finché-Ready a cui ti sei già abituato.
 
 Hai installato il tuo primo Provider. `provider-helm` ha esteso Crossplane con un nuovo kind di managed-resource (`Release.helm.m.crossplane.io`); un `ClusterProviderConfig` e un `ProviderConfig` hanno detto al provider come autenticarsi; una sola MR `Release` ha guidato `helm install` contro il cluster.
 

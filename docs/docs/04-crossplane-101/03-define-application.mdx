@@ -385,6 +385,8 @@ When the tile turns green, open the [workshop wall](/wall) and click **Refresh**
 
 ## 5.3 What just happened
 
+You wrote one line of YAML — an `Application` — and got back a small running web app: a frontend, a backend, and the configuration that glues them together. Without Crossplane, the same outcome would have meant hand-writing six separate Kubernetes resources and keeping them consistent. Here, your one resource is the input, and Crossplane fans it out into the rest. The two custom fields you exposed (`message` and `color`) are the only knobs a developer needs to know about — everything else lives in the recipe.
+
 You extended Kubernetes with an `Application` kind. One `kubectl apply` now fans out into six resources Crossplane composes directly: two Deployments, two Services, and two ConfigMaps. The XR's `message` and `color` fields flow through the Composition's patch into the backend ConfigMap's `data.message`, which nginx serves verbatim — so you have a typed, field-driven interface to a multi-resource stack, and you've stayed in the providerless v2 path you used in module 4.
 
 That's Crossplane's central value: **compose your own APIs**, and let Kubernetes and providers do the rest.

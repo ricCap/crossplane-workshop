@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Crea risorse in GCP
-translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -244,6 +244,8 @@ kubectl delete bucket.storage.gcp.m.upbound.io pair-<your-pair-id>-hello
 Verifica che il bucket sia sparito dalla console GCS. Poi cancella il service account oppure ruotagli la chiave — la credenziale che hai creato in §6.3 ha pieno Storage admin sul tuo progetto.
 
 ## 6.6 Cosa è appena successo
+
+Un file YAML nel tuo cluster ha creato un bucket vero nel tuo progetto GCP vero. Niente nella Cloud Console, nessun `gsutil mb`, nessun Terraform — `kubectl apply` e il bucket esiste. Se qualcuno lo cancella dalla UI GCP, Crossplane lo riporterà silenziosamente su alla prossima riconciliazione. Il tuo cluster è ora la fonte di verità per un pezzo di infrastruttura cloud che vive in GCP.
 
 Stessa forma `Provider` → `ProviderConfig` → MR, applicata contro GCP. L'unico pezzo specifico di GCP è `spec.projectID` sul `ClusterProviderConfig` — Crossplane ne ha bisogno perché GCP scopa tutto per progetto.
 

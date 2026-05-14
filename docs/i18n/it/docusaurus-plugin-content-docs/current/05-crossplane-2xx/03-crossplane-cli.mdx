@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: (Guidato) Usa la CLI Crossplane
-translation_source_commit: 0f1fd1efabdcd0d978a3f8150e133f33cc8653f4
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -223,6 +223,8 @@ I subcomandi `xpkg` coprono il lato authoring della CLI — building e publishin
 Se vuoi spingerti oltre, fai lo scaffold di un pacchetto Configuration da `configuration-template`, droppaci dentro l'XRD e la Composition che hai usato oggi e lancia `xpkg build` localmente — non serve push.
 
 ## 5.7 Cosa è appena successo
+
+Fino a ora hai visto l'output di una Composition solo *dopo* averla applicata — facevi `kubectl apply`, aspettavi e poi rovistavi nello stato del cluster. La CLI `crossplane` ti dà un modo per chiedere "cosa farebbe?" e "cosa sta facendo adesso?" senza costringere il cluster a indovinare per te. È la differenza tra debuggare per tentativi ed errori e debuggare guardando.
 
 Ora hai tre lenti su una Composition: `render` per "cosa dovrebbe produrre", `beta trace` per "cosa sta effettivamente facendo" e `beta validate` per "l'input è anche solo valido". Insieme coprono il loop di debug interno che altrimenti spenderesti cercando di leggerlo dal cluster.
 

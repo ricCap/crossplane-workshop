@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: dcac444aa6ed861ae44b0119f6c2b326446a8037
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -225,6 +225,8 @@ Crossplane riconcilia la cancellazione contro Aruba, che smonta l'istanza MySQL.
 Se ti dimentichi, il tuo istruttore farà ripulisce tutto al teardown del workshop — ma il DBaaS continuerà ad accumulare ore fino ad allora.
 
 ## 7.6 Cosa è appena successo
+
+Un file YAML nel tuo cluster ha tirato su un database MySQL vero nel cloud di Aruba — un'istanza managed con il suo endpoint, pronta perché un'app si ci colleghi. Non hai aperto un portale del vendor, non hai incollato una carta di credito, non hai nemmeno visto la chiave API. Dal tuo posto sembra esattamente come creare una risorsa Kubernetes: scrivi YAML, applichi, aspetti Ready. Dal lato di Aruba, un database vero sta ronzando su hardware vero.
 
 Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applicata contro Aruba. Le differenze interessanti:
 

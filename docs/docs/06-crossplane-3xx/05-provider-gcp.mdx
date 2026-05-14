@@ -244,6 +244,8 @@ Verify the bucket is gone from the GCS console. Then either delete the service a
 
 ## 6.6 What just happened
 
+A YAML file in your cluster created a real bucket in your real GCP project. Nothing in the Cloud Console, no `gsutil mb`, no Terraform — `kubectl apply` and the bucket exists. If someone deletes it from the GCP UI, Crossplane will quietly put it back on the next reconcile. Your cluster is now the source of truth for a piece of cloud infrastructure that lives in GCP.
+
 Same `Provider` → `ProviderConfig` → MR shape, applied against GCP. The only GCP-specific piece is `spec.projectID` on the `ClusterProviderConfig` — Crossplane needed it because GCP scopes everything by project.
 
 Two natural follow-ups:

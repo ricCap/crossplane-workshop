@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Installa Crossplane
-translation_source_commit: 7abdb19134351d09ac44b97a4695d61db5f28cca
+translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -110,6 +110,8 @@ Premi `Ctrl+C` in quel terminale quando hai finito per fermare il port-forward.
 Se vuoi lasciarla in esecuzione per il resto del workshop: bene. Passa a essa dopo ogni modulo e guarda l'albero popolarsi mentre installi un provider, definisci un XRD e applichi un XR.
 
 ## 3.4 Cosa è appena successo
+
+Un singolo comando Helm ha aggiunto un piccolo programma — Crossplane — al tuo cluster. Dal tuo punto di vista, il cluster ora capisce qualche parola nuova oltre a quelle Kubernetes built-in (`Deployment`, `Service`, `ConfigMap`, …). È in ascolto, ma nessuno ha ancora pronunciato nessuna delle parole nuove, quindi non succede nulla di visibile.
 
 Hai installato un controller Kubernetes. I cinque Pod in `crossplane-system` sono il controller core di Crossplane più i suoi compagni; insieme sono un programma long-running che osserva certi *kind* — `Provider`, `Function`, `CompositeResourceDefinition` (XRD), `Composition`, e qualunque kind composite-resource (XR) tu definisca — ed esegue un loop di riconciliazione su ognuno.
 
