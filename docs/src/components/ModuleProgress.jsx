@@ -1,21 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from '@docusaurus/Link';
 
 /**
- * Per-page progress strip.
+ * Navbar progress pill.
  *
  * Reads the aggregate `/api/dashboard` (cached server-side for 10s — see
  * validator/dashboard.go) once on mount, picks out the row for the
- * current pair, and shows a compact "stage X/N · next: <label>" strip
- * at the top of every workshop page. It complements the inline
- * <ValidateCheck /> chips — those are still the "verify now" action,
- * this is the "where am I" indicator.
+ * current pair, and renders a compact "X/N · Next: <label>" pill in
+ * the navbar's right-item cluster (injected by the ejected
+ * theme/Navbar/Content swizzle). Always-visible, never below the fold,
+ * never competes with the page heading.
+ *
+ * Scope: the bar tracks only the 101 path (modules 00 → 04-crossplane-101).
+ * Beyond that, the workshop branches across provider tracks (AWS, GCP,
+ * Azure, Aruba) and a linear "stage X/N" stops making sense. The
+ * `hello-pod` smoke test from module 02 is treated as optional — it's
+ * not part of the denominator and doesn't gate "Next", because
+ * participants on the platform path skip it.
  *
  * The pair ID is resolved with the same precedence as ValidateCheck
  * (prop → /p/<pair>/ URL segment → localStorage). With no pair set the
- * strip stays out of the way so non-workshop pages and pre-setup
- * navigation aren't cluttered.
+ * pill stays hidden so non-workshop pages and pre-setup navigation
+ * aren't cluttered. Rendered after results land — no loading skeleton
+ * in the navbar (a flash of grey there is more distracting than a brief
+ * absence).
  */
+
+// The 101 path in module order — the only checks the strip counts.
+// `hello-pod` is intentionally absent (treated as optional, see comment
+// above). Update this list when the 101 modules change shape.
+const CORE_CHECK_IDS = [
+  'cluster-reachable',
+  'crossplane-installed',
+  'hello-xr-ready',
+  'application-ready',
+  'helm-release-ready',
+];
 
 const PAIR_ID_CHANGE_EVENT = 'workshop:pair-id-changed';
 
@@ -29,23 +48,24 @@ function resolvePairId(propPairId) {
   return null;
 }
 
-const stripStyle = {
-  display: 'flex',
+const pillStyle = {
+  display: 'inline-flex',
   alignItems: 'center',
-  gap: '12px',
-  padding: '8px 14px',
-  margin: '0 0 1rem 0',
-  borderRadius: '8px',
-  fontSize: '0.85rem',
+  gap: '10px',
+  padding: '4px 12px',
+  margin: '0 8px',
+  borderRadius: '999px',
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  lineHeight: 1.2,
   background: 'var(--ifm-color-emphasis-100)',
-  border: '1px solid var(--ifm-color-emphasis-200)',
-  flexWrap: 'wrap',
+  border: '1px solid var(--ifm-color-emphasis-300)',
+  color: 'var(--ifm-color-emphasis-800)',
+  whiteSpace: 'nowrap',
 };
 
 const barTrack = {
-  flex: '1 1 120px',
-  minWidth: '80px',
-  maxWidth: '220px',
+  width: '64px',
   height: '6px',
   borderRadius: '999px',
   background: 'var(--ifm-color-emphasis-300)',
@@ -61,11 +81,12 @@ const barFill = (ratio, done) => ({
   transition: 'width 200ms ease',
 });
 
-const linkStyle = {
-  marginLeft: 'auto',
-  color: 'var(--ifm-link-color)',
-  textDecoration: 'none',
-  fontWeight: 600,
+const nextStyle = {
+  fontWeight: 500,
+  color: 'var(--ifm-color-emphasis-700)',
+  maxWidth: '220px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 };
 
 export default function ModuleProgress({ pairId: propPairId }) {
@@ -105,24 +126,37 @@ export default function ModuleProgress({ pairId: propPairId }) {
   const row = data.pairs.find((p) => p.id === pairId);
   if (!row) return null;
 
-  const total = data.checks.length;
-  const reached = Math.min(row.stageReached ?? 0, total);
-  const done = reached >= total;
-  const nextCheck = done ? null : data.checks[reached];
+  const labelById = new Map(data.checks.map((c) => [c.id, c.label || c.id]));
+  const resultById = new Map((row.results || []).map((r) => [r.id, r]));
+
+  const total = CORE_CHECK_IDS.length;
+  let passing = 0;
+  let nextId = null;
+  for (const id of CORE_CHECK_IDS) {
+    const result = resultById.get(id);
+    if (result && result.pass) {
+      passing += 1;
+    } else if (nextId === null) {
+      nextId = id;
+    }
+  }
+  const done = passing >= total;
+
+  const title = done
+    ? `Pair ${pairId}: all ${total} 101 checks passing`
+    : `Pair ${pairId}: ${passing}/${total} 101 checks · next ${labelById.get(nextId) || nextId}`;
 
   return (
-    <div style={stripStyle} aria-label={`Progress for pair ${pairId}: stage ${reached} of ${total}`}>
-      <strong>Pair {pairId}</strong>
-      <span>Stage {reached}/{total}</span>
+    <div style={pillStyle} aria-label={title} title={title}>
+      <span>101 · {passing}/{total}</span>
       <div style={barTrack} aria-hidden="true">
-        <div style={barFill(total ? reached / total : 0, done)} />
+        <div style={barFill(total ? passing / total : 0, done)} />
       </div>
       {done ? (
-        <span>All checks passing 🎉</span>
+        <span>🎉 complete</span>
       ) : (
-        <span>Next: {nextCheck?.label || nextCheck?.id}</span>
+        <span style={nextStyle}>Next: {labelById.get(nextId) || nextId}</span>
       )}
-      <Link to="/wall" style={linkStyle}>Wall →</Link>
     </div>
   );
 }
