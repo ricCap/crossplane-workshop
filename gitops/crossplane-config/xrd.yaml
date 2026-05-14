@@ -54,6 +54,12 @@ spec:
                   # base manifest is the only thing that ever takes
                   # effect (see #40 → #41 for the test that surfaced
                   # this).
+                  #
+                  # `cpu`, `memory`, `limitsCpu`, `limitsMemory` are
+                  # currently inert: the Composition stopped wiring
+                  # them through to the per-pair ResourceQuota as a
+                  # workaround for argoproj/argo-cd#26529. They become
+                  # live again once that issue ships.
                   default: {}
                   properties:
                     cpu:

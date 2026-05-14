@@ -277,9 +277,30 @@ spec:
                 toFieldPath: spec.forProvider.manifest.spec.rules[1].backendRefs[0].name
 
           # --- 4. ResourceQuota ---
-          # Values are patched from spec.quota.* on the XDeveloperEnvironment XR.
-          # The XRD defines defaults so XRs without explicit quota
-          # still get sensible limits.
+          # Bounds per-pair object-count consumption on the host
+          # namespace. The CPU/memory/ephemeral-storage caps and the
+          # accompanying LimitRange were removed as a temporary
+          # workaround for argoproj/argo-cd#26529: kubectl v0.34.0
+          # (vendored by Argo CD v3.2–v3.4) panics with
+          # `assignment to entry in nil map` when its application-
+          # controller scans a namespace where a LimitRange injects
+          # default resources onto pods that ship without explicit
+          # `resources` — exactly the shape our per-pair sandboxes
+          # produced. Upstream fix lives in kubectl v0.36.0
+          # (kubernetes#136534); restore the resource-key entries
+          # below (and the LimitRange block previously named
+          # `limit-range`) once Argo CD ships a release vendoring
+          # that kubectl.
+          #
+          # Until then, per-pair CPU/memory/ephemeral-storage caps are
+          # off — relies on host capacity and the pod-count cap to
+          # bound consumption. Acceptable for the small (~2-pair)
+          # cohort the workshop currently serves.
+          #
+          # `spec.quota.{cpu,memory,limitsCpu,limitsMemory}` on the
+          # XRD are kept but no longer wired through; they become live
+          # again automatically when the resource-key entries are
+          # restored.
           - name: resource-quota
             base:
               apiVersion: kubernetes.crossplane.io/v1alpha2
@@ -294,28 +315,6 @@ spec:
                       namespace: placeholder
                     spec:
                       hard:
-                        requests.cpu: "2"
-                        requests.memory: 4Gi
-                        # Matches the XRD default raised in #40.
-                        # The Composition's base manifest is what
-                        # gets emitted when an XR omits spec.quota
-                        # entirely, because OpenAPI schema defaulting
-                        # only fills children when the parent object
-                        # is present — and our participant XRs ship
-                        # without a spec.quota block, so the XRD
-                        # default for limitsCpu never fires.
-                        limits.cpu: "6"
-                        limits.memory: 8Gi
-                        # ephemeral-storage caps — closes the node-disk
-                        # DoS vector (#80). Without these, a pod can
-                        # `dd` into emptyDir until kubelet evicts at
-                        # node level, taking other pairs on the node
-                        # down with it. The LimitRange below defaults
-                        # missing per-container fields so this quota's
-                        # admission gate doesn't reject pods that ship
-                        # without explicit ephemeral-storage requests.
-                        requests.ephemeral-storage: 5Gi
-                        limits.ephemeral-storage: 10Gi
                         pods: "30"
                         services: "20"
                         configmaps: "30"
@@ -337,87 +336,10 @@ spec:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
               - type: FromCompositeFieldPath
-                fromFieldPath: spec.quota.cpu
-                toFieldPath: spec.forProvider.manifest.spec.hard[requests.cpu]
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.quota.memory
-                toFieldPath: spec.forProvider.manifest.spec.hard[requests.memory]
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.quota.limitsCpu
-                toFieldPath: spec.forProvider.manifest.spec.hard[limits.cpu]
-              - type: FromCompositeFieldPath
-                fromFieldPath: spec.quota.limitsMemory
-                toFieldPath: spec.forProvider.manifest.spec.hard[limits.memory]
-              - type: FromCompositeFieldPath
                 fromFieldPath: spec.quota.pods
                 toFieldPath: spec.forProvider.manifest.spec.hard.pods
 
-          # --- 5. LimitRange ---
-          # Auto-fills container requests/limits for pods that ship
-          # without them. Required because the per-pair ResourceQuota
-          # above declares the four request/limit keys in spec.hard,
-          # which flips on Kubernetes' "every container must declare
-          # all four resource fields" admission rule. Upstream charts
-          # used by the workshop (e.g. UXP's apollo sidecars and the
-          # upbound-controller-manager initialize-crds initContainer)
-          # ship containers without complete resource specs and would
-          # otherwise be rejected by the host syncer's admission, which
-          # makes module 3's `helm install crossplane … --wait` time
-          # out silently.
-          #
-          # LimitRange admission runs before ResourceQuota, so missing
-          # fields get defaulted in time for the quota gate. Defaults
-          # are tuned for sidecar-shaped containers (apollo-syncer,
-          # postgres, init containers) — the apollo pod has three
-          # containers and only one specifies its own resources, so
-          # the other two pick up these defaults twice. With 200m
-          # default cpu the apollo pod's total limits.cpu is
-          # 1 (uxp-apollo) + 0.2 + 0.2 = 1.4, leaving headroom under
-          # the per-pair 4 CPU limits.cpu cap once the vcluster
-          # syncer, coredns, crossplane core, and webui are also
-          # accounted for.
-          - name: limit-range
-            base:
-              apiVersion: kubernetes.crossplane.io/v1alpha2
-              kind: Object
-              spec:
-                forProvider:
-                  manifest:
-                    apiVersion: v1
-                    kind: LimitRange
-                    metadata:
-                      name: pair-defaults
-                      namespace: placeholder
-                    spec:
-                      limits:
-                        - type: Container
-                          defaultRequest:
-                            cpu: 25m
-                            memory: 32Mi
-                            # Defaults for the ephemeral-storage caps
-                            # added to the ResourceQuota above (#80).
-                            # Most workshop containers don't write to
-                            # ephemeral disk; the ones that do
-                            # (UXP Apollo init, helm-release pods)
-                            # need a few hundred MiB at most. 64Mi
-                            # request × ~30 pods = ~2Gi, leaves
-                            # headroom under the 5Gi requests cap.
-                            ephemeral-storage: 64Mi
-                          default:
-                            cpu: 200m
-                            memory: 192Mi
-                            ephemeral-storage: 512Mi
-            patches:
-              - type: CombineFromComposite
-                combine:
-                  variables:
-                    - fromFieldPath: spec.pairId
-                  strategy: string
-                  string:
-                    fmt: "participant-%s"
-                toFieldPath: spec.forProvider.manifest.metadata.namespace
-
-          # --- 6. NetworkPolicies (#86) ---
+          # --- 5. NetworkPolicies (#86) ---
           # Default-deny ingress + egress on the participant host
           # namespace, with a curated allowlist for the traffic the
           # workshop actually needs:
