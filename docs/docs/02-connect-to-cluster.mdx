@@ -68,7 +68,7 @@ Open a new tab or window and the variable is gone — you'll see your *original*
    echo 'export KUBECONFIG=$HOME/.kube/workshop.yaml' >> ~/.zshrc   # or ~/.bashrc
    ```
    Open a new terminal — `kubectl config current-context` should print `workshop-<pair-id>` without any manual export. Remove the `~/.zshrc` line and delete `~/.kube/workshop.yaml` once the workshop is done.
-3. **Already a daily `kubectl` user with a populated `~/.kube/config`?** Don't overwrite it — that would silently destroy every other context you have. *Merge* the workshop file in:
+3. **Already a daily `kubectl` user with a populated `~/.kube/config`?** Don't overwrite it — that would silently destroy every other context you have. And don't try to glue it on with `cat <pair-id>.yaml >> ~/.kube/config` either: a kubeconfig is one YAML document with top-level lists (`clusters:`, `contexts:`, `users:`), so concatenation produces duplicate keys and `kubectl` will fail to parse the file. *Merge* it properly:
    ```bash
    KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
      kubectl config view --flatten --raw > ~/.kube/config.new \
@@ -76,7 +76,7 @@ Open a new tab or window and the variable is gone — you'll see your *original*
      && chmod 600 ~/.kube/config \
      && kubectl config use-context workshop-<pair-id>
    ```
-   `--raw` keeps the token (and any cert data) intact; `--flatten` inlines file references; the `&&` chain prevents a failed `view` from replacing your real config with a half-written file; `chmod 600` because the merged file now contains the bearer token. Now `kubectx` lists `workshop-<pair-id>` alongside your normal contexts and you can switch between them. After the workshop, clean up:
+   `KUBECONFIG=A:B` tells `kubectl` to read both files and overlay them; `--flatten` writes a single self-contained document instead of preserving the two-file split; `--raw` keeps your bearer token (and any cert data) intact rather than redacting it; the `&&` chain stops the `mv` from replacing your real config with a half-written file if `view` fails; `chmod 600` because the merged file now contains the bearer token. Now `kubectx` lists `workshop-<pair-id>` alongside your normal contexts and you can switch between them. After the workshop, clean up:
    ```bash
    kubectl config delete-context workshop-<pair-id>
    kubectl config delete-cluster workshop-<pair-id>
