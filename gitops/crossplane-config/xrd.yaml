@@ -62,34 +62,30 @@ spec:
                   # live again once that issue ships.
                   default: {}
                   properties:
+                    # CPU/memory defaults tripled from the original
+                    # 2/4Gi/6/8Gi sizing once participants started
+                    # pushing past the caps in module 06 (full
+                    # provider-arubacloud + provider-github stack on
+                    # top of UXP + webui). The historical rationale
+                    # for the 6 CPU limitsCpu value (Apollo's 1.4 CPU
+                    # footprint on top of the ~2.7 CPU vcluster/UXP
+                    # baseline) still holds — tripling just gives
+                    # comfortable headroom for module 04-06 providers
+                    # and learner experimentation.
                     cpu:
                       type: string
-                      default: "2"
+                      default: "6"
                     memory:
                       type: string
-                      default: "4Gi"
+                      default: "12Gi"
                     limitsCpu:
-                      # Default raised from 4 → 6 so module 3's
-                      # `helm install crossplane … --set webui.enabled=true`
-                      # fits on top of the static baseline already
-                      # consumed by the vcluster chart on the host
-                      # namespace. coredns alone has a 1 CPU limit
-                      # (chart default) and the vcluster syncer
-                      # statefulset, crossplane core, rbac-manager,
-                      # and upbound-controller-manager bring the
-                      # baseline to ~2.7 CPU before module 3 runs.
-                      # Apollo's pod (uxp-apollo 1 CPU + two
-                      # LimitRange-defaulted 200m sidecars = 1.4 CPU)
-                      # would then push past a 4 CPU cap. 6 CPU
-                      # leaves headroom for module 4-6 providers and
-                      # claims as well.
                       type: string
-                      default: "6"
+                      default: "18"
                     limitsMemory:
                       type: string
-                      default: "8Gi"
+                      default: "24Gi"
                     pods:
                       type: string
-                      default: "30"
+                      default: "90"
               required:
                 - pairId
