@@ -1,0 +1,78 @@
+name: Bump deployment images on release
+
+# Automates AGENTS.md §Releasing step 4: every time a stable GitHub Release is
+# published, open a PR bumping the two `image:` tags in
+# `gitops/docs/deployment.yaml` from the previous version to the released
+# `vX.Y.Z`. The human still merges — that's where ArgoCD on Aruba picks it up
+# via selfHeal.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    # Skip pre-releases and drafts — Aruba pins only stable `vX.Y.Z` tags.
+    if: github.event.release.prerelease == false && github.event.release.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VERSION: ${{ github.event.release.tag_name }}
+      FILE: gitops/docs/deployment.yaml
+    steps:
+      - name: Validate release tag
+        run: |
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag '$VERSION' is not a vX.Y.Z semver tag; skipping bump." >&2
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Rewrite image tags
+        run: |
+          set -euo pipefail
+          sed -i -E "s#(image: ghcr\.io/riccap/crossplane-workshop-(docs|validator):)v[0-9]+\.[0-9]+\.[0-9]+#\1${VERSION}#g" "$FILE"
+          if git diff --quiet -- "$FILE"; then
+            echo "No image-tag changes in $FILE — already at $VERSION?" >&2
+            exit 1
+          fi
+          git --no-pager diff -- "$FILE"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: release/bump-images-${{ env.VERSION }}
+          delete-branch: true
+          sign-commits: true
+          commit-message: |
+            chore(release): bump docs and validator images to ${{ env.VERSION }}
+
+            Automated by .github/workflows/bump-deployment-on-release.yml in
+            response to release ${{ env.VERSION }}.
+          title: "chore(release): bump docs and validator images to ${{ env.VERSION }}"
+          body: |
+            Automated PR opened in response to [release ${{ env.VERSION }}](${{ github.event.release.html_url }}).
+
+            Bumps the `docs` and `validator` `image:` tags in `${{ env.FILE }}` to `${{ env.VERSION }}`. Once merged, ArgoCD on Aruba will sync the new images within a few minutes.
+
+            **Before merging**, confirm both image-build workflows finished green for the `${{ env.VERSION }}` tag:
+
+            - [Build and push docs image](${{ github.server_url }}/${{ github.repository }}/actions/workflows/docs.yml?query=branch%3A${{ env.VERSION }})
+            - [Build and push validator image](${{ github.server_url }}/${{ github.repository }}/actions/workflows/validator.yml?query=branch%3A${{ env.VERSION }})
+
+            Otherwise ArgoCD will try to pull tags that do not yet exist in GHCR.
+
+            See AGENTS.md §Releasing for the full release runbook.
+          labels: |
+            release
+            automated
