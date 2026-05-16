@@ -6,7 +6,7 @@ title: Create resources in GCP
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Create resources in GCP ⏱️ 35m
+# Create resources in GCP ⏱️ 42m
 
 <PairId />
 
@@ -18,7 +18,7 @@ Same commands, same flow. The credential lives in your local cluster's `crosspla
 This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh Google Cloud project from sign-up through `kubectl get bucket SYNCED=True` yet**. GCP console flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
 :::
 
-## 6.1 Before you start ⏱️ 3m
+## 6.1 Before you start ⏱️ 4m
 
 In the AWS module you saw the same `Provider` → `ProviderConfig` → MR shape work against AWS's REST API. **`provider-gcp-storage`** does the same for Google Cloud Storage. Costs land on your bill, not the workshop's.
 
@@ -31,7 +31,7 @@ You're about to: sign up for Google Cloud, create a project, mint a service-acco
 
 The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it.
 
-## 6.2 Create the account ⏱️ ~15m
+## 6.2 Create the account ⏱️ ~18m
 
 ### 1. Sign up
 
@@ -76,7 +76,7 @@ If you don't have `gcloud` installed, the console UI works the same. Without thi
 
 Cloud Storage's "always free" tier gives you **5 GB-month** of standard storage in a US region (`US-WEST1`, `US-CENTRAL1`, or `US-EAST1`), 5 000 Class A operations and 50 000 Class B per month, **forever**, regardless of the 90-day credit. The single empty bucket this module creates uses none of that. **Delete it when you're done** — `roles/storage.admin` lets you do it from the same MR.
 
-## 6.3 Mint a credential ⏱️ 7m
+## 6.3 Mint a credential ⏱️ 9m
 
 You'll create a service account, give it `roles/storage.admin`, generate a JSON key, and feed it to Crossplane.
 
@@ -170,7 +170,7 @@ provider-gcp-storage   True        True      xpkg.upbound.io/upbound/provider-gc
 
 When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile GCS MRs.
 
-## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 5m
+## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 6m
 
 ### 1. Wire a `ClusterProviderConfig` to the Secret
 

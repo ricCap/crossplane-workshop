@@ -1,13 +1,13 @@
 ---
 sidebar_position: 4
 title: Installa Crossplane
-translation_source_commit: fca3ab15377fe8d1d06af3d3c0c02fc467d7c77f
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Installa Crossplane ⏱️ 15m
+# Installa Crossplane ⏱️ 20m
 
 <PairId />
 
@@ -15,7 +15,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Stesso cluster, stessi comandi — non cambia nulla in questo modulo per il percorso solo. Vedi [Setup locale solo (k3d)](../solo-local-setup) per il contesto.
 :::
 
-## 3.1 Prima di iniziare ⏱️ 3m
+## 3.1 Prima di iniziare ⏱️ 4m
 
 [Crossplane](https://docs.crossplane.io/latest/) è un [**controller**](../cheatsheet#controllers-and-the-operator-pattern) Kubernetes — stesso operator pattern del controller Deployment integrato — che osserva una famiglia di risorse che incontrerai nei prossimi quattro moduli (XRD, Composition, XR, Managed Resource) e le riconcilia trasformandole in azioni. Dopo questo modulo Crossplane stesso girerà nel tuo cluster, senza ancora osservare nulla — il modulo 4 gli darà qualcosa da osservare.
 
@@ -27,7 +27,7 @@ Le release di UXP v2 sono taggate come `2.2.0-up.5`, che Helm tratta come pre-re
 
 Stai per: aggiungere un repo Helm, installare la chart e verificare che il Deployment `crossplane` sia Available.
 
-## 3.2 Installa la Helm chart ⏱️ 7m
+## 3.2 Installa la Helm chart ⏱️ 10m
 
 ### 1. Aggiungi il repo Helm di Upbound
 
@@ -89,7 +89,7 @@ Se avessi installato Crossplane upstream (non UXP), apparirebbero solo `crosspla
 
 Quando la tile diventa verde, Crossplane è in esecuzione e sei pronto per il modulo 4.
 
-## 3.3 (Opzionale) Apri la Web UI ⏱️ 5m
+## 3.3 (Opzionale) Apri la Web UI ⏱️ 6m
 
 La Web UI mostra ogni oggetto Crossplane nel tuo cluster — Provider, XRD, Composition, XR e managed resource — in un albero che puoi navigare. È utile mentre impari; non è obbligatoria.
 

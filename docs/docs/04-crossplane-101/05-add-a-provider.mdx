@@ -6,7 +6,7 @@ title: Add a Provider
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Add a Provider ⏱️ 17m
+# Add a Provider ⏱️ 25m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
-## 7.1 Before you start ⏱️ 3m
+## 7.1 Before you start ⏱️ 8m
 
 So far, every resource you've composed has been a **plain Kubernetes object** — `ConfigMap`, `Deployment`, `Service`. Crossplane core itself was the controller that applied them. You never installed a Provider, and you didn't need one for that path.
 
@@ -76,7 +76,7 @@ A Provider is a package whose install spawns a long-running Pod (thick arrows: C
 
 You're about to: install a Provider, configure it (with both flavors of `ProviderConfig`), and apply one Managed Resource that installs a Helm chart.
 
-## 7.2 Install `provider-helm` ⏱️ 4m
+## 7.2 Install `provider-helm` ⏱️ 5m
 
 A Provider is just another Crossplane package. Apply the manifest, wait for it to go Healthy.
 
@@ -120,7 +120,7 @@ kubectl create clusterrolebinding provider-helm-admin \
 You're handing the provider a very broad credential. In a real cluster you'd narrow it to the kinds and namespaces that *your* charts need (Deployment, Service, ConfigMap in a specific namespace, say). Your workshop cluster is throwaway, so the blast radius is zero — but the production-grade pattern is a `Role` + `RoleBinding`.
 :::
 
-## 7.3 Configure the provider ⏱️ 4m
+## 7.3 Configure the provider ⏱️ 5m
 
 A `ProviderConfig` tells the provider *how* to authenticate to its external API. For `provider-helm` the "external API" is the cluster's own apiserver, and the provider uses `InjectedIdentity` — its own ServiceAccount token, no extra secret to manage.
 
@@ -174,7 +174,7 @@ workshop-helm   2s
 
 You now have two valid configs. The next step picks which one to use.
 
-## 7.4 Install a Helm chart through Crossplane ⏱️ 5m
+## 7.4 Install a Helm chart through Crossplane ⏱️ 7m
 
 A `Release.helm.m.crossplane.io` is the namespaced **Managed Resource** kind `provider-helm` v1.2.0 ships. Each `Release` corresponds to one `helm install` — `forProvider` describes the chart and values, `providerConfigRef` points at the config the provider should use.
 

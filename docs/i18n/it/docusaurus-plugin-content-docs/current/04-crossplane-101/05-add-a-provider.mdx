@@ -1,13 +1,13 @@
 ---
 sidebar_position: 8
 title: Aggiungi un Provider
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Aggiungi un Provider ⏱️ 17m
+# Aggiungi un Provider ⏱️ 25m
 
 <PairId />
 
@@ -15,7 +15,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
 :::
 
-## 7.1 Prima di iniziare ⏱️ 3m
+## 7.1 Prima di iniziare ⏱️ 8m
 
 Finora ogni risorsa che hai composto è stata un **plain oggetto Kubernetes** — `ConfigMap`, `Deployment`, `Service`. Crossplane core stesso era il controller che le applicava. Non hai mai installato un Provider, e non te ne è servito uno per quel percorso.
 
@@ -77,7 +77,7 @@ Un Provider è un package la cui installazione fa nascere un Pod long-running (f
 
 Stai per: installare un Provider, configurarlo (con entrambe le varianti di `ProviderConfig`) e applicare una Managed Resource che installa una Helm chart.
 
-## 7.2 Installa `provider-helm` ⏱️ 4m
+## 7.2 Installa `provider-helm` ⏱️ 5m
 
 Un Provider è semplicemente un altro package Crossplane. Applica il manifest, aspetta che diventi Healthy.
 
@@ -121,7 +121,7 @@ kubectl create clusterrolebinding provider-helm-admin \
 Stai dando al provider una credenziale molto ampia. In un cluster reale la stringeresti ai kind e ai namespace di cui le *tue* chart hanno bisogno (Deployment, Service, ConfigMap in un namespace specifico, ad esempio). Il tuo cluster del workshop è usa-e-getta, quindi il blast radius è zero — ma il pattern production-grade è un `Role` + `RoleBinding`.
 :::
 
-## 7.3 Configura il provider ⏱️ 4m
+## 7.3 Configura il provider ⏱️ 5m
 
 Un `ProviderConfig` dice al provider *come* autenticarsi alla sua API esterna. Per `provider-helm` l'"API esterna" è l'apiserver del cluster stesso, e il provider usa `InjectedIdentity` — il proprio token del ServiceAccount, nessun secret extra da gestire.
 
@@ -175,7 +175,7 @@ workshop-helm   2s
 
 Ora hai due config valide. Il prossimo step sceglie quale usare.
 
-## 7.4 Installa una Helm chart attraverso Crossplane ⏱️ 5m
+## 7.4 Installa una Helm chart attraverso Crossplane ⏱️ 7m
 
 Un `Release.helm.m.crossplane.io` è il kind **Managed Resource** namespaced che `provider-helm` v1.2.0 porta. Ogni `Release` corrisponde a un `helm install` — `forProvider` descrive la chart e i values, `providerConfigRef` punta alla config che il provider deve usare.
 

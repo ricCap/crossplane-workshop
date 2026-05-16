@@ -6,7 +6,7 @@ title: Create resources in AWS
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Create resources in AWS ⏱️ 35m
+# Create resources in AWS ⏱️ 42m
 
 <PairId />
 
@@ -18,7 +18,7 @@ Same commands, same flow. The credential lives in your local cluster's `crosspla
 This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh AWS account from sign-up through `kubectl get bucket SYNCED=True` yet**. AWS console flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
 :::
 
-## 6.1 Before you start ⏱️ 3m
+## 6.1 Before you start ⏱️ 4m
 
 Every provider you've used in 101 reconciles against either the workshop cluster's own apiserver (`provider-kubernetes`) or its Helm runtime (`provider-helm`). **`provider-aws-s3`** is different: it talks to AWS's REST API and reconciles real S3 buckets in *your* AWS account. Costs land on your bill, not the workshop's.
 
@@ -32,7 +32,7 @@ You're about to: sign up for AWS, mint an IAM user with S3 access, install [`pro
 
 The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it. You'll come back when you want EC2, RDS, IAM, Lambda, or any of the other ~150 AWS services Upbound publishes families for.
 
-## 6.2 Create the account ⏱️ ~15m
+## 6.2 Create the account ⏱️ ~18m
 
 ### 1. Sign up
 
@@ -62,7 +62,7 @@ Top-right of the console, next to your account name. Pick **eu-west-1 (Ireland)*
 
 S3 Standard's Free Tier gives you 5 GB of storage, 20 000 GET requests, and 2 000 PUT requests per month for the first 12 months. The single empty bucket this module creates uses none of that. After 12 months, the bucket still exists — it just starts costing pennies. **Delete it when you're done with the workshop content.**
 
-## 6.3 Mint a credential ⏱️ 7m
+## 6.3 Mint a credential ⏱️ 9m
 
 You'll create an IAM user with **only** S3 access, and give Crossplane its access key.
 
@@ -157,7 +157,7 @@ provider-aws-s3   True        True      xpkg.upbound.io/upbound/provider-aws-s3:
 
 When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile S3 MRs.
 
-## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 5m
+## 6.5 Apply a ProviderConfig and create one bucket ⏱️ 6m
 
 ### 1. Wire a `ClusterProviderConfig` to the Secret
 

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 5
 title: La tua prima Composition
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# La tua prima Composition ⏱️ 12m
+# La tua prima Composition ⏱️ 22m
 
 <PairId />
 
@@ -15,7 +15,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
 :::
 
-## 4.1 Prima di iniziare ⏱️ 2m
+## 4.1 Prima di iniziare ⏱️ 5m
 
 Crossplane si installa pulito, ma non *fa* ancora niente. Non gli hai detto quali kind di risorse creare né come crearle. Questo modulo è il loop end-to-end più piccolo possibile: definisci una piccola API, scrivi una ricetta che crea una ConfigMap, applichi un'istanza, guardi la ConfigMap apparire.
 
@@ -58,7 +58,7 @@ Cinque termini, tutti introdotti qui. Tratta la tabella come il glossario del di
 
 Stai per: installare una composition function, definire un'API chiamata `Hello`, scrivere una ricetta che trasforma ogni `Hello` in una `ConfigMap`, e applicare un'istanza.
 
-## 4.2 Installa la composition function ⏱️ 3m
+## 4.2 Installa la composition function ⏱️ 4m
 
 Una Composition è una **pipeline** di una o più [composition function](../cheatsheet#core-objects). La function trasforma l'input dell'utente (lo spec dell'XR) nelle managed resource desiderate. Userai [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform), che prende una shape YAML resources-e-patches — la function più facile da leggere per una prima Composition.
 
@@ -86,7 +86,7 @@ NAME                           INSTALLED   HEALTHY   PACKAGE
 function-patch-and-transform   True        True      xpkg.crossplane.io/...:v0.9.0
 ```
 
-## 4.3 Una nota sull'RBAC ⏱️ 1m
+## 4.3 Una nota sull'RBAC ⏱️ 2m
 
 Prima di scrivere la Composition, una verità Kubernetes vale la pena tirare fuori. Crossplane core stesso è ciò che applica le risorse che una Composition emette — come ogni controller, può creare solo i kind per cui ha RBAC. La ClusterRole `crossplane` inclusa nel chart UXP concede già verb wildcard sui kind che userai qui (`ConfigMap`, `Service`, `Deployment`), quindi non devi toccare l'RBAC per il flusso base:
 
@@ -104,7 +104,7 @@ Due ragioni per cui conta comunque:
 
 Questo è il trade-off che il providerless rende esplicito. Con `provider-kubernetes`, il grant equivalente vive sulla ServiceAccount del *Provider* via il suo `ProviderConfig` — stesso stato finale, nascosto dietro un layer in più.
 
-## 4.4 Definisci l'API (XRD) ⏱️ 3m
+## 4.4 Definisci l'API (XRD) ⏱️ 4m
 
 L'XRD dichiara la tua nuova API. `Hello` sarà **namespaced** (default v2) con un campo obbligatorio, `message`.
 
@@ -153,7 +153,7 @@ hellos.workshop.example.io    True                    5s
 
 `ESTABLISHED=True` significa che il CRD `Hello` è registrato; ora puoi applicare degli Hello XR. La colonna `OFFERED` resta vuota perché v2 non genera un kind di claim — applica gli XR direttamente.
 
-## 4.5 Definisci la ricetta (Composition) ⏱️ 3m
+## 4.5 Definisci la ricetta (Composition) ⏱️ 4m
 
 La Composition è la ricetta. Dice: "per ogni `Hello` che esiste, produci una `ConfigMap` il cui `data.greeting` contiene il `spec.message` di quell'Hello."
 
@@ -203,7 +203,7 @@ Quattro cose che vale la pena sottolineare:
 - Il `metadata.namespace` della `ConfigMap` è hardcoded a `default`. v2 lo defaulterebbe al namespace dell'XR se lo lasciassi fuori; lo hardcoded-iamo per il workshop così il validator lo trova sempre nello stesso posto.
 - `readinessChecks: [type: None]` dice a `function-patch-and-transform` di marcare questa risorsa Ready non appena Crossplane l'ha osservata nel cluster. Senza, la function aspetta una condition `Ready` sulla risorsa, che `ConfigMap` non pubblica mai — e l'XR `Hello` resterebbe `Ready=False` per sempre. Per un `Deployment` useresti invece `MatchCondition` su `Available=True`; la Composition del modulo 5 lo fa.
 
-## 4.6 Usalo ⏱️ 2m
+## 4.6 Usalo ⏱️ 3m
 
 Applica un XR `Hello`:
 

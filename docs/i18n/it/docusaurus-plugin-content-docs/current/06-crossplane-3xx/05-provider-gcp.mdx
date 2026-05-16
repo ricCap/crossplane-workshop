@@ -1,13 +1,13 @@
 ---
 sidebar_position: 5
 title: Crea risorse in GCP
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Crea risorse in GCP ⏱️ 35m
+# Crea risorse in GCP ⏱️ 42m
 
 <PairId />
 
@@ -19,7 +19,7 @@ Stessi comandi, stesso flusso. La credenziale vive nel namespace `crossplane-sys
 Questo modulo è stato rivisto contro la documentazione upstream e gli esempi del provider v2-namespaced, ma **nessuno l'ha ancora percorso su un progetto Google Cloud appena creato dalla registrazione fino a `kubectl get bucket SYNCED=True`**. I flussi della console GCP cambiano in fretta — se una schermata o il nome di un'opzione non corrispondono, fidati di ciò che hai davanti e per favore segnala la divergenza nel [tracker delle issue del workshop](https://github.com/ricCap/crossplane-workshop/issues).
 :::
 
-## 6.1 Prima di iniziare ⏱️ 3m
+## 6.1 Prima di iniziare ⏱️ 4m
 
 Nel modulo AWS hai visto la stessa forma `Provider` → `ProviderConfig` → MR funzionare contro l'API REST di AWS. **`provider-gcp-storage`** fa lo stesso per Google Cloud Storage. I costi finiscono sulla tua bolletta, non su quella del workshop.
 
@@ -32,7 +32,7 @@ Stai per: registrarti a Google Cloud, creare un progetto, generare una chiave JS
 
 Il catalogo completo dei cloud provider (e delle loro versioni correnti) vive sul **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — mettilo nei preferiti.
 
-## 6.2 Crea l'account ⏱️ ~15m
+## 6.2 Crea l'account ⏱️ ~18m
 
 ### 1. Registrati
 
@@ -77,7 +77,7 @@ Se non hai `gcloud` installato, la UI della console funziona allo stesso modo. S
 
 Il tier "always free" di Cloud Storage ti dà **5 GB-mese** di storage standard in una region US (`US-WEST1`, `US-CENTRAL1`, o `US-EAST1`), 5 000 operazioni Class A e 50 000 Class B al mese, **per sempre**, indipendentemente dal credito dei 90 giorni. Il singolo bucket vuoto che questo modulo crea non ne consuma nulla. **Cancellalo quando hai finito** — `roles/storage.admin` ti permette di farlo dalla stessa MR.
 
-## 6.3 Crea una credenziale ⏱️ 7m
+## 6.3 Crea una credenziale ⏱️ 9m
 
 Creerai un service account, gli darai `roles/storage.admin`, genererai una chiave JSON, e la darai in pasto a Crossplane.
 
@@ -171,7 +171,7 @@ provider-gcp-storage   True        True      xpkg.upbound.io/upbound/provider-gc
 
 Quando la tile diventa verde, il Pod del provider sta girando in `crossplane-system` ed è pronto a riconciliare MR GCS.
 
-## 6.5 Applica un ProviderConfig e crea un bucket ⏱️ 5m
+## 6.5 Applica un ProviderConfig e crea un bucket ⏱️ 6m
 
 ### 1. Cabla un `ClusterProviderConfig` al Secret
 

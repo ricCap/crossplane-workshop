@@ -6,7 +6,7 @@ title: Install Crossplane
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Install Crossplane ⏱️ 15m
+# Install Crossplane ⏱️ 20m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same cluster, same commands — nothing changes in this module for the solo path. See [Solo local setup (k3d)](../solo-local-setup) for background.
 :::
 
-## 3.1 Before you start ⏱️ 3m
+## 3.1 Before you start ⏱️ 4m
 
 [Crossplane](https://docs.crossplane.io/latest/) is a Kubernetes [**controller**](../cheatsheet#controllers-and-the-operator-pattern) — same operator pattern as the built-in Deployment controller — that watches a family of resources you'll meet in the next four modules (XRDs, Compositions, XRs, Managed Resources) and reconciles them into action. After this module Crossplane itself will be running in your cluster, watching nothing yet — module 4 gives it something to watch.
 
@@ -26,7 +26,7 @@ UXP v2 releases are tagged like `2.2.0-up.5`, which Helm treats as pre-release. 
 
 You're about to: add a Helm repo, install the chart, and verify the `crossplane` Deployment is Available.
 
-## 3.2 Install the Helm chart ⏱️ 7m
+## 3.2 Install the Helm chart ⏱️ 10m
 
 ### 1. Add the Upbound Helm repo
 
@@ -88,7 +88,7 @@ If you installed upstream Crossplane (not UXP), only `crossplane` and `crossplan
 
 When the tile turns green, Crossplane is running and you're ready for module 4.
 
-## 3.3 (Optional) Open the Web UI ⏱️ 5m
+## 3.3 (Optional) Open the Web UI ⏱️ 6m
 
 The Web UI shows every Crossplane object in your cluster — Providers, XRDs, Compositions, XRs, and managed resources — in a tree you can click through. It's handy while you're learning; it's not required.
 
