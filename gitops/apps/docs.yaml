@@ -18,3 +18,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    # HPA owns replica count; ArgoCD selfHeal must not revert it.
+    - group: apps
+      kind: Deployment
+      name: docs
+      namespace: docs
+      jsonPointers:
+        - /spec/replicas
