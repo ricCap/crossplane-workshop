@@ -862,8 +862,22 @@ tasks:
           n=$((n + 1))
         done
 
+        # Merged kubeconfig for the operator: every pair as a separate
+        # context in one file, so `kubectl --context=workshop-<pair> …`
+        # can hit any participant cluster without juggling KUBECONFIG
+        # env vars. Built from the per-pair files we just rendered;
+        # --flatten inlines credentials, --raw preserves the bearer
+        # tokens. Skipped if no pair files were produced.
+        if [ "${n}" -gt 0 ]; then
+          merge_files=$(ls out/kubeconfigs/*.yaml | grep -v '/merged\.yaml$' | tr '\n' ':' | sed 's/:$//')
+          KUBECONFIG="${merge_files}" kubectl config view --flatten --raw > out/kubeconfigs/merged.yaml
+          chmod 600 out/kubeconfigs/merged.yaml
+          echo "  ok: merged → out/kubeconfigs/merged.yaml (${n} context(s))"
+        fi
+
         echo "Done. ${n} kubeconfig(s) issued under out/kubeconfigs/."
         echo "Distribute via: task pairs:upload-kubeconfigs && task pairs:qr"
+        echo "Operator: KUBECONFIG=out/kubeconfigs/merged.yaml kubectl config get-contexts"
 
   pairs:upload-kubeconfigs:
     desc: |
@@ -945,6 +959,8 @@ tasks:
         for kc in out/kubeconfigs/*.yaml; do
           [ -e "$kc" ] || continue
           pair=$(basename "$kc" .yaml)
+          # Operator-only merged kubeconfig — stays local, never uploaded.
+          [ "${pair}" = "merged" ] && continue
           zip_path="out/kubeconfigs/${pair}.zip"
           rm -f "${zip_path}"
           zip -q -e -j -P "${KUBECONFIG_ZIP_PASSWORD}" "${zip_path}" "${kc}"
