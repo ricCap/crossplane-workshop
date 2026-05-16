@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: Definisci un'Application
-translation_source_commit: 1b9bbdf87f8e37f35e28c7b22823f437575f3964
+translation_source_commit: 4ccfa50549dacd17ae3520a9e4d7c3342c0d23df
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -104,7 +104,7 @@ applications.workshop.example.io    True                    5s
 
 ### 2. Applica la Composition
 
-La Composition è la ricetta. Crea sei risorse quando esiste un `Application`. L'immagine, poi la tabella, poi lo YAML.
+La Composition è la ricetta — crea sei risorse quando esiste un `Application`. L'immagine qui sotto, poi un walkthrough pezzo per pezzo della ricetta, poi lo YAML completo da applicare.
 
 #### Il fan-out, in un'immagine
 
@@ -133,41 +133,230 @@ flowchart TB
 
 La freccia tratteggiata che parte dall'XR è la patch — l'unico punto in cui i campi `message` e `color` dell'XR effettivamente fluiscono dentro una delle risorse composte. Tutto il resto nella Composition è contenuto template statico. Le due frecce `volumeMounts` sono semplici riferimenti Kubernetes (ogni Deployment monta la sua ConfigMap per nome) — niente di specifico di Crossplane.
 
-#### Cosa produce questa Composition
+#### Walkthrough della ricetta
 
-| Risorsa composta (`resources[].name`) | Base kind | Perché c'è | Patch applicate | Check di readiness |
-|---|---|---|---|---|
-| `frontend-configmap` | `ConfigMap` | Contiene l'HTML statico che il nginx frontend serve. Spedisce uno `<script>` inline che fa fetch di `./api/message` e renderizza il JSON come contenuto della tile | nessuna — ogni `Application` ottiene lo stesso HTML | `type: None` — le ConfigMap non espongono una Ready condition; trattate come Ready all'osservazione |
-| `frontend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta la ConfigMap qui sopra in `/usr/share/nginx/html` | nessuna — la shape del Deployment è identica per ogni Application | `type: MatchCondition` che aspetta `Available=True` |
-| `frontend-service` | `Service` | Espone il frontend sulla porta 80; selezionato da `app: frontend`. L'iframe del wall punta a `/team/<pair>/` che la HTTPRoute del workshop risolve a questo Service | nessuna | `type: None` |
-| `backend-configmap` | `ConfigMap` | Contiene il body JSON che il JS del frontend fa fetch da `/api/message`. I campi `message` e `color` dell'XR fluiscono nel campo `data.message` di questa ConfigMap via la patch | **una** — `CombineFromComposite` scrive una stringa formattata JSON in `data.message` | `type: None` |
-| `backend-deployment` | `Deployment` | Esegue `nginx:alpine`, monta `backend-configmap` in `/usr/share/nginx/html/api/` così le richieste a `/api/message` ritornano la entry della ConfigMap patchata direttamente | nessuna — la shape del Deployment è identica per ogni Application | `type: MatchCondition` che aspetta `Available=True` |
-| `backend-service` | `Service` | Espone il backend sulla porta 5678 esternamente; inoltra a nginx su `targetPort: 80`. La HTTPRoute risolve `/team/<pair>/api/` a questo Service | nessuna | `type: None` |
+La Composition è una singola risorsa Kubernetes con un body lungo. I prossimi blocchi mostrano prima l'involucro, poi ognuna delle sei risorse composte in ordine — l'apply finale in fondo è lo stesso YAML ricomposto.
 
-Il cablaggio interessante è la patch su `backend-configmap`. L'XR spedisce due campi scalari:
+##### L'involucro
 
 ```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: applications.workshop.example.io
 spec:
-  message: "hello"
-  color: "#10b981"
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: Application
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          # una entry per ciascuna risorsa composta — vedi sotto
 ```
 
-Il JS del frontend fa fetch di `./api/message` e si aspetta un body JSON con la forma `{"message":"…","color":"…"}`. Non ci serve un server per calcolare quella risposta — il Deployment `backend` è semplice `nginx:alpine` e monta `backend-configmap` in `/usr/share/nginx/html/api/`, quindi il file in `/api/message` *è* la entry `data.message` della ConfigMap. `CombineFromComposite` scrive una stringa JSON in quella entry con un template stile `printf`:
+`compositeTypeRef` lega questa Composition all'XRD `Application` che hai appena applicato — quando viene creato un XR `Application`, Crossplane trova questa Composition facendo match su quel ref. `mode: Pipeline` dice a Crossplane di chiamare le function in ordine; la pipeline di questa Composition ha un solo step che passa la lista `resources` qui sotto a `function-patch-and-transform`.
+
+##### `frontend-configmap` — l'HTML statico
 
 ```yaml
-patches:
-  - type: CombineFromComposite
-    combine:
-      variables:
-        - fromFieldPath: spec.message
-        - fromFieldPath: spec.color
-      strategy: string
-      string:
-        fmt: '{"message":"%s","color":"%s"}'
-    toFieldPath: data.message
+- name: frontend-configmap
+  base:
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: frontend
+      namespace: default
+    data:
+      index.html: |
+        <!DOCTYPE html>
+        <html><head><meta charset="utf-8"><title>Tile</title>
+        <style>
+          body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+          #title { font-size: 2rem; font-weight: 700; }
+        </style>
+        </head><body>
+        <div id="title">Loading...</div>
+        <script>
+          fetch('./api/message')
+            .then(r => r.text())
+            .then(txt => {
+              try {
+                const d = JSON.parse(txt);
+                const el = document.getElementById('title');
+                el.innerText = d.message || '(no message)';
+                if (d.color) el.style.color = d.color;
+              } catch (e) {
+                document.getElementById('title').innerText = 'Bad response: ' + txt;
+              }
+            })
+            .catch(e => {
+              document.getElementById('title').innerText = 'Error: ' + e.message;
+            });
+        </script>
+        </body></html>
+  readinessChecks:
+    - type: None
 ```
 
-`toFieldPath` è il path dentro la `ConfigMap` nuda (confronta con la shape MR `Object` del modulo 4, che lo avrebbe prefissato con `spec.forProvider.manifest.data.message`). Al momento della riconciliazione, Crossplane sostituisce le variabili nel template e scrive il risultato in `data.message`. nginx serve quello che trova lì.
+Lo `<script>` della pagina fa fetch di `./api/message`, parsa il JSON e scrive il `message` nella tile con il `color` richiesto. Ogni `Application` spedisce lo stesso HTML — nessuna patch necessaria.
+
+`readinessChecks: type: None` è la scelta giusta per le ConfigMap perché non espongono una Ready condition. Crossplane le tratta come Ready non appena le osserva.
+
+##### `frontend-deployment` — il nginx che lo serve
+
+```yaml
+- name: frontend-deployment
+  base:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: frontend
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: { app: frontend }
+      template:
+        metadata:
+          labels: { app: frontend }
+        spec:
+          containers:
+            - name: nginx
+              image: public.ecr.aws/docker/library/nginx:alpine
+              ports:
+                - containerPort: 80
+              volumeMounts:
+                - name: html
+                  mountPath: /usr/share/nginx/html
+          volumes:
+            - name: html
+              configMap:
+                name: frontend
+  readinessChecks:
+    - type: MatchCondition
+      matchCondition:
+        type: Available
+        status: "True"
+```
+
+Un pod che esegue `nginx:alpine` con la ConfigMap qui sopra montata in `/usr/share/nginx/html`. `type: MatchCondition` aspetta `Available=True` sul Deployment — Crossplane marca l'XR Ready solo quando entrambi i Deployment riportano questa condizione.
+
+##### `frontend-service` — l'endpoint in-cluster
+
+```yaml
+- name: frontend-service
+  base:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: frontend
+      namespace: default
+    spec:
+      selector: { app: frontend }
+      ports:
+        - port: 80
+          targetPort: 80
+  readinessChecks:
+    - type: None
+```
+
+Service cluster-internal sulla porta 80, selezionato da `app: frontend`. La HTTPRoute del workshop risolve `/team/<pair>/` a questo Service.
+
+##### `backend-configmap` — l'unica risorsa che legge l'XR
+
+```yaml
+- name: backend-configmap
+  base:
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: backend
+      namespace: default
+    data:
+      message: '{"message":"placeholder","color":"#2563eb"}'
+  readinessChecks:
+    - type: None
+  patches:
+    - type: CombineFromComposite
+      combine:
+        variables:
+          - fromFieldPath: spec.message
+          - fromFieldPath: spec.color
+        strategy: string
+        string:
+          fmt: '{"message":"%s","color":"%s"}'
+      toFieldPath: data.message
+```
+
+Questa è quella interessante. Il `CombineFromComposite` della patch legge `spec.message` e `spec.color` dall'XR, li inserisce nel template stile `printf` e scrive il risultato in `data.message` — quindi la ConfigMap che partiva con un `"placeholder"` hard-coded finisce per contenere il JSON che l'XR ha chiesto.
+
+`toFieldPath` è un path dentro il body della `ConfigMap` nuda. Confronta con la shape MR `Object` del modulo 4, che lo avrebbe prefissato con `spec.forProvider.manifest.data.message`; qui la risorsa composta *è* la ConfigMap, quindi non c'è un involucro MR da attraversare.
+
+##### `backend-deployment` — nginx come API
+
+```yaml
+- name: backend-deployment
+  base:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: backend
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: { app: backend }
+      template:
+        metadata:
+          labels: { app: backend }
+        spec:
+          containers:
+            - name: nginx
+              image: public.ecr.aws/docker/library/nginx:alpine
+              ports:
+                - containerPort: 80
+              volumeMounts:
+                - name: api
+                  mountPath: /usr/share/nginx/html/api
+          volumes:
+            - name: api
+              configMap:
+                name: backend
+  readinessChecks:
+    - type: MatchCondition
+      matchCondition:
+        type: Available
+        status: "True"
+```
+
+Stessa shape di `frontend-deployment`, ma il volume monta in `/usr/share/nginx/html/api/`. In questo stack non c'è nessun application server — il file in `/api/message` *è* il `data.message` della ConfigMap, servito verbatim.
+
+##### `backend-service` — l'endpoint dell'API
+
+```yaml
+- name: backend-service
+  base:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: backend
+      namespace: default
+    spec:
+      selector: { app: backend }
+      ports:
+        - port: 5678
+          targetPort: 80
+  readinessChecks:
+    - type: None
+```
+
+La porta 5678 inoltra a nginx su `targetPort: 80`. La HTTPRoute risolve `/team/<pair>/api/` a questo Service.
 
 #### Applica lo YAML
 
@@ -382,9 +571,7 @@ deployment.apps/frontend   1/1     1            1           25s
 
 <ValidateCheck check="application-ready" />
 
-:::tip Vedi la tua Application sul wall del workshop
-Appena la tile diventa verde, apri il **[wall del workshop](/wall)** in una nuova tab e clicca **Refresh**. La tua tile dovrebbe accendersi con il messaggio colorato che hai messo nell'XR — è il frontend che la tua `Application` ha appena composto.
-:::
+Quando la tile diventa verde, apri il [wall del workshop](/wall) e clicca **Refresh** — la tua tile dovrebbe accendersi con il messaggio colorato che hai messo nell'XR.
 
 ## 5.3 Cosa è appena successo
 
