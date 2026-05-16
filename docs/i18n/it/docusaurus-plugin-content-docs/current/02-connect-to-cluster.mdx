@@ -1,13 +1,13 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: 2d26c1a6b30bbeab17b8b370d6b714004dd98db3
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Connetti il tuo cluster ⏱️ 10m
+# Connetti il tuo cluster ⏱️ 18m
 
 <PairId />
 
@@ -15,7 +15,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Il tuo kubeconfig punta già al tuo cluster k3d e il tuo pair ID è `local`. Salta direttamente al [passo del pod `hello`](#23-smoke-test-apply-a-hello-pod). Vedi [Setup locale solo (k3d)](./solo-local-setup) se non l'hai ancora configurato.
 :::
 
-## 2.1 Prima di iniziare ⏱️ 2m
+## 2.1 Prima di iniziare ⏱️ 3m
 
 `kubectl` parla con *un* cluster — quello descritto dal **kubeconfig** a cui la tua shell punta in questo momento. Per i prossimi cinque moduli, ogni comando deve atterrare nel tuo cluster del workshop, non in qualche altro cluster che potresti aver configurato sulla tua macchina.
 
@@ -23,7 +23,7 @@ Un kubeconfig è semplicemente un file YAML con l'indirizzo del cluster, un cert
 
 Stai per: scaricare un kubeconfig, esportarlo e applicare un pod `hello`.
 
-## 2.2 Carica il tuo kubeconfig ⏱️ 5m
+## 2.2 Carica il tuo kubeconfig ⏱️ 10m
 
 ### 1. Scarica il file kubeconfig
 
@@ -119,7 +119,7 @@ I link di installazione per Windows / Linux puro sono nel [Cheatsheet](./cheatsh
 
 Il modo più efficace per evitare di lanciare `kubectl apply` o `helm install` sul cluster sbagliato è rendere il context attivo visibile nel prompt della shell. Installa [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) oppure abilita il modulo [`kubernetes`](https://starship.rs/config/#kubernetes) di [Starship](https://starship.rs) — entrambi mostrano il context corrente accanto a ogni prompt. Quando vedi `(workshop-<pair-id>)` sei al sicuro; quando vedi `(docker-desktop)` sai di sistemare la cosa prima di digitare. Le indicazioni di installazione sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
-## 2.3 Smoke test — applica un pod `hello` ⏱️ 3m {#23-smoke-test-apply-a-hello-pod}
+## 2.3 Smoke test — applica un pod `hello` ⏱️ 5m {#23-smoke-test-apply-a-hello-pod}
 
 Applica un Pod a un container così il validator ha qualcosa di concreto su cui confermare che la tua pipeline `kubectl apply` scriva davvero nel cluster.
 

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 6
 title: Crea risorse in Azure
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Crea risorse in Azure ⏱️ 35m
+# Crea risorse in Azure ⏱️ 45m
 
 <PairId />
 
@@ -19,7 +19,7 @@ Stessi comandi, stesso flusso. La credenziale vive nel namespace `crossplane-sys
 Questo modulo è stato rivisto contro la documentazione upstream e gli esempi del provider v2-namespaced, ma **nessuno l'ha percorso su una sottoscrizione Azure fresca dalla registrazione fino a `kubectl get account SYNCED=True`**. I flussi dell'Azure Portal cambiano in fretta — se una schermata o il nome di un'opzione non corrisponde, fidati di ciò che hai davanti e segnala la divergenza nell'[issue tracker del workshop](https://github.com/ricCap/crossplane-workshop/issues).
 :::
 
-## 6.1 Prima di iniziare ⏱️ 3m
+## 6.1 Prima di iniziare ⏱️ 4m
 
 Hai visto la stessa forma `Provider` → `ProviderConfig` → MR funzionare su AWS e GCP. **`provider-azure-storage`** è la versione Azure. I costi atterrano sulla tua bolletta, non su quella del workshop.
 
@@ -33,7 +33,7 @@ Stai per: registrarti ad Azure, creare un resource group, generare un service pr
 
 Il catalogo completo dei cloud provider (e delle loro versioni correnti) sta sul **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — mettilo nei preferiti.
 
-## 6.2 Crea l'account ⏱️ ~15m
+## 6.2 Crea l'account ⏱️ ~18m
 
 ### 1. Registrati
 
@@ -84,7 +84,7 @@ az group create --name crossplane-workshop --location westeurope
 
 Il free tier di Azure: **5 GB** di blob storage hot LRS e **20 000 letture / 10 000 scritture** al mese, per i primi 12 mesi. Lo Storage Account vuoto creato da questo modulo non ne consuma niente. **Cancella il resource group quando hai finito** — la cancellazione si propaga allo Storage Account dentro di esso con un solo comando.
 
-## 6.3 Genera una credenziale ⏱️ 7m
+## 6.3 Genera una credenziale ⏱️ 9m
 
 Creerai un service principal limitato **solo al resource group** che hai appena creato, formatterai il blob della credenziale e lo darai in pasto a Crossplane.
 
@@ -189,7 +189,7 @@ provider-azure-storage   True        True      xpkg.upbound.io/upbound/provider-
 
 Quando la tile diventa verde, il Pod del provider è in esecuzione in `crossplane-system` e pronto a riconciliare le MR Storage.
 
-## 6.5 Applica un ProviderConfig e crea uno Storage Account ⏱️ 5m
+## 6.5 Applica un ProviderConfig e crea uno Storage Account ⏱️ 9m
 
 ### 1. Cabla un `ClusterProviderConfig` al Secret
 
