@@ -416,8 +416,13 @@ What each step does:
   `VirtualClusterInstance`. Auth uses
   `vcluster platform create accesskey --in-cluster`, which talks
   through the current kubectl context — no operator login or
-  `PLATFORM_ACCESS_KEY` required for this step. **Re-running rotates
-  every pair's key — previously-issued kubeconfigs stop working
+  `PLATFORM_ACCESS_KEY` required for this step. Also writes
+  `out/kubeconfigs/merged.yaml` — every pair as a separate context
+  (`workshop-<pair>`) in one file, so the operator can run
+  `KUBECONFIG=out/kubeconfigs/merged.yaml kubectl --context=workshop-<pair> …`
+  to reach any participant cluster. The merged file is operator-only
+  and is explicitly skipped by `pairs:upload-kubeconfigs`. **Re-running
+  rotates every pair's key — previously-issued kubeconfigs stop working
   immediately.** That's a feature, not a bug: it's how you revoke
   after the workshop.
 - `pairs:upload-kubeconfigs` — wraps every plaintext kubeconfig in a
