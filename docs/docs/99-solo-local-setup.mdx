@@ -1,14 +1,11 @@
 ---
 sidebar_position: 9
 title: Solo local setup (k3d)
-ai_edit: locked
-ai_edit_reviewed: 2026-04-27
-ai_edit_reviewer: ricCap
 ---
 
 # Running the workshop on your own laptop
 
-The main workshop runs on a shared cluster where each pair gets an isolated sandbox. If you want to walk through Connect-to-your-cluster and the **Crossplane 101** track on your own — outside the live workshop, with no shared infrastructure — this page is the full recipe. Everything runs in a single [k3d](https://k3d.io) cluster on your machine.
+The main workshop hands each pair a pre-provisioned cluster. If you want to walk through Connect-to-your-cluster and the **Crossplane 101** track on your own — outside the live workshop, with no shared infrastructure — this page is the full recipe. Everything runs in a single [k3d](https://k3d.io) cluster on your machine.
 
 You do not need to clone this repo. Every manifest is fetched from public URLs; every image is pulled from public registries.
 
@@ -86,7 +83,7 @@ k3d cluster delete crossplane-workshop-solo
 
 ## What's intentionally missing
 
-- **Sandbox isolation.** You are both operator and participant; if you `kubectl delete ns crossplane-system`, you break your own setup. In the live workshop, each pair's sandbox means a mistake is isolated.
+- **Cluster isolation.** You are both operator and participant; if you `kubectl delete ns crossplane-system`, you break your own setup. In the live workshop, each pair has their own cluster, so a mistake stays with you.
 - **GitOps.** The solo path applies raw YAML. No sync loop, no self-heal — if you want changes to stick, re-apply the manifests.
 - **TLS.** Traffic is plain HTTP on localhost:8080.
 

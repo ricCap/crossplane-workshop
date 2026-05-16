@@ -6,7 +6,7 @@ translation_source_commit: 3c643170cc3a983115a26181f4ab7688a7961915
 
 # Eseguire il workshop sul tuo laptop
 
-Il workshop principale gira su un cluster condiviso dove ogni coppia ottiene una sandbox isolata. Se vuoi percorrere Connetti-il-tuo-cluster e il track **Crossplane 101** per conto tuo — fuori dal workshop dal vivo, senza infrastruttura condivisa — questa pagina è la ricetta completa. Tutto gira in un singolo cluster [k3d](https://k3d.io) sulla tua macchina.
+Il workshop principale consegna a ogni coppia un cluster pre-provisionato. Se vuoi percorrere Connetti-il-tuo-cluster e il track **Crossplane 101** per conto tuo — fuori dal workshop dal vivo, senza infrastruttura condivisa — questa pagina è la ricetta completa. Tutto gira in un singolo cluster [k3d](https://k3d.io) sulla tua macchina.
 
 Non serve clonare questo repo. Ogni manifest è scaricato da URL pubblici; ogni immagine è scaricata da registry pubblici.
 
@@ -84,7 +84,7 @@ k3d cluster delete crossplane-workshop-solo
 
 ## Cosa manca di proposito
 
-- **Isolamento da sandbox.** Sei sia operator che partecipante; se fai `kubectl delete ns crossplane-system`, ti rompi il setup da solo. Nel workshop dal vivo, la sandbox di ogni coppia significa che un errore è isolato.
+- **Isolamento del cluster.** Sei sia operator che partecipante; se fai `kubectl delete ns crossplane-system`, ti rompi il setup da solo. Nel workshop dal vivo, ogni coppia ha il proprio cluster, quindi un errore resta con te.
 - **GitOps.** Il percorso solo applica YAML grezzo. Nessun loop di sync, nessun self-heal — se vuoi che le modifiche restino, ri-applica i manifest.
 - **TLS.** Il traffico è plain HTTP su localhost:8080.
 
