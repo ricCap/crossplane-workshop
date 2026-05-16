@@ -13,7 +13,7 @@ freestyle and any YAML you paste from elsewhere.
 
 ### Why it happens
 
-All workshop pairs share the same egress IP on the management cluster.
+All workshop pairs share the same egress IP.
 Anonymous DockerHub allows roughly 100 image pulls per 6 hours per IP.
 With 10+ pairs starting modules in the same window, that limit is
 easy to trip — and once tripped, **every pair sees the failure**, not

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Installa Crossplane
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: fca3ab15377fe8d1d06af3d3c0c02fc467d7c77f
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -48,7 +48,7 @@ helm install crossplane upbound-stable/crossplane \
   --set webui.enabled=true
 ```
 
-`--version 2.2.0-up.5` pinna la chart alla stessa revisione che gira sul cluster GitOps del workshop (vedi `gitops/apps/crossplane.yaml`) — senza, Helm prende l'ultima disponibile, che è andata avanti rispetto a quella su cui sono stati scritti i moduli. `--devel` è necessario perché il suffisso `-up.5` è un tag pre-release SemVer che Helm altrimenti filtra via. `--wait` fa sì che Helm si blocchi finché i Deployment di Crossplane non sono Available. Su un cluster delle dimensioni del workshop di solito ci vogliono 30–60 secondi. `webui.enabled=true` accende la Web UI read-only che userai nello step opzionale qui sotto.
+`--version 2.2.0-up.5` pinna la chart — senza, Helm prende l'ultima disponibile, che è andata avanti rispetto a quella su cui sono stati scritti i moduli. `--devel` è necessario perché il suffisso `-up.5` è un tag pre-release SemVer che Helm altrimenti filtra via. `--wait` fa sì che Helm si blocchi finché i Deployment di Crossplane non sono Available. Su un cluster delle dimensioni del workshop di solito ci vogliono 30–60 secondi. `webui.enabled=true` accende la Web UI read-only che userai nello step opzionale qui sotto.
 
 ### 3. Verifica i pod
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 80
 title: Troubleshooting
-translation_source_commit: 335f560795acfd54c901304c890f83905eb92749
+translation_source_commit: 1c3d32844801e09de032a21d965df6c3ab1cfa03
 ---
 
 # Troubleshooting
@@ -14,8 +14,8 @@ freestyle del modulo 6 e qualunque YAML tu incolli da altrove.
 
 ### Perché succede
 
-Tutte le coppie del workshop condividono lo stesso IP di egress sul
-management cluster. DockerHub anonimo permette circa 100 image pull ogni
+Tutte le coppie del workshop condividono lo stesso IP di egress.
+DockerHub anonimo permette circa 100 image pull ogni
 6 ore per IP. Con 10+ coppie che partono con i moduli nella stessa
 finestra, è facile inciampare in quel limite — e una volta inciampato,
 **ogni coppia vede il fallimento**, non solo quella che ha pullato per
