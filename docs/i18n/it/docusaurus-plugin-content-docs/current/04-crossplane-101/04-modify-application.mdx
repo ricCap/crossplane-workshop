@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Modifica la tua Application
-translation_source_commit: fc4982190055ee6aac213fe3d9f93df7ccd909b5
+translation_source_commit: 606bd50f82d96f3e178146c47b0390ac4b1fd783
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -52,13 +52,20 @@ Salva ed esci dall'editor.
 
 ### 3. Guarda Crossplane riconciliare
 
-Crossplane riconcilia immediatamente: la ConfigMap desiderata dall'output della function viene aggiornata, e Crossplane core applica la patch in-place. Conferma:
+Salvare nell'editor è l'unica azione che fai tu. Tutto il resto è Crossplane che reagisce al cambiamento:
+
+1. L'API server salva la nuova Composition.
+2. Crossplane si accorge che la Composition è cambiata e ri-esegue la pipeline per **ogni** XR `Application` che la usa — in questo workshop, è il tuo unico XR; in una piattaforma reale potrebbero essere centinaia.
+3. La function emette la stessa ConfigMap `frontend` di prima, ma con dentro il tuo nuovo HTML.
+4. Crossplane confronta quella con la ConfigMap viva e la patcha in-place. Il tuo XR `Application` non viene mai toccato — il suo `spec` è identico a quello che hai applicato nel modulo precedente.
+
+Conferma che la ConfigMap viva ora porti la tua modifica:
 
 ```bash
 kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | head -20
 ```
 
-Dovresti vedere la tua modifica nell'output.
+Dovresti vedere il tuo nuovo HTML nell'output.
 
 ### 4. Fai sì che nginx prenda il cambiamento
 
@@ -78,9 +85,15 @@ Il check è ancora verde perché nessuna delle condizioni che osserva è cambiat
 
 ## 6.3 Cosa è appena successo
 
-Pensa alla Composition come alla cucina e all'XR come al biglietto dell'ordine. Hai cambiato la cucina — ingredienti diversi, presentazione diversa — e ogni ordine già esistente è uscito automaticamente nella nuova forma, senza che nessuno riemettesse un biglietto. Il partecipante che ha applicato l'`Application` non ha toccato nulla; la sua risorsa non è cambiata; i suoi pod sono ancora Ready. Quel divario tra "cosa l'utente ha chiesto" e "cosa la piattaforma produce" è l'intero motivo per cui i team di piattaforma usano Crossplane.
+Pensa alla Composition come alla cucina e all'XR come al biglietto dell'ordine. Hai cambiato la cucina — ingredienti diversi, presentazione diversa — e ogni ordine già esistente è uscito automaticamente nella nuova forma, senza che nessuno riemettesse un biglietto. Il partecipante che ha applicato l'`Application` non ha toccato nulla; la sua risorsa non è cambiata; i suoi pod sono ancora Ready.
 
-Hai cambiato la piattaforma senza cambiare il consumatore. Lo YAML dell'`Application` che l'utente ha applicato è identico; le cinque risorse che produce sono diverse. In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API.
+Quel divario tra "cosa l'utente ha chiesto" e "cosa la piattaforma produce" è l'intero motivo per cui i team di piattaforma usano Crossplane. In concreto, dopo la tua modifica tre cose sono vere:
+
+- **Lo `spec` dell'XR è invariato.** `kubectl get application wall-tile -n default -o yaml` ritorna lo stesso YAML che hai applicato nel modulo 5. Il contratto con il consumatore è intoccato.
+- **Le risorse composte sono diverse.** La ConfigMap `frontend` ora porta nuovo HTML. Se avessi trenta XR `Application` nel cluster, tutti e trenta sarebbero stati patchati nel momento in cui hai salvato.
+- **Il cambiamento è permanente anche per i nuovi XR.** Qualsiasi `Application` che qualcuno applichi d'ora in poi sarà renderizzata col nuovo HTML — la Composition è l'unica fonte di verità per la ricetta.
+
+In una piattaforma reale è così che si rilasciano security patch, nuovi default, sidecar di osservabilità o cambiamenti di cost-saving — tutto invisibile ai team che usano l'API. Il `kubectl apply` del consumatore non cambia mai; tu cambi cosa quella riga produce.
 
 ### Per approfondire
 
