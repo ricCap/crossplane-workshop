@@ -51,13 +51,20 @@ Save and exit the editor.
 
 ### 3. Watch Crossplane reconcile
 
-Crossplane reconciles immediately: the desired ConfigMap from the function's output is updated, and Crossplane core applies the patch in place. Confirm:
+Saving the editor is the only action you take. Everything else is Crossplane reacting to the change:
+
+1. The API server stores the new Composition.
+2. Crossplane notices the Composition has changed and re-runs the pipeline for **every** `Application` XR that points at it — in this workshop, that's your one XR; in a real platform it could be hundreds.
+3. The function emits the same `frontend` ConfigMap as before, but with your new HTML inside.
+4. Crossplane diffs that against the live ConfigMap and patches it in place. Your `Application` XR is never touched — its `spec` is identical to what you applied in the previous module.
+
+Confirm the live ConfigMap now carries your edit:
 
 ```bash
 kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | head -20
 ```
 
-You should see your edit in the output.
+You should see your new HTML in the output.
 
 ### 4. Make nginx pick up the change
 
@@ -77,9 +84,15 @@ The check is still green because none of the conditions it watches have changed 
 
 ## 6.3 What just happened
 
-Think of the Composition as the kitchen and the XR as the order ticket. You edited the kitchen — different ingredients, different presentation — and every existing order automatically came out the new way, without anyone reissuing a ticket. The participant who applied the `Application` didn't touch a thing; their resource hasn't changed; their pods still come up Ready. That gap between "what the user asked for" and "what the platform produces" is the whole reason platform teams use Crossplane.
+Think of the Composition as the kitchen and the XR as the order ticket. You edited the kitchen — different ingredients, different presentation — and every existing order automatically came out the new way, without anyone reissuing a ticket. The participant who applied the `Application` didn't touch a thing; their resource hasn't changed; their pods still come up Ready.
 
-You changed the platform without changing the consumer. The `Application` YAML the user applied is identical; the five resources it produces are different. In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API.
+That gap between "what the user asked for" and "what the platform produces" is the whole reason platform teams use Crossplane. Concretely, three things are true after your edit:
+
+- **The XR's `spec` is unchanged.** `kubectl get application wall-tile -n default -o yaml` returns the same YAML you applied in module 5. The contract with the consumer is untouched.
+- **The composed resources are different.** The `frontend` ConfigMap now carries new HTML. If you had thirty `Application` XRs in the cluster, all thirty would have been patched the moment you saved.
+- **The change is permanent for new XRs too.** Any `Application` someone applies from now on will be rendered with the new HTML — the Composition is the single source of truth for the recipe.
+
+In a real platform this is how you roll out security patches, new defaults, observability sidecars, or cost-saving changes — all invisible to the teams using the API. The consumer's `kubectl apply` line never changes; you change what that line produces.
 
 ### Go deeper
 
