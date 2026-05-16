@@ -6,7 +6,8 @@ metadata:
   labels:
     app: docs
 spec:
-  replicas: 1
+  # replicas managed by HPA (see hpa.yaml). ArgoCD ignores /spec/replicas on
+  # this Deployment (see gitops/apps/docs.yaml) so selfHeal does not revert it.
   selector:
     matchLabels:
       app: docs
