@@ -6,7 +6,7 @@ title: (Guided) Create resources in GitHub
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# (Guided) Create resources in GitHub ⏱️ 20m
+# (Guided) Create resources in GitHub ⏱️ 23m
 
 <PairId />
 
@@ -44,7 +44,7 @@ The rest of the module works unchanged — you just won't be writing into
 github.com. The `pair-<id>-*` naming convention doesn't apply.
 :::
 
-## 6.1 Before you start ⏱️ 3m
+## 6.1 Before you start ⏱️ 4m
 
 Every provider you've used so far has acted on the same Kubernetes cluster — `provider-kubernetes` and `provider-helm` both terminate at this cluster's API server. **`provider-github`** is different: it talks to GitHub's REST/GraphQL API and reconciles real resources (repos, teams, branch protection rules) in a real GitHub organization.
 
@@ -78,7 +78,7 @@ The Secret has a single `credentials` key holding a JSON blob the upstream provi
 If the Secret isn't there, the operator hasn't staged the credential yet. Flag it in the workshop chat — you can't proceed without it.
 :::
 
-## 6.3 Install the provider ⏱️ 5m
+## 6.3 Install the provider ⏱️ 7m
 
 ### 1. Apply the `Provider` manifest
 
@@ -130,7 +130,7 @@ The ProviderConfig points at the Secret you just confirmed in 6.2. The provider 
 
 When the tile turns green, the provider is installed and healthy.
 
-## 6.4 Create your first repo ⏱️ 7m
+## 6.4 Create your first repo ⏱️ 10m
 
 ### 1. Apply a `Repository` MR
 

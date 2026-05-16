@@ -6,7 +6,7 @@ title: Your first Composition
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Your first Composition ⏱️ 12m
+# Your first Composition ⏱️ 22m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
-## 4.1 Before you start ⏱️ 2m
+## 4.1 Before you start ⏱️ 5m
 
 Crossplane installs cleanly, but it doesn't *do* anything yet. You haven't told it what kinds of resources to create or how to create them. This module is the smallest possible end-to-end loop: define a tiny API, write a recipe that creates one ConfigMap, apply an instance, watch the ConfigMap appear.
 
@@ -57,7 +57,7 @@ Five terms, all introduced here. Treat the table as the diagram's glossary. The 
 
 You're about to: install one composition function, define an API called `Hello`, write a recipe that turns each `Hello` into one `ConfigMap`, and apply an instance.
 
-## 4.2 Install the composition function ⏱️ 3m
+## 4.2 Install the composition function ⏱️ 4m
 
 A Composition is a **pipeline** of one or more [composition functions](../cheatsheet#core-objects). The function turns the user's input (the XR's spec) into the desired managed resources. You'll use [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform), which takes a YAML resources-and-patches shape — the easiest function to read for a first Composition.
 
@@ -85,7 +85,7 @@ NAME                           INSTALLED   HEALTHY   PACKAGE
 function-patch-and-transform   True        True      xpkg.crossplane.io/...:v0.9.0
 ```
 
-## 4.3 A note on RBAC ⏱️ 1m
+## 4.3 A note on RBAC ⏱️ 2m
 
 Before you write the Composition, one Kubernetes truth worth surfacing. Crossplane core itself is what applies the resources a Composition emits — like every controller, it can only create kinds it has RBAC for. The UXP chart's bundled `crossplane` ClusterRole already grants wildcard verbs on the kinds you'll use here (`ConfigMap`, `Service`, `Deployment`), so you don't have to touch RBAC for the basic flow:
 
@@ -103,7 +103,7 @@ Two reasons this matters anyway:
 
 This is the trade-off providerless makes explicit. With `provider-kubernetes`, the equivalent grant lives on the *provider's* ServiceAccount via its `ProviderConfig` — same end state, hidden behind one more layer.
 
-## 4.4 Define the API (XRD) ⏱️ 3m
+## 4.4 Define the API (XRD) ⏱️ 4m
 
 The XRD declares your new API. `Hello` will be **namespaced** (v2 default) with one required field, `message`.
 
@@ -152,7 +152,7 @@ hellos.workshop.example.io    True                    5s
 
 `ESTABLISHED=True` means the `Hello` CRD is registered; you can now apply Hello XRs. The `OFFERED` column stays empty because v2 does not generate a claim kind — apply XRs directly.
 
-## 4.5 Define the recipe (Composition) ⏱️ 3m
+## 4.5 Define the recipe (Composition) ⏱️ 4m
 
 The Composition is the recipe. It says: "for every `Hello` that exists, produce one `ConfigMap` whose `data.greeting` contains that Hello's `spec.message`."
 
@@ -202,7 +202,7 @@ Four things worth pointing out:
 - The `ConfigMap`'s `metadata.namespace` is hardcoded to `default`. v2 would default it to the XR's namespace if you left it off; we hardcode for the workshop so the validator always finds it in the same place.
 - `readinessChecks: [type: None]` tells `function-patch-and-transform` to mark this resource Ready as soon as Crossplane has observed it in the cluster. Without that, the function waits for a `Ready` condition on the resource, which `ConfigMap` never publishes — and the `Hello` XR would stay `Ready=False` forever. For a `Deployment` you'd use `MatchCondition` on `Available=True` instead; module 5's Composition does that.
 
-## 4.6 Use it ⏱️ 2m
+## 4.6 Use it ⏱️ 3m
 
 Apply a `Hello` XR:
 

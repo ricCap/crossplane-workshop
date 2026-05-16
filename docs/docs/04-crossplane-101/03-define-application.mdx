@@ -6,7 +6,7 @@ title: Define an Application
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Define an Application ⏱️ 30m
+# Define an Application ⏱️ 35m
 
 <PairId />
 
@@ -14,7 +14,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 Same cluster, same commands. Your tile at `/team/local/` will light up once the check passes. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
-## 5.1 Before you start ⏱️ 3m
+## 5.1 Before you start ⏱️ 5m
 
 This is the module where the workshop clicks together. You met the XRD-Composition-XR shape in [module 4](./first-composition) on a tiny `Hello` example — one XR fanned out into one ConfigMap. This module uses the same shape on something useful: a high-level `Application` kind that fans out into a frontend, a backend, and the ConfigMap that wires them together.
 
@@ -47,7 +47,7 @@ You met `resources[]` (with one entry), `FromCompositeFieldPath` patches, and `r
 
 You're about to: apply an XRD, apply a Composition that uses all three of these mechanics, apply one XR, and watch a working two-tier app materialize on your tile.
 
-## 5.2 Build the Application API ⏱️ 22m
+## 5.2 Build the Application API ⏱️ 30m
 
 ### 1. Apply the XRD
 

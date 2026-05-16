@@ -6,7 +6,7 @@ title: Create resources in Azure
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Create resources in Azure ⏱️ 35m
+# Create resources in Azure ⏱️ 45m
 
 <PairId />
 
@@ -18,7 +18,7 @@ Same commands, same flow. The credential lives in your local cluster's `crosspla
 This module has been reviewed against upstream docs and the v2-namespaced provider examples, but **no one has walked it on a fresh Azure subscription from sign-up through `kubectl get account SYNCED=True` yet**. Azure Portal flows drift quickly — if a screen or option name doesn't match, trust what's in front of you and please flag the divergence in [the workshop issue tracker](https://github.com/ricCap/crossplane-workshop/issues).
 :::
 
-## 6.1 Before you start ⏱️ 3m
+## 6.1 Before you start ⏱️ 4m
 
 You've now seen the same `Provider` → `ProviderConfig` → MR shape work against AWS and GCP. **`provider-azure-storage`** is the Azure version. Costs land on your bill, not the workshop's.
 
@@ -32,7 +32,7 @@ You're about to: sign up for Azure, create a resource group, mint a service prin
 
 The full catalogue of cloud providers (and their current versions) lives at the **[Crossplane Marketplace](https://marketplace.upbound.io/providers)** — bookmark it.
 
-## 6.2 Create the account ⏱️ ~15m
+## 6.2 Create the account ⏱️ ~18m
 
 ### 1. Sign up
 
@@ -83,7 +83,7 @@ az group create --name crossplane-workshop --location westeurope
 
 Azure's free tier: **5 GB** of LRS hot blob storage and **20 000 read / 10 000 write** transactions per month, for the first 12 months. The empty Storage Account this module creates uses none of that. **Delete the resource group when you're done** — that cascades-deletes the Storage Account inside it in a single command.
 
-## 6.3 Mint a credential ⏱️ 7m
+## 6.3 Mint a credential ⏱️ 9m
 
 You'll create a service principal scoped **only to the resource group** you just made, format the credential blob, and feed it to Crossplane.
 
@@ -188,7 +188,7 @@ provider-azure-storage   True        True      xpkg.upbound.io/upbound/provider-
 
 When the tile turns green, the provider Pod is running in `crossplane-system` and ready to reconcile Storage MRs.
 
-## 6.5 Apply a ProviderConfig and create one Storage Account ⏱️ 5m
+## 6.5 Apply a ProviderConfig and create one Storage Account ⏱️ 9m
 
 ### 1. Wire a `ClusterProviderConfig` to the Secret
 

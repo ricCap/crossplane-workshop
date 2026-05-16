@@ -5,7 +5,7 @@ title: (Guided) Use the Crossplane CLI
 
 import PairId from '@site/src/components/PairId';
 
-# (Guided) Use the Crossplane CLI ⏱️ 18m
+# (Guided) Use the Crossplane CLI ⏱️ 23m
 
 <PairId />
 
@@ -13,7 +13,7 @@ import PairId from '@site/src/components/PairId';
 Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
-## 5.1 Before you start ⏱️ 3m
+## 5.1 Before you start ⏱️ 4m
 
 The [Crossplane CLI](https://docs.crossplane.io/latest/cli/) is a single static binary that does most of the things `kubectl` cannot — preview a [Composition](../cheatsheet#core-objects) before you apply it, walk a live [XR](../cheatsheet#core-objects)'s resource tree, and validate manifests offline against a schema.
 
@@ -29,7 +29,7 @@ This module has **no validator tile**. The CLI runs on your laptop and the work 
 
 You're about to: install the binary, render the module-5 Composition against a sample XR, trace your live `wall-tile` Application, and validate a manifest offline.
 
-## 5.2 Install the CLI ⏱️ 2m
+## 5.2 Install the CLI ⏱️ 3m
 
 The upstream installer auto-detects your CPU and downloads the latest stable release into the current directory:
 
@@ -48,7 +48,7 @@ Server Version: v2.2.0-up.5
 
 (Versions may differ — anything `v2.x` covers the subcommands below. `Server Version` is read from your current kube-context's Crossplane install.)
 
-## 5.3 Preview a Composition with `render` ⏱️ 5m
+## 5.3 Preview a Composition with `render` ⏱️ 7m
 
 `crossplane render` runs your Composition's function pipeline against an XR locally and prints the resulting managed resources to stdout. It needs Docker on your laptop because it pulls and runs the function image. If Docker isn't available, skip ahead to [§5.4](#54-trace-a-live-xr-with-beta-trace).
 
@@ -173,7 +173,7 @@ crossplane beta trace application.workshop.example.io/wall-tile -n default -o wi
 
 `-o wide` adds a `RESOURCE` column with the friendly name (`backend-deployment`, `frontend-configmap`, …) and the full reconcile message on each row. Use `-o dot` to pipe into Graphviz. When something is stuck, `beta trace` is faster than chasing `kubectl describe` through every composed resource by hand — every row carries the condition that's blocking it.
 
-## 5.5 Validate manifests offline with `beta validate` ⏱️ 3m
+## 5.5 Validate manifests offline with `beta validate` ⏱️ 4m
 
 `beta validate` checks a resource against a schema without a cluster. The schema can be an XRD (validating XRs against it), a Provider's CRDs (validating MRs), or a directory of either.
 

@@ -6,7 +6,7 @@ title: (Guided) Create resources in Aruba
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# (Guided) Create resources in Aruba ⏱️ 25m
+# (Guided) Create resources in Aruba ⏱️ 30m
 
 <PairId />
 
@@ -18,7 +18,7 @@ This module needs an Aruba account that your instructor's workshop runs against.
 The DBaaS you create here is a real Aruba MySQL instance, billed per hour to your workshop's Aruba project. Delete it as soon as you're done with §7.4 — the cleanup step in §7.5 is not optional.
 :::
 
-## 7.1 Before you start ⏱️ 3m
+## 7.1 Before you start ⏱️ 4m
 
 You've now installed Crossplane providers against your own AWS / GCP / Azure accounts. **`provider-arubacloud`** is different: it points at **your platform team's shared Aruba project** with credentials they manage. You don't sign up for Aruba; you don't see the API key; you walk in and create resources.
 
@@ -32,7 +32,7 @@ This is the production pattern: a platform team curates the cloud surface — on
 
 You're about to: verify the provider is installed in your workshop cluster, get four shared workshop values from your instructor, create one Aruba MySQL DBaaS, run `SELECT 1` against it from a Pod, and clean up.
 
-## 7.2 Verify your platform's wiring ⏱️ 2m
+## 7.2 Verify your platform's wiring ⏱️ 3m
 
 Confirm the provider is up. The platform team's tooling has installed `provider-arubacloud`, applied a `ProviderConfig` referencing a Secret they injected for you, and configured the Kyverno policies described above.
 
@@ -61,7 +61,7 @@ You should see twelve policies — the five guardrails described above expanded 
 
 <ValidateCheck check="aruba-policies-present" />
 
-## 7.3 Provision a MySQL DBaaS ⏱️ 12m
+## 7.3 Provision a MySQL DBaaS ⏱️ 13m
 
 The headline resource. You'll create one **DBaaS** managed resource (a real MySQL instance) using four shared workshop network values your platform team has dropped into a ConfigMap inside your cluster.
 
@@ -150,7 +150,7 @@ NAME                   SYNCED   READY   EXTERNAL-NAME
 
 <ValidateCheck check="aruba-mr-ready" />
 
-## 7.4 Connect with `mysql` ⏱️ 6m
+## 7.4 Connect with `mysql` ⏱️ 7m
 
 Crossplane has written the connection details to a Secret named `<your-pair-id>-mysql-conn` in `default`. Inspect what keys are inside before you wire them to a Pod:
 
@@ -210,7 +210,7 @@ ok
 
 You've routed a SQL query through `kubectl apply` of a Crossplane MR, into a real Aruba MySQL instance, back through your workshop cluster's network, and out the other side.
 
-## 7.5 Clean up ⏱️ 2m
+## 7.5 Clean up ⏱️ 3m
 
 Aruba bills the DBaaS hourly. Delete it now:
 
