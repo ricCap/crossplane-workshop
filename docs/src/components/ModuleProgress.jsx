@@ -13,9 +13,13 @@ import React, { useState, useEffect, useCallback } from 'react';
  * Scope: the bar tracks only the 101 path (modules 00 → 04-crossplane-101).
  * Beyond that, the workshop branches across provider tracks (AWS, GCP,
  * Azure, Aruba) and a linear "stage X/N" stops making sense. The
- * `hello-pod` smoke test from module 02 is treated as optional — it's
- * not part of the denominator and doesn't gate "Next", because
- * participants on the platform path skip it.
+ * `hello-pod` smoke test from module 02 and the `hello-xr-ready` check
+ * from module 04 are both treated as optional — neither is part of the
+ * denominator and neither gates "Next". Both back short-lived artifacts
+ * that the module's own cleanup step deletes (the `hello` pod in 02, the
+ * `hello-world` Hello XR in 04), so keeping them in the denominator
+ * would flip the pill backwards as soon as a participant followed the
+ * instructions.
  *
  * The pair ID is resolved with the same precedence as ValidateCheck
  * (prop → /p/<pair>/ URL segment → localStorage). With no pair set the
@@ -26,12 +30,14 @@ import React, { useState, useEffect, useCallback } from 'react';
  */
 
 // The 101 path in module order — the only checks the strip counts.
-// `hello-pod` is intentionally absent (treated as optional, see comment
-// above). Update this list when the 101 modules change shape.
+// `hello-pod` and `hello-xr-ready` are intentionally absent (treated as
+// optional, see comment above): both back short-lived artifacts that
+// the module's own cleanup step deletes, so including them would flip
+// the pill backwards as soon as a participant followed the
+// instructions. Update this list when the 101 modules change shape.
 const CORE_CHECK_IDS = [
   'cluster-reachable',
   'crossplane-installed',
-  'hello-xr-ready',
   'application-ready',
   'helm-release-ready',
 ];
