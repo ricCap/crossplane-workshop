@@ -5,6 +5,8 @@ title: Define an Application
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Define an Application ⏱️ 35m
 
@@ -107,30 +109,18 @@ The Composition is the recipe — it creates six resources when an `Application`
 
 #### The fan-out, in one picture
 
-```mermaid
-flowchart TB
-  xr["Application XR<br/>spec.message<br/>spec.color"]
-  comp["Composition<br/>applications.workshop.example.io"]
-  fn["function-patch-and-transform"]
+Same XRD-Composition-XR shape as [module 4](./first-composition), now with six composed resources instead of one:
 
-  subgraph composed["Composed resources (default namespace)"]
-    direction TB
-    fcm["ConfigMap<br/>frontend"]
-    fd["Deployment<br/>frontend / nginx"]
-    fs["Service<br/>frontend :80"]
-    bcm["ConfigMap<br/>backend<br/>data.message=…patched…"]
-    bd["Deployment<br/>backend / nginx"]
-    bs["Service<br/>backend :5678"]
-  end
+<ThemedImage
+  alt="One Application XR fans out into six native Kubernetes resources: a ConfigMap, Deployment, and Service for the frontend, and the same three for the backend."
+  sources={{
+    light: useBaseUrl('/diagrams/define-application-fanout-light.svg'),
+    dark: useBaseUrl('/diagrams/define-application-fanout-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
-  xr == "triggers" ==> comp ==> fn
-  fn ==> fcm & fd & fs & bcm & bd & bs
-  xr -. "CombineFromComposite<br/>spec.message + spec.color<br/>→ data.message" .-> bcm
-  fd -. "volumeMounts" .-> fcm
-  bd -. "volumeMounts" .-> bcm
-```
-
-The dashed arrow from the XR is the patch — the only place the XR's `message` and `color` fields actually flow into one of the composed resources. Everything else in the Composition is static template content. The two `volumeMounts` arrows are plain Kubernetes references (each Deployment mounts its ConfigMap by name) — nothing Crossplane-specific.
+The XRD and Composition sit upstream (same yellow/platform boxes from module 4, omitted here to avoid repetition). The XR's `spec.message` and `spec.color` flow into one of the six composed resources — the **backend ConfigMap** — via a `CombineFromComposite` patch; everything else in the Composition is static template content. The frontend and backend Deployments each `volumeMount` their respective ConfigMap (plain Kubernetes wiring, not Crossplane-specific).
 
 #### Walk through the recipe
 

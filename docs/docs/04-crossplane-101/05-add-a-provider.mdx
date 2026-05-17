@@ -5,6 +5,8 @@ title: Add a Provider
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Add a Provider ⏱️ 25m
 
@@ -48,31 +50,35 @@ You've now seen most of the components a Crossplane platform is built from. Thre
 | **ProviderConfig** ← *new this module* | Per-Provider runtime config (credentials, target endpoint). Namespaced flavor (in `*.m.crossplane.io` for providers that have caught up to v2). | You | Namespaced | — |
 | **ClusterProviderConfig** ← *new this module* | Per-Provider runtime config — v2's cluster-scoped flavor, shared across namespaces. | You | Cluster | — |
 
-### A Provider at runtime, in one picture
+### A Provider, in two pictures
 
-```mermaid
-flowchart TB
-  user(["You"])
-  prov["Provider<br/>provider-helm:v1.2.0<br/>(package)"]
-  pod["Provider Pod<br/>(crossplane-system)"]
-  cpc["ClusterProviderConfig<br/>default"]
-  pc["ProviderConfig<br/>workshop-helm"]
-  rel["Release MR<br/>podinfo"]
-  helm[("OCI registry<br/>ghcr.io/stefanprodan/charts")]
-  cluster[("Kubernetes API<br/>(this cluster)")]
+A Provider has two phases worth seeing separately — **install-time** (platform engineer wires it up) and **runtime** (user applies an MR; Provider Pod reconciles it).
 
-  user -- "kubectl apply" --> prov
-  prov == "Crossplane installs" ==> pod
-  user -- "kubectl apply" --> cpc
-  user -- "kubectl apply" --> pc
-  user -- "kubectl apply" --> rel
-  rel -- "providerConfigRef" --> pc
-  pod == "watches" ==> rel
-  pod == "pulls chart" ==> helm
-  pod == "applies chart resources to" ==> cluster
-```
+#### Install-time — what the platform engineer applies
 
-A Provider is a package whose install spawns a long-running Pod (thick arrows: Crossplane-managed work). The Pod watches MRs of its kinds — `Release.helm.m.crossplane.io` here — and translates each one into calls against an external API (for `provider-helm` that "API" is the Helm SDK pulling charts and applying them to the cluster's own apiserver).
+<ThemedImage
+  alt="The platform engineer applies a Provider package; Crossplane core installs it by spawning a long-running Provider Pod."
+  sources={{
+    light: useBaseUrl('/diagrams/add-a-provider-install-light.svg'),
+    dark: useBaseUrl('/diagrams/add-a-provider-install-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+The Provider package is what spawns the long-running Pod. The two ProviderConfigs (cluster-scoped and namespaced) tell that Pod *how to authenticate* to the external API — they don't trigger any reconciliation on their own.
+
+#### Runtime — what happens when a user applies an MR
+
+<ThemedImage
+  alt="A user applies a Release managed resource. The Provider Pod watches it, pulls the chart from an OCI registry, and applies the resulting Kubernetes resources to the cluster apiserver."
+  sources={{
+    light: useBaseUrl('/diagrams/add-a-provider-runtime-light.svg'),
+    dark: useBaseUrl('/diagrams/add-a-provider-runtime-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+The Pod watches MRs of its kinds — `Release.helm.m.crossplane.io` here — and translates each one into calls against an external API. For `provider-helm` that "API" is the Helm SDK pulling charts and applying them to the cluster's own apiserver. For `provider-aws-s3` it would be the AWS SDK; the shape is identical.
 
 You're about to: install a Provider, configure it (with both flavors of `ProviderConfig`), and apply one Managed Resource that installs a Helm chart.
 

@@ -1,11 +1,13 @@
 ---
 sidebar_position: 5
 title: La tua prima Composition
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: cd9ca7f3ee5014b1e43c7eb101d326386c866423
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # La tua prima Composition ⏱️ 22m
 
@@ -23,26 +25,18 @@ Stai usando **Crossplane v2**, quindi le risorse che Crossplane compone possono 
 
 ### Cosa sta per succedere, in un'immagine
 
-```mermaid
-flowchart TB
-  user(["You"])
-  xrd["XRD<br/>hellos.workshop.example.io"]
-  crd["CRD<br/>hellos.workshop.example.io<br/>(generated)"]
-  comp["Composition<br/>hellos.workshop.example.io"]
-  fn["function-patch-and-transform"]
-  xr["Hello XR<br/>hello-world"]
-  cm["ConfigMap<br/>hello-world"]
+<ThemedImage
+  alt="Il platform team applica un XRD e una Composition; l'utente applica un Hello XR; Crossplane esegue la Composition e produce una ConfigMap."
+  sources={{
+    light: useBaseUrl('/diagrams/first-composition-overview-light.svg'),
+    dark: useBaseUrl('/diagrams/first-composition-overview-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
-  user -- "kubectl apply" --> xrd
-  xrd == "Crossplane generates" ==> crd
-  user -- "kubectl apply" --> comp
-  user -- "kubectl apply" --> xr
-  xr == "kind matches XRD ⟶ runs" ==> comp
-  comp == "pipeline step" ==> fn
-  fn == "emits desired state" ==> cm
-```
+I box gialli sono cose che il **platform team** possiede (XRD, Composition) — applicate una volta. Il box blu è ciò che un **utente** fa `kubectl apply` — per ogni richiesta. Il box verde è ciò che **Crossplane produce** in risposta. In questo modulo *indossi entrambi i cappelli*; in una piattaforma reale i due ruoli vivono in team diversi.
 
-Le frecce spesse sono il lavoro che Crossplane fa per te; le frecce sottili sono cose che fai tu con `kubectl apply`. Ogni passo del resto del modulo è una delle frecce sottili.
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 ### I pezzi nell'immagine, definiti
 

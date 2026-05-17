@@ -1,8 +1,11 @@
 ---
 sidebar_position: 79
 title: Cheatsheet
-translation_source_commit: 84f8fa3be0091350826a2298bc12f56c2e44b7c6
+translation_source_commit: 562fefa3cc0679cf583192c7a0e0d28a327bf4a2
 ---
+
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Cheatsheet
 
@@ -142,6 +145,19 @@ Non ti serve nessuno di questi per finire il workshop — `kubectl` da solo bast
 2. **I tuoi kind compositi via XRD + Composition.** Dichiari un nuovo kind con un `XRD` (schema) e una `Composition` (ricetta); gli utenti applicano un `XR` (un'istanza del tuo kind), e Crossplane lo dirama nelle risorse che la ricetta dichiara — o oggetti Kubernetes nativi direttamente (in v2) o risorse esterne via Provider.
 
 Farai la seconda di queste cose nei moduli 4-6 di questo workshop, poi aggiungerai un Provider nel modulo 7.
+
+**Un'immagine per tutto il ciclo:**
+
+<ThemedImage
+  alt="Gli utenti applicano o un XR (che innesca una Composition che emette risorse native o MR) o una MR direttamente (che un Provider Pod osserva e riconcilia chiamando un'API esterna). Le due metà di Crossplane si incontrano quando una Composition emette una MR."
+  sources={{
+    light: useBaseUrl('/diagrams/cheatsheet-crossplane-loop-light.svg'),
+    dark: useBaseUrl('/diagrams/cheatsheet-crossplane-loop-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 ### Oggetti core {#core-objects}
 

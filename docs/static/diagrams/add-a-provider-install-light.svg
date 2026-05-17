@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style hand-drawn diagram for module 7.1 — install phase.
+  Provider package → Crossplane core → Provider Pod.
+
+  Hand-authored SVG (no .excalidraw source — redraw at excalidraw.com if needed).
+
+  Color semantics:
+    yellow #ffec99  = platform-engineer-owned (the Provider package)
+    purple #d0bfff  = Crossplane's own machinery
+    green  #b2f2bb  = result (the running Provider Pod)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 14px; }
+    .group-label { fill: #b08900; font-size: 17px; font-style: italic; }
+    .box-fill-yellow { fill: #ffec99; }
+    .box-fill-purple { fill: #d0bfff; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .group-outline   { stroke: #b08900; stroke-width: 2; fill: none; stroke-dasharray: 8 6; opacity: 0.7; }
+  </style>
+
+  <!-- Platform grouping around the Provider package -->
+  <path class="group-outline"
+        d="M 30 110
+           C 28 64, 100 36, 180 38
+           C 270 40, 320 70, 320 130
+           C 320 200, 250 240, 170 238
+           C 80 236, 30 200, 30 110 Z" />
+  <text class="group-label" x="40" y="64">Platform engineer applies</text>
+
+  <!-- Provider (yellow / platform) -->
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 70 116
+             C 68 108, 76 102, 86 102
+             L 264 104
+             C 274 104, 278 112, 276 120
+             L 274 192
+             C 274 202, 266 206, 256 206
+             L 80 204
+             C 70 204, 66 196, 68 188 Z" />
+    <text class="label" text-anchor="middle" x="172" y="148">Provider</text>
+    <text class="muted" text-anchor="middle" x="172" y="172">provider-helm</text>
+    <text class="muted" text-anchor="middle" x="172" y="190">v1.2.0</text>
+  </g>
+
+  <!-- Arrow: Provider -> Crossplane -->
+  <path class="arrow" d="M 282 154 C 320 148, 360 158, 392 154" />
+  <polygon class="arrow" fill="#343a40" points="392,154 380,148 382,160" />
+  <text class="muted" text-anchor="middle" x="338" y="138">Crossplane installs</text>
+
+  <!-- Crossplane core (purple) -->
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 398 116
+             C 396 108, 404 102, 414 102
+             L 568 104
+             C 578 104, 582 112, 580 120
+             L 578 192
+             C 578 202, 570 206, 560 206
+             L 416 204
+             C 406 204, 402 196, 404 188 Z" />
+    <text class="label" text-anchor="middle" x="488" y="148">Crossplane core</text>
+    <text class="muted" text-anchor="middle" x="488" y="180">(package manager)</text>
+  </g>
+
+  <!-- Arrow: Crossplane -> Pod -->
+  <path class="arrow" d="M 586 154 C 626 148, 666 158, 698 154" />
+  <polygon class="arrow" fill="#343a40" points="698,154 686,148 688,160" />
+  <text class="muted" text-anchor="middle" x="642" y="138">spawns</text>
+
+  <!-- Provider Pod (green / output) -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 704 116
+             C 702 108, 710 102, 720 102
+             L 868 104
+             C 878 104, 882 112, 880 120
+             L 878 192
+             C 878 202, 870 206, 860 206
+             L 722 204
+             C 712 204, 708 196, 710 188 Z" />
+    <text class="label" text-anchor="middle" x="790" y="148">Provider Pod</text>
+    <text class="muted" text-anchor="middle" x="790" y="180">(long-running)</text>
+  </g>
+
+  <!-- Footnote about ProviderConfig -->
+  <text class="muted" text-anchor="middle" x="450" y="280">+ a ProviderConfig that tells the Pod how to authenticate (not shown)</text>
+
+</svg>

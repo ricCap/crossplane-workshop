@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style hand-drawn diagram for module 4.1
+  "What's about to happen, in one picture" — first-composition overview.
+
+  Source: ./first-composition-overview.excalidraw
+  Re-export: open the .excalidraw in https://excalidraw.com → File → Export image → SVG.
+
+  Color semantics (matches the prior mermaid):
+    yellow #ffec99  = platform (XRD, Composition)
+    blue   #a5d8ff  = user (the Hello XR)
+    green  #b2f2bb  = output (the ConfigMap Crossplane produces)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 520" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 15px; }
+    .group-label { fill: #b08900; font-size: 17px; font-style: italic; }
+    .user-label  { fill: #1971c2; font-size: 17px; font-style: italic; }
+    .box-fill-yellow { fill: #ffec99; }
+    .box-fill-blue   { fill: #a5d8ff; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .group-outline   { stroke: #b08900; stroke-width: 2; fill: none; stroke-dasharray: 8 6; opacity: 0.7; }
+  </style>
+
+  <!-- Subtle hand-drawn jitter via small bezier wobbles on the rectangles -->
+
+  <!-- Platform grouping (dashed ellipse around XRD + Composition) -->
+  <path class="group-outline"
+        d="M 60 240
+           C 60 100, 220 60, 360 62
+           C 480 64, 600 110, 600 250
+           C 600 380, 470 430, 330 428
+           C 180 426, 60 380, 60 240 Z" />
+  <text class="group-label" x="80" y="100">Platform team (you, today)</text>
+
+  <!-- User label -->
+  <text class="user-label" x="690" y="110">User (your app team)</text>
+
+  <!-- XRD box (yellow / platform) -->
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 132 150
+             C 130 142, 138 138, 148 138
+             L 308 140
+             C 318 140, 322 148, 320 156
+             L 318 224
+             C 318 234, 310 238, 300 238
+             L 142 236
+             C 132 236, 128 228, 130 220 Z" />
+    <text class="label" text-anchor="middle" x="225" y="184">XRD</text>
+    <text class="muted" text-anchor="middle" x="225" y="208">hellos.workshop</text>
+  </g>
+
+  <!-- Composition box (yellow / platform) -->
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 348 296
+             C 346 288, 354 282, 364 282
+             L 538 284
+             C 548 284, 552 292, 550 300
+             L 548 368
+             C 548 378, 540 382, 530 382
+             L 358 380
+             C 348 380, 344 372, 346 364 Z" />
+    <text class="label" text-anchor="middle" x="448" y="328">Composition</text>
+    <text class="muted" text-anchor="middle" x="448" y="352">(recipe)</text>
+  </g>
+
+  <!-- Hello XR box (blue / user) -->
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 682 150
+             C 680 142, 688 138, 698 138
+             L 878 140
+             C 888 140, 892 148, 890 156
+             L 888 224
+             C 888 234, 880 238, 870 238
+             L 692 236
+             C 682 236, 678 228, 680 220 Z" />
+    <text class="label" text-anchor="middle" x="785" y="184">Hello XR</text>
+    <text class="muted" text-anchor="middle" x="785" y="208">hello-world</text>
+  </g>
+
+  <!-- ConfigMap box (green / output) -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 682 394
+             C 680 386, 688 380, 698 380
+             L 898 382
+             C 908 382, 912 390, 910 398
+             L 908 468
+             C 908 478, 900 482, 890 482
+             L 692 480
+             C 682 480, 678 472, 680 464 Z" />
+    <text class="label" text-anchor="middle" x="795" y="426">ConfigMap</text>
+    <text class="muted" text-anchor="middle" x="795" y="450">hello-world</text>
+  </g>
+
+  <!-- Arrow: XRD -> Hello XR  ("defines kind") -->
+  <path class="arrow"
+        d="M 322 180 C 420 168, 560 196, 678 184" />
+  <polygon class="arrow" fill="#343a40"
+           points="678,184 666,178 668,190" />
+  <text class="muted" text-anchor="middle" x="500" y="168">defines kind</text>
+
+  <!-- Arrow: Hello XR -> Composition ("matches Composition") -->
+  <path class="arrow"
+        d="M 700 240 C 660 264, 600 280, 552 296" />
+  <polygon class="arrow" fill="#343a40"
+           points="552,296 556,282 566,294" />
+  <text class="muted" text-anchor="start" x="618" y="262">matches Composition</text>
+
+  <!-- Arrow: Composition -> ConfigMap ("emits") -->
+  <path class="arrow"
+        d="M 550 360 C 610 376, 650 388, 678 410" />
+  <polygon class="arrow" fill="#343a40"
+           points="678,410 666,402 670,414" />
+  <text class="muted" text-anchor="middle" x="600" y="404">emits</text>
+
+  <!-- Legend chip in bottom-left -->
+  <g transform="translate(60, 470)">
+    <rect class="box-fill-yellow box-stroke" x="0" y="0" width="22" height="16" rx="4"/>
+    <text class="muted" x="30" y="14">platform</text>
+    <rect class="box-fill-blue box-stroke" x="110" y="0" width="22" height="16" rx="4"/>
+    <text class="muted" x="140" y="14">user</text>
+    <rect class="box-fill-green box-stroke" x="200" y="0" width="22" height="16" rx="4"/>
+    <text class="muted" x="230" y="14">output</text>
+  </g>
+</svg>

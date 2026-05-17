@@ -1,10 +1,12 @@
 ---
 sidebar_position: 2
 title: Pacchettizza come Configuration
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: bc0de717cdf9d60a3683aff5507c4b531a81eb53
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Pacchettizza come Configuration ⏱️ 20m
 
@@ -23,6 +25,19 @@ Tre motivi per cui conta:
 - **Lifecycle.** Crossplane riconcilia una risorsa `Configuration` allo stesso modo in cui riconcilia un `Provider` — `kubectl get configuration` mostra revisioni, salute e stato di roll-back.
 
 Stai per leggere tre brevi pagine upstream, e poi decidere se costruire e pubblicare davvero la tua API `Application` come Configuration.
+
+L'intero ciclo, da capo a fondo:
+
+<ThemedImage
+  alt="I sorgenti YAML del platform engineer (XRD + Composition) più un file di metadati crossplane.yaml vengono costruiti in un artifact OCI .xpkg, pubblicati su un registry OCI, poi installati su un cluster target applicando una Configuration MR. Crossplane risolve e scarica i Provider e le Function dichiarati in dependsOn."
+  sources={{
+    light: useBaseUrl('/diagrams/configurations-packaging-light.svg'),
+    dark: useBaseUrl('/diagrams/configurations-packaging-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 ## 6.2 Suggerimenti ⏱️ 15m
 

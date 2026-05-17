@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Module 7.4 — runtime phase, dark variant. See *-light.svg for semantics. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 320" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #f1f3f5; }
+    .muted { fill: #ced4da; font-size: 14px; }
+    .user-label  { fill: #74c0fc; font-size: 17px; font-style: italic; }
+    .ext-label   { fill: #b197fc; font-size: 17px; font-style: italic; }
+    .box-fill-blue   { fill: #1971c2; fill-opacity: 0.55; }
+    .box-fill-green  { fill: #2f9e44; fill-opacity: 0.55; }
+    .box-fill-purple { fill: #7048e8; fill-opacity: 0.55; }
+    .box-stroke      { stroke: #f8f9fa; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #dee2e6; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <text class="user-label" x="40" y="64">User applies</text>
+  <text class="ext-label"  x="700" y="64">External world</text>
+
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 60 116 C 58 108, 66 102, 76 102 L 264 104 C 274 104, 278 112, 276 120 L 274 192 C 274 202, 266 206, 256 206 L 70 204 C 60 204, 56 196, 58 188 Z" />
+    <text class="label" text-anchor="middle" x="167" y="148">Release MR</text>
+    <text class="muted" text-anchor="middle" x="167" y="172">podinfo</text>
+    <text class="muted" text-anchor="middle" x="167" y="190">chart 6.7.1</text>
+  </g>
+
+  <path class="arrow" d="M 282 154 C 320 148, 360 158, 392 154" />
+  <polygon class="arrow" fill="#dee2e6" points="392,154 380,148 382,160" />
+  <text class="muted" text-anchor="middle" x="338" y="138">watched by</text>
+
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 398 116 C 396 108, 404 102, 414 102 L 568 104 C 578 104, 582 112, 580 120 L 578 192 C 578 202, 570 206, 560 206 L 416 204 C 406 204, 402 196, 404 188 Z" />
+    <text class="label" text-anchor="middle" x="488" y="148">Provider Pod</text>
+    <text class="muted" text-anchor="middle" x="488" y="180">provider-helm</text>
+  </g>
+
+  <path class="arrow" d="M 586 142 C 626 130, 666 130, 698 132" />
+  <polygon class="arrow" fill="#dee2e6" points="698,132 686,126 688,138" />
+  <text class="muted" text-anchor="middle" x="642" y="116">pulls chart</text>
+
+  <path class="arrow" d="M 586 172 C 626 184, 666 184, 698 182" />
+  <polygon class="arrow" fill="#dee2e6" points="698,182 686,176 688,188" />
+  <text class="muted" text-anchor="middle" x="642" y="206">applies resources</text>
+
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 704 84 C 702 78, 712 74, 722 74 L 920 76 C 930 76, 934 80, 932 86 L 930 130 C 930 138, 922 142, 912 142 L 716 140 C 706 140, 702 134, 704 126 Z" />
+    <text class="label" text-anchor="middle" x="818" y="106">OCI registry</text>
+    <text class="muted" text-anchor="middle" x="818" y="128">ghcr.io/.../charts</text>
+  </g>
+
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 704 168 C 702 162, 712 158, 722 158 L 920 160 C 930 160, 934 164, 932 170 L 930 214 C 930 222, 922 226, 912 226 L 716 224 C 706 224, 702 218, 704 210 Z" />
+    <text class="label" text-anchor="middle" x="818" y="190">Kubernetes apiserver</text>
+    <text class="muted" text-anchor="middle" x="818" y="212">(this cluster)</text>
+  </g>
+
+</svg>

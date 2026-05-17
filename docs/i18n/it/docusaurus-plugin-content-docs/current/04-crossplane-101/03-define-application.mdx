@@ -1,11 +1,13 @@
 ---
 sidebar_position: 6
 title: Definisci un'Application
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: cd9ca7f3ee5014b1e43c7eb101d326386c866423
 ---
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Definisci un'Application ⏱️ 35m
 
@@ -108,30 +110,20 @@ La Composition è la ricetta — crea sei risorse quando esiste un `Application`
 
 #### Il fan-out, in un'immagine
 
-```mermaid
-flowchart TB
-  xr["Application XR<br/>spec.message<br/>spec.color"]
-  comp["Composition<br/>applications.workshop.example.io"]
-  fn["function-patch-and-transform"]
+Stessa forma XRD-Composition-XR del [modulo 4](./first-composition), ora con sei risorse composte invece di una:
 
-  subgraph composed["Composed resources (default namespace)"]
-    direction TB
-    fcm["ConfigMap<br/>frontend"]
-    fd["Deployment<br/>frontend / nginx"]
-    fs["Service<br/>frontend :80"]
-    bcm["ConfigMap<br/>backend<br/>data.message=…patched…"]
-    bd["Deployment<br/>backend / nginx"]
-    bs["Service<br/>backend :5678"]
-  end
+<ThemedImage
+  alt="Un Application XR si espande in sei risorse native Kubernetes: una ConfigMap, un Deployment e un Service per il frontend, e gli stessi tre per il backend."
+  sources={{
+    light: useBaseUrl('/diagrams/define-application-fanout-light.svg'),
+    dark: useBaseUrl('/diagrams/define-application-fanout-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
-  xr == "triggers" ==> comp ==> fn
-  fn ==> fcm & fd & fs & bcm & bd & bs
-  xr -. "CombineFromComposite<br/>spec.message + spec.color<br/>→ data.message" .-> bcm
-  fd -. "volumeMounts" .-> fcm
-  bd -. "volumeMounts" .-> bcm
-```
+L'XRD e la Composition stanno a monte (gli stessi box gialli/platform del modulo 4, qui omessi per non ripetere). I campi `spec.message` e `spec.color` dell'XR fluiscono in una delle sei risorse composte — la **ConfigMap del backend** — tramite una patch `CombineFromComposite`; tutto il resto nella Composition è contenuto template statico. Frontend e backend Deployment montano (`volumeMount`) ciascuno la propria ConfigMap (semplice wiring Kubernetes, non specifico di Crossplane).
 
-La freccia tratteggiata che parte dall'XR è la patch — l'unico punto in cui i campi `message` e `color` dell'XR effettivamente fluiscono dentro una delle risorse composte. Tutto il resto nella Composition è contenuto template statico. Le due frecce `volumeMounts` sono semplici riferimenti Kubernetes (ogni Deployment monta la sua ConfigMap per nome) — niente di specifico di Crossplane.
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 #### Walkthrough della ricetta
 

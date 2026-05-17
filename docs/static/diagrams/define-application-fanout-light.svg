@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style hand-drawn diagram for module 5.2
+  "The fan-out, in one picture" — Application XR composes 6 native resources.
+
+  Hand-authored SVG (no .excalidraw source — redraw at excalidraw.com if needed).
+
+  Color semantics (matches modules 4 / 7):
+    blue   #a5d8ff  = user (the Application XR)
+    green  #b2f2bb  = output (the six composed native resources)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 600" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 14px; }
+    .user-label  { fill: #1971c2; font-size: 17px; font-style: italic; }
+    .out-label   { fill: #2f9e44; font-size: 16px; font-style: italic; }
+    .box-fill-blue   { fill: #a5d8ff; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .group-outline   { stroke: #2f9e44; stroke-width: 1.8; fill: none; stroke-dasharray: 8 6; opacity: 0.55; }
+  </style>
+
+  <!-- User label above the XR -->
+  <text class="user-label" x="380" y="50">User applies one Application XR</text>
+
+  <!-- Application XR (blue, top center) -->
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 350 78
+             C 348 70, 356 64, 366 64
+             L 626 66
+             C 636 66, 640 74, 638 82
+             L 636 178
+             C 636 188, 628 192, 618 192
+             L 360 190
+             C 350 190, 346 182, 348 174 Z" />
+    <text class="label" text-anchor="middle" x="493" y="110">Application XR</text>
+    <text class="muted" text-anchor="middle" x="493" y="140">spec.message</text>
+    <text class="muted" text-anchor="middle" x="493" y="160">spec.color</text>
+  </g>
+
+  <!-- Single trunk arrow from XR down to the composed area -->
+  <path class="arrow" d="M 493 196 C 491 220, 495 240, 493 258" />
+  <polygon class="arrow" fill="#343a40" points="493,266 485,252 501,252" />
+
+  <!-- Annotation -->
+  <text class="out-label" text-anchor="middle" x="493" y="290">Crossplane composes six native resources</text>
+
+  <!-- Frontend grouping (dashed) -->
+  <path class="group-outline"
+        d="M 40 312
+           C 38 300, 50 294, 64 296
+           L 920 300
+           C 934 300, 942 312, 940 326
+           L 938 432
+           C 938 446, 928 454, 914 454
+           L 60 450
+           C 46 450, 38 438, 40 424 Z" />
+  <text class="out-label" x="54" y="328">frontend</text>
+
+  <!-- Backend grouping (dashed) -->
+  <path class="group-outline"
+        d="M 40 478
+           C 38 466, 50 460, 64 462
+           L 920 466
+           C 934 466, 942 478, 940 492
+           L 938 580
+           C 938 594, 928 594, 914 594
+           L 60 590
+           C 46 590, 38 578, 40 564 Z" />
+  <text class="out-label" x="54" y="494">backend</text>
+
+  <!-- Six composed boxes: 2 rows × 3 cols -->
+  <!-- Row 1: frontend -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 110 338 L 320 340 Q 332 340 332 352 L 330 424 Q 330 436 318 436 L 112 434 Q 100 434 100 422 L 102 350 Q 102 338 110 338 Z" />
+    <text class="label" text-anchor="middle" x="216" y="378">ConfigMap</text>
+    <text class="muted" text-anchor="middle" x="216" y="406">frontend (html)</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 400 340 L 612 342 Q 624 342 624 354 L 622 426 Q 622 438 610 438 L 404 436 Q 392 436 392 424 L 394 352 Q 394 340 400 340 Z" />
+    <text class="label" text-anchor="middle" x="508" y="380">Deployment</text>
+    <text class="muted" text-anchor="middle" x="508" y="408">frontend (nginx)</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 692 338 L 902 340 Q 914 340 914 352 L 912 424 Q 912 436 900 436 L 694 434 Q 682 434 682 422 L 684 350 Q 684 338 692 338 Z" />
+    <text class="label" text-anchor="middle" x="798" y="378">Service</text>
+    <text class="muted" text-anchor="middle" x="798" y="406">frontend :80</text>
+  </g>
+
+  <!-- Row 2: backend -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 110 504 L 320 506 Q 332 506 332 518 L 330 580 Q 330 590 318 590 L 112 588 Q 100 588 100 576 L 102 516 Q 102 504 110 504 Z" />
+    <text class="label" text-anchor="middle" x="216" y="540">ConfigMap</text>
+    <text class="muted" text-anchor="middle" x="216" y="568">backend (patched)</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 400 506 L 612 508 Q 624 508 624 520 L 622 580 Q 622 590 610 590 L 404 588 Q 392 588 392 576 L 394 518 Q 394 506 400 506 Z" />
+    <text class="label" text-anchor="middle" x="508" y="542">Deployment</text>
+    <text class="muted" text-anchor="middle" x="508" y="570">backend (nginx)</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 692 504 L 902 506 Q 914 506 914 518 L 912 580 Q 912 590 900 590 L 694 588 Q 682 588 682 576 L 684 516 Q 684 504 692 504 Z" />
+    <text class="label" text-anchor="middle" x="798" y="540">Service</text>
+    <text class="muted" text-anchor="middle" x="798" y="568">backend :5678</text>
+  </g>
+
+</svg>

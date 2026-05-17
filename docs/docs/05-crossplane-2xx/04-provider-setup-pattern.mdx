@@ -3,11 +3,23 @@ sidebar_position: 4
 title: Provider setup pattern
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Provider setup pattern
 
 Every Provider in Crossplane follows the same three-step shape: install the package, give it credentials through a ProviderConfig, then reference the config from your MRs. The 101 path walked you through it once with `provider-helm`. This page collects the variations — credential sources, cluster vs namespaced ProviderConfig, version pinning, where to find providers — so you don't have to re-derive them every time.
 
 ## 5.1 The shape
+
+<ThemedImage
+  alt="A Provider spawns a Pod, a ProviderConfig points the Pod at a Secret, and a Managed Resource references the ProviderConfig. The Pod watches the MR and calls the External API."
+  sources={{
+    light: useBaseUrl('/diagrams/provider-setup-pattern-light.svg'),
+    dark: useBaseUrl('/diagrams/provider-setup-pattern-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 Three objects, in order:
 
