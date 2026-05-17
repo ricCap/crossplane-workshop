@@ -1,6 +1,6 @@
 apiVersion: workshop.example.io/v1alpha1
 kind: DeveloperEnvironment
 metadata:
-  name: juicy-watermelon
+  name: zesty-lime
 spec:
-  pairId: juicy-watermelon
+  pairId: zesty-lime
