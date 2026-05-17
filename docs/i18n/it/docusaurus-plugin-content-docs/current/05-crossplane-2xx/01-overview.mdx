@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Panoramica
-translation_source_commit: eee95cb4ab06eb8463a6d630aba140f4a34ff911
+translation_source_commit: 039b4d8aef9ffe4bec8cd8d50b8626ee246252cd
 ---
 
 # Crossplane 2XX — Panoramica
@@ -16,5 +16,6 @@ Task choose-your-own-adventure per le coppie che hanno finito Crossplane 101. Un
 | [(Guidato) Usa la CLI Crossplane](./crossplane-cli) | guidato, ⏱️ 23m | Anteprima, trace e validazione delle Composition con il binario `crossplane` — `render`, `beta trace`, `beta validate`, più puntatori ai comandi di authoring `xpkg`. |
 | [Pattern di setup di un Provider](./provider-setup-pattern) | riferimento | La forma che ogni Provider segue: install + ProviderConfig + MR. Copre `ClusterProviderConfig` vs `ProviderConfig`, auth via Secret vs cloud-native, pinning della versione e famiglie di provider. Da leggere prima dei moduli cloud-provider [3xx](../crossplane-3xx/overview). |
 | [Componi con altre function](./composition-functions) | spunti open-ended | Riscrivi una Composition del 101 con `function-go-templating`, `function-kcl` o `function-python` invece di `function-patch-and-transform`. Quando le patch smettono di scalare — condizionali su molte risorse, loop, codice che altrimenti sarebbe una catena di transform. |
+| [(Guidato) Testa la tua Composition localmente](./testing-compositions) | guidato, ⏱️ 20m | Trasforma `crossplane render` in un loop di test pronto per la CI: cattura un render golden, fai il diff dopo una modifica alla Composition, alimenta lo stato osservato del cluster con `--observed-resources`. Si basa sul modulo CLI. |
 
 Altri task atterrano qui mentre vengono scritti. Roadmap della sezione (per la [style guide](../) — il documento vivo della forma del workshop): provider extra, publishing OCI, status function e adozione di risorse esistenti in-cluster via `provider-kubernetes` (tracciato nella [issue #64](https://github.com/ricCap/crossplane-workshop/issues/64)).

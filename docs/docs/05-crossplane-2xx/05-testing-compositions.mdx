@@ -1,0 +1,186 @@
+---
+sidebar_position: 5
+title: (Guided) Test your Composition locally
+---
+
+import PairId from '@site/src/components/PairId';
+
+# (Guided) Test your Composition locally ⏱️ 20m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same files. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 5.1 Before you start ⏱️ 3m
+
+[`crossplane render`](https://docs.crossplane.io/latest/cli/command-reference/#render) gave you a way to ask "what would my [Composition](../cheatsheet#core-objects) produce for this [XR](../cheatsheet#core-objects)?" without touching the cluster. This module turns that one-shot preview into a **test loop**: capture the render output once as a baseline, change the Composition, then `diff` to see exactly what shifted. The same loop, with `--observed-resources` and a wrapper script, is what a CI job runs against a pull request.
+
+Upstream Crossplane does not ship a `crossplane test` subcommand — `crossplane render` plus a file diff *is* the supported test pattern. The [Go function guide](https://docs.crossplane.io/latest/guides/write-a-composition-function-in-go/#test-the-function-end-to-end) walks the same approach for function authors and pairs it with the `fn_test.go` unit tests scaffolded by `crossplane xpkg init`.
+
+This module has **no validator tile**. Everything you'll do lives on your laptop — files written, commands run, diffs printed — so there's no honest server-side signal to check. You'll know it worked when the diff says what you expect.
+
+**Prerequisites.** This builds on [(Guided) Use the Crossplane CLI](./crossplane-cli) — you should already have `crossplane` on your `PATH` and the `xrd.yaml`, `composition.yaml`, `function.yaml`, and `xr.yaml` files from §5.3 on disk.
+
+You're about to: capture a golden render, modify the Composition the same way module 6 did and diff the result, feed observed cluster state into `render`, and wrap the whole thing in a CI-shaped one-liner.
+
+## 5.2 Capture a golden render ⏱️ 4m
+
+A "golden file" is the render output you've eyeballed once and declared correct. Future renders are compared against it; the diff is the test result. Save the current output:
+
+```bash
+mkdir -p testdata/golden
+crossplane render xr.yaml composition.yaml function.yaml > testdata/golden/render.yaml
+```
+
+Inspect what landed:
+
+```bash
+head -20 testdata/golden/render.yaml
+```
+
+Expected output (abridged):
+
+```
+---
+apiVersion: workshop.example.io/v1alpha1
+kind: Application
+metadata:
+  name: render-demo
+  namespace: default
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: backend-deployment, frontend-configmap, ...'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: backend-deployment
+...
+```
+
+Commit `testdata/golden/render.yaml` alongside the Composition. From now on, any change to the Composition that shifts what gets rendered shows up as a `git diff` on this file.
+
+## 5.3 Diff after a Composition change ⏱️ 5m
+
+Reshape the Composition the same way [module 6](../crossplane-101/modify-application) did — edit the `frontend-configmap` resource's inline HTML — but apply the edit to your local file instead of the live Composition:
+
+### 1. Make the change
+
+Open `composition.yaml` and find the `frontend-configmap` entry under `spec.pipeline[0].input.resources`. Change the background color in the inline CSS to amber:
+
+```bash
+sed -i.bak 's/background: #ffffff/background: #fef3c7/' composition.yaml
+```
+
+(If your Composition's CSS uses a different starting color, edit the file by hand — the value isn't important, the *shift* is.)
+
+### 2. Re-render and diff
+
+```bash
+crossplane render xr.yaml composition.yaml function.yaml | diff -u testdata/golden/render.yaml -
+```
+
+Expected output:
+
+```diff
+--- testdata/golden/render.yaml	2026-05-17 10:12:04
++++ -	2026-05-17 10:12:18
+@@ -84,7 +84,7 @@
+             <style>
+-              body { background: #ffffff; font-family: sans-serif; ... }
++              body { background: #fef3c7; font-family: sans-serif; ... }
+               #title { font-size: 2rem; font-weight: bold; }
+```
+
+One line in, one line out — exactly the change you made, surfaced as a unified diff before anything reaches the cluster. Anything else in the diff is collateral damage: a patch that fanned out further than you expected, a function ordering shift, a field that quietly stopped being set. That's the kind of regression `kubectl apply` and `kubectl describe` make you fish for.
+
+### 3. Update the golden (or revert)
+
+If the diff matches what you intended, promote the new render to the golden:
+
+```bash
+crossplane render xr.yaml composition.yaml function.yaml > testdata/golden/render.yaml
+```
+
+If it doesn't, revert your edit and try again:
+
+```bash
+mv composition.yaml.bak composition.yaml
+```
+
+That promote-or-revert step is the entire human side of the loop. The diff is the review surface.
+
+## 5.4 Simulate cluster state with `--observed-resources` ⏱️ 5m
+
+`render` defaults to "nothing exists yet" — the synthetic `Unready` status you saw in §5.2 is the giveaway. Some Compositions read from observed managed-resource state (status-driven templating, conditional patches based on what already exists) and you can't exercise those paths without feeding state in. `--observed-resources` takes a YAML file (or a directory) of MRs *as if* they were already reconciled, and the function pipeline sees them in its observed bag.
+
+### 1. Write an observation
+
+```bash
+cat <<'EOF' > observed.yaml
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  name: render-demo-backend
+  annotations:
+    crossplane.io/composition-resource-name: backend-deployment
+spec:
+  forProvider:
+    manifest:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: backend
+        namespace: default
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    reason: Available
+EOF
+```
+
+The `composition-resource-name` annotation is how the function pipeline maps the observation back to the pipeline entry it represents — it has to match the `name:` in the Composition's `resources` list exactly.
+
+### 2. Re-render with the observation
+
+```bash
+crossplane render xr.yaml composition.yaml function.yaml --observed-resources observed.yaml
+```
+
+In the rendered XR you'll now see `backend-deployment` listed as `Ready`-eligible in the synthetic status, instead of being grouped under `Unready resources:`. For a Composition that branches on `status.conditions` of its own children (rare in patch-and-transform, common in go-templating and Go functions), this is the only way to test the branch without a live cluster.
+
+`render` also accepts `--extra-resources` for cluster-side objects the pipeline reads but doesn't own (e.g. `EnvironmentConfig` selections), `--context-values` for inline pipeline context, and `--context-files` for the same as files. See [`render` reference](https://docs.crossplane.io/latest/cli/command-reference/#render) for the full set.
+
+## 5.5 Wire it into CI ⏱️ 3m
+
+The diff loop becomes a CI gate the moment its exit code matters. `diff` already exits non-zero when files differ, so:
+
+```bash
+crossplane render xr.yaml composition.yaml function.yaml \
+  | diff -u testdata/golden/render.yaml - \
+  || { echo "render drift — update testdata/golden or revert the change"; exit 1; }
+```
+
+Drop that as a step in any CI runner. A pull request that shifts the rendered output without also updating `testdata/golden/render.yaml` fails the job; an intentional change requires the author to regenerate the golden, which makes the diff visible in code review.
+
+A real Composition repo carries one `testdata/<case>/{xr.yaml,observed.yaml,golden.yaml}` triple per scenario you want pinned: happy path, the conditional branch, the boundary case the last incident exposed. Same loop, looped over.
+
+## 5.6 What just happened
+
+The render-and-diff loop is what closes the gap between "the Composition compiles" and "the Composition still produces what I meant." `crossplane render` gave you the input side; the golden file gives you the expected side; `diff` is the test result. You can wire the same three pieces into a Makefile, a pre-commit hook, or a CI job — Crossplane doesn't impose a test framework because none of the moving parts need one.
+
+If you're writing functions in Go, the [`fn_test.go` unit tests](https://docs.crossplane.io/latest/guides/write-a-composition-function-in-go/#test-the-function-end-to-end) scaffolded by `crossplane xpkg init function-template-go` cover the inner layer (per-input function behavior); `crossplane render` against a sample XR covers the outer layer (the function plugged into a real Composition). Most teams ship both.
+
+### Go deeper
+
+- [`crossplane render` reference](https://docs.crossplane.io/latest/cli/command-reference/#render) — every flag, including `--extra-resources`, `--context-values`, `--context-files`, `--include-function-results`.
+- [Test a composition function in Go](https://docs.crossplane.io/latest/guides/write-a-composition-function-in-go/#test-the-function-end-to-end) — `fn_test.go` unit-test pattern for function authors.
+- [`crossplane beta validate`](https://docs.crossplane.io/latest/cli/command-reference/#beta-validate) — pair with `render --include-full-xr | beta validate -` for end-to-end schema checking on the rendered output.
