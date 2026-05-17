@@ -17,8 +17,24 @@ pairId: ""
 # provider-arubacloud OCI image. The workshop's release pinning
 # story (Track 0.4 / `task release`) bumps this when the upstream
 # provider ships a new tag.
+#
+# Temporarily pinned at v0.2.0-workshop as a diagnostic for the
+# Aruba "Subnet/SecurityGroup is strictly correlated to another
+# resource" 400 we hit on fresh pairs at the workshop on
+# 2026-05-17. v0.3.0-workshop repointed the embedded Terraform
+# provider from a workshop-owned fork (v0.1.3) to upstream
+# Arubacloud/terraform-provider-arubacloud v0.1.4; the upstream
+# bump may have changed the DBaaS create payload in a way Aruba's
+# API rejects when the workshop's shared VPC+subnet+SG is used
+# without an Elastic IP. v0.2.0 is the last known-good tag the
+# workshop was smoke-tested against. Once we understand the
+# regression, return to v0.3.0 (or a v0.3.1 with the upstream-vs-
+# fork delta fixed). Cross-reference: the docs at
+# docs/docs/06-crossplane-3xx/07-provider-arubacloud.mdx still
+# reference v0.3.0-workshop — left untouched on purpose; this PR
+# is diagnostic, not a permanent downgrade.
 provider:
-  package: ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
+  package: ghcr.io/riccap/provider-arubacloud:v0.2.0-workshop
 
 # Shape policies — what participants are allowed to create. Tuned
 # for the smoke-tested ITBG-Bergamo region; override per-event via

@@ -24,8 +24,10 @@ type: application
 version: 0.1.0
 # `appVersion` tracks the provider-arubacloud OCI image tag we ship.
 # Keep in sync with the `image` value in values.yaml; bump together
-# when the upstream provider cuts a new release.
-appVersion: "v0.3.0-workshop"
+# when the upstream provider cuts a new release. Currently pinned
+# at v0.2.0-workshop as a diagnostic — see the `provider:` block in
+# values.yaml for the rationale.
+appVersion: "v0.2.0-workshop"
 
 # Kyverno is installed via dependency. ArgoCD pulls the chart at
 # sync time, renders it alongside our templates, applies everything
