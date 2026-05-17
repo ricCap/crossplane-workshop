@@ -5,6 +5,8 @@ translation_source_commit: eee95cb4ab06eb8463a6d630aba140f4a34ff911
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Componi con altre function
 
@@ -23,6 +25,19 @@ La pipeline di una Composition può eseguire **qualunque** [composition function
 Stai per riscrivere una delle tue Composition del 101 con una function diversa e osservare lo stesso XR produrre le stesse managed resource attraverso un runtime diverso.
 
 ## 5.2 Cosa puoi ottenere
+
+Il `pipeline` di una Composition è una lista di step function. Ogni step riceve lo stato desiderato dello step precedente — così una Composition reale può mescolare function:
+
+<ThemedImage
+  alt="Un XR entra in una pipeline di una o più function. Lo step 1 (es. function-go-templating) produce una prima versione di stato desiderato; lo step 2 (es. function-patch-and-transform) riceve quello stato desiderato e aggiunge patch finali. Lo stato desiderato finale è l'insieme delle risorse composte."
+  sources={{
+    light: useBaseUrl('/diagrams/composition-functions-pipeline-light.svg'),
+    dark: useBaseUrl('/diagrams/composition-functions-pipeline-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 - **YAML templated con condizionali e loop.** [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) ti permette di scrivere i manifest di stato desiderato come template Go sopra lo spec dell'XR. `range` su una lista, `if` su un flag, `include` di partial — le stesse primitive che hai negli Helm chart.
 - **Un linguaggio di config tipato per la composizione.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) esegue programmi [KCL](https://www.kcl-lang.io/) che leggono lo stato osservato dalla pipeline ed emettono le risorse desiderate. Schemi, type checking e lambda senza scendere in un linguaggio general-purpose.

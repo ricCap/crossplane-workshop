@@ -4,6 +4,8 @@ title: Compose with other functions
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Compose with other functions
 
@@ -22,6 +24,17 @@ A Composition's pipeline can run **any** [composition function](./../cheatsheet#
 You're about to rewrite one of your 101 Compositions with a different function and watch the same XR produce the same managed resources through a different runtime.
 
 ## 5.2 What you can achieve
+
+A Composition's pipeline is a list of function steps. Each step receives the previous step's desired state — so a real Composition can mix functions:
+
+<ThemedImage
+  alt="An XR enters a pipeline of one or more functions. Step 1 (e.g. function-go-templating) produces a first version of desired state; step 2 (e.g. function-patch-and-transform) receives that desired state and adds final patches. The final desired state is the set of composed resources."
+  sources={{
+    light: useBaseUrl('/diagrams/composition-functions-pipeline-light.svg'),
+    dark: useBaseUrl('/diagrams/composition-functions-pipeline-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 - **Templated YAML with conditionals and loops.** [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) lets you write the desired-state manifests as Go templates over the XR spec. `range` over a list, `if` on a flag, `include` partials — the same primitives you have in Helm charts.
 - **A typed config language for composition.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) runs [KCL](https://www.kcl-lang.io/) programs that read the observed pipeline state and emit desired resources. Schemas, type checking, and lambdas without dropping into a general-purpose language.

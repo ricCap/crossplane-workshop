@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style diagram for module 5.5
+  "Compose with other functions" — pipeline-as-chain.
+
+  Shows that a Composition's pipeline is a list of function steps where each
+  step sees (and adds to) the desired state produced by the previous step.
+
+  Hand-authored SVG (no .excalidraw source).
+
+  Color semantics (consistent with other diagrams):
+    blue   #a5d8ff = user-applied (the XR input)
+    yellow #ffec99 = platform-engineer-chosen logic (functions in the pipeline)
+    green  #b2f2bb = final output (composed resources)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 320" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 14px; }
+    .step-label   { fill: #6c757d; font-size: 13px; font-style: italic; }
+    .user-label   { fill: #1971c2; font-size: 16px; font-style: italic; }
+    .platform-label { fill: #b08900; font-size: 16px; font-style: italic; }
+    .out-label    { fill: #2f9e44; font-size: 16px; font-style: italic; }
+    .box-fill-blue   { fill: #a5d8ff; }
+    .box-fill-yellow { fill: #ffec99; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <!-- Top role labels -->
+  <text class="user-label"     x="40" y="34">User input</text>
+  <text class="platform-label" text-anchor="middle" x="550" y="34">Composition pipeline — platform engineer's choice of functions</text>
+  <text class="out-label"      text-anchor="end" x="1060" y="34">Desired state</text>
+
+  <!-- XR (blue) -->
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 30 70 C 28 62, 36 56, 46 56 L 206 58 C 216 58, 220 66, 218 74 L 216 220 C 216 230, 208 234, 198 234 L 40 232 C 30 232, 26 224, 28 216 Z" />
+    <text class="label" text-anchor="middle" x="123" y="116">XR</text>
+    <text class="muted" text-anchor="middle" x="123" y="144">your custom kind</text>
+    <text class="muted" text-anchor="middle" x="123" y="166">+ observed state of</text>
+    <text class="muted" text-anchor="middle" x="123" y="186">prior composed</text>
+    <text class="muted" text-anchor="middle" x="123" y="206">resources</text>
+  </g>
+
+  <!-- Arrow XR → step 1 -->
+  <path class="arrow" d="M 222 145 C 250 142, 270 148, 296 145" />
+  <polygon class="arrow" fill="#343a40" points="296,145 284,139 286,151" />
+
+  <!-- Step 1: function-go-templating (yellow) -->
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 302 70 C 300 62, 308 56, 318 56 L 506 58 C 516 58, 520 66, 518 74 L 516 220 C 516 230, 508 234, 498 234 L 312 232 C 302 232, 298 224, 300 216 Z" />
+    <text class="step-label" text-anchor="middle" x="409" y="92">pipeline step 1</text>
+    <text class="label" text-anchor="middle" x="409" y="124">function-go-</text>
+    <text class="label" text-anchor="middle" x="409" y="146">templating</text>
+    <text class="muted" text-anchor="middle" x="409" y="178">range / if / include</text>
+    <text class="muted" text-anchor="middle" x="409" y="200">over the XR spec</text>
+  </g>
+
+  <!-- Arrow step 1 → step 2, with annotation "desired state v1" -->
+  <path class="arrow" d="M 522 145 C 550 142, 570 148, 596 145" />
+  <polygon class="arrow" fill="#343a40" points="596,145 584,139 586,151" />
+  <text class="step-label" text-anchor="middle" x="559" y="130">desired state v1</text>
+  <text class="step-label" text-anchor="middle" x="559" y="172">(passed forward)</text>
+
+  <!-- Step 2: function-patch-and-transform (yellow) -->
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 602 70 C 600 62, 608 56, 618 56 L 806 58 C 816 58, 820 66, 818 74 L 816 220 C 816 230, 808 234, 798 234 L 612 232 C 602 232, 598 224, 600 216 Z" />
+    <text class="step-label" text-anchor="middle" x="709" y="92">pipeline step 2</text>
+    <text class="label" text-anchor="middle" x="709" y="124">function-patch-</text>
+    <text class="label" text-anchor="middle" x="709" y="146">and-transform</text>
+    <text class="muted" text-anchor="middle" x="709" y="178">applies final patches</text>
+    <text class="muted" text-anchor="middle" x="709" y="200">on top of v1</text>
+  </g>
+
+  <!-- Arrow step 2 → output, with annotation "desired state v2" -->
+  <path class="arrow" d="M 822 145 C 850 142, 870 148, 896 145" />
+  <polygon class="arrow" fill="#343a40" points="896,145 884,139 886,151" />
+  <text class="step-label" text-anchor="middle" x="859" y="130">desired state v2</text>
+  <text class="step-label" text-anchor="middle" x="859" y="172">(final, emitted)</text>
+
+  <!-- Output: composed resources (green) -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 902 70 C 900 62, 908 56, 918 56 L 1078 58 C 1088 58, 1092 66, 1090 74 L 1088 220 C 1088 230, 1080 234, 1070 234 L 912 232 C 902 232, 898 224, 900 216 Z" />
+    <text class="label" text-anchor="middle" x="995" y="116">Composed</text>
+    <text class="label" text-anchor="middle" x="995" y="138">resources</text>
+    <text class="muted" text-anchor="middle" x="995" y="172">ConfigMap,</text>
+    <text class="muted" text-anchor="middle" x="995" y="190">Deployment,</text>
+    <text class="muted" text-anchor="middle" x="995" y="208">MR, …</text>
+  </g>
+
+  <!-- Footnote -->
+  <text class="step-label" text-anchor="middle" x="550" y="282">Pipeline steps run in order. Each step receives the previous step's desired state and may add, modify, or leave it alone.</text>
+
+</svg>
