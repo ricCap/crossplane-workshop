@@ -46,6 +46,17 @@ metadata:
 EOF
 ```
 
+Heredocs are bash/zsh syntax. On **fish** or **PowerShell**, pipe a quoted string instead — same effect, no `<<EOF`:
+
+```fish
+echo 'apiVersion: v1
+kind: Namespace
+metadata:
+  name: example' | kubectl apply -f -
+```
+
+Either way, when a manifest is more than a few lines, save it to a file and `kubectl apply -f path/to/manifest.yaml` — works in every shell, and you can edit and re-apply without scrolling through history.
+
 ### Conditions
 
 Crossplane resources tell you their state through `status.conditions`. The two you'll see most:
