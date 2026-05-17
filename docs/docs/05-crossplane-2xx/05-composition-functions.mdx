@@ -1,0 +1,48 @@
+---
+sidebar_position: 5
+title: Compose with other functions
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Compose with other functions
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 5.1 Before you start
+
+Every Composition you wrote in 101 ran through [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform) — a declarative `resources` list with `patches`. It's the easiest function to read, but it isn't the only way to turn an XR into desired state.
+
+A Composition's pipeline can run **any** [composition function](./../cheatsheet#core-objects), and the [crossplane-contrib](https://github.com/crossplane-contrib) org publishes several that take a programming language instead of YAML patches. Pick one when the logic stops fitting cleanly inside patch-and-transform's transforms — conditionals across many resources, loops over a list in the XR spec, or string assembly that would otherwise need a chain of `string` transforms.
+
+You're about to rewrite one of your 101 Compositions with a different function and watch the same XR produce the same managed resources through a different runtime.
+
+## 5.2 What you can achieve
+
+- **Templated YAML with conditionals and loops.** [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) lets you write the desired-state manifests as Go templates over the XR spec. `range` over a list, `if` on a flag, `include` partials — the same primitives you have in Helm charts.
+- **A typed config language for composition.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) runs [KCL](https://www.kcl-lang.io/) programs that read the observed pipeline state and emit desired resources. Schemas, type checking, and lambdas without dropping into a general-purpose language.
+- **Python for composition logic.** [`function-python`](https://github.com/crossplane-contrib/function-python) runs Python inside the pipeline. Useful when the transform is easier to express as a few lines of code than as patches — and lets you reuse libraries you already trust.
+- **Compose functions in one pipeline.** A Composition's `pipeline` is a list — you can chain `function-go-templating` to generate the bulk of the resources and `function-patch-and-transform` to apply a final patch on top. Each step sees the previous step's desired state.
+
+## 5.3 Hints
+
+- Pick **one** of your 101 Compositions to port — the `Application` from [module 3.3](../crossplane-101/define-application) is the most instructive, because it composes multiple resources from one XR. Keep the XRD untouched; only the Composition changes.
+- Install the function as a `pkg.crossplane.io/v1` `Function`, exactly like you installed `function-patch-and-transform` in [module 3.2](../crossplane-101/first-composition). Find current versions on the [Crossplane Marketplace](https://marketplace.upbound.io/functions) — pin the tag, never use `:latest`.
+- Each function's README has a worked Composition example. Start by copy-pasting it into [`crossplane render`](./crossplane-cli) against your XR — you'll see the rendered desired state without applying anything to the cluster, which is the fastest feedback loop while you learn the input shape.
+- The function's input lives under the pipeline step's `input` field. For `function-go-templating` it's an `inline.template` string; for `function-kcl` it's a `source` string; for `function-python` it's a `script` string. The schema is in each function's `input/` Go package on GitHub.
+- Mark each composed resource Ready the same way `function-patch-and-transform` does — most functions expose a `readiness` block or rely on a downstream `function-auto-ready` step. Forget this and your XR will sit `Ready=False` even when the underlying resources are healthy. The patch-and-transform `readinessChecks` discussion in [module 3.2](../crossplane-101/first-composition) explains the failure mode.
+- Iterate against `crossplane render`, not the live cluster. Apply only when the rendered output matches what you'd have produced with `function-patch-and-transform`.
+
+## 5.4 After
+
+You've seen that the Composition's pipeline is a runtime contract, not a single YAML dialect — the choice of function is a choice of language, and your Crossplane API stays the same XRD on either side. That's the lever that makes Compositions scale to logic that would be painful to express as patches alone.
+
+**Go deeper:**
+
+- [Crossplane composition functions overview](https://docs.crossplane.io/latest/composition/composition-functions/)
+- [`crossplane-contrib` functions catalogue](https://github.com/crossplane-contrib?q=function-) — every contrib function, with READMEs and example Compositions.
+- [Crossplane Marketplace — Functions](https://marketplace.upbound.io/functions) — versioned packages, install snippets.

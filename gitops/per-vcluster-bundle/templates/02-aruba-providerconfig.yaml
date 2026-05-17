@@ -12,12 +12,21 @@
 # Sync wave 1: must be applied AFTER the Provider package's CRDs are
 # registered. The wave value is one greater than the Provider's;
 # ArgoCD's wave-based ordering retries until the CRDs exist.
+#
+# SkipDryRunOnMissingResource: on the *first* sync into a fresh
+# vcluster the `arubacloud.crossplane.io/v1beta1` GVK doesn't exist
+# yet (Provider package is in wave 0 and hasn't installed its CRDs).
+# Without this option ArgoCD's pre-apply server-side dry-run rejects
+# the whole bundle before wave 0 even runs — chicken-and-egg. With
+# it, dry-run is skipped for this resource and wave 0 gets a chance
+# to register the CRD before wave 1 actually applies.
 apiVersion: arubacloud.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   labels:
     app.kubernetes.io/managed-by: aruba-bundle
 spec:
