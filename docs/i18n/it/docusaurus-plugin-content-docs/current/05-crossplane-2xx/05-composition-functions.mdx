@@ -1,0 +1,49 @@
+---
+sidebar_position: 5
+title: Componi con altre function
+translation_source_commit: eee95cb4ab06eb8463a6d630aba140f4a34ff911
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Componi con altre function
+
+<PairId />
+
+:::note Stai lavorando in solo, in locale?
+Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+## 5.1 Prima di iniziare
+
+Ogni Composition che hai scritto nel 101 girava attraverso [`function-patch-and-transform`](https://github.com/crossplane-contrib/function-patch-and-transform) — una lista `resources` dichiarativa con `patches`. È la function più semplice da leggere, ma non è l'unico modo di trasformare un XR in stato desiderato.
+
+La pipeline di una Composition può eseguire **qualunque** [composition function](./../cheatsheet#core-objects), e l'organizzazione [crossplane-contrib](https://github.com/crossplane-contrib) pubblica diverse function che usano un linguaggio di programmazione al posto di patch YAML. Scegline una quando la logica smette di stare comodamente dentro le transform di patch-and-transform — condizionali su molte risorse, loop su una lista nello spec dell'XR, o assemblaggio di stringhe che altrimenti richiederebbe una catena di transform `string`.
+
+Stai per riscrivere una delle tue Composition del 101 con una function diversa e osservare lo stesso XR produrre le stesse managed resource attraverso un runtime diverso.
+
+## 5.2 Cosa puoi ottenere
+
+- **YAML templated con condizionali e loop.** [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) ti permette di scrivere i manifest di stato desiderato come template Go sopra lo spec dell'XR. `range` su una lista, `if` su un flag, `include` di partial — le stesse primitive che hai negli Helm chart.
+- **Un linguaggio di config tipato per la composizione.** [`function-kcl`](https://github.com/crossplane-contrib/function-kcl) esegue programmi [KCL](https://www.kcl-lang.io/) che leggono lo stato osservato dalla pipeline ed emettono le risorse desiderate. Schemi, type checking e lambda senza scendere in un linguaggio general-purpose.
+- **Python per la logica di composizione.** [`function-python`](https://github.com/crossplane-contrib/function-python) esegue Python dentro la pipeline. Utile quando la trasformazione è più facile da esprimere come qualche riga di codice che come patch — e ti lascia riusare librerie di cui ti fidi già.
+- **Componi function in una sola pipeline.** Il `pipeline` di una Composition è una lista — puoi concatenare `function-go-templating` per generare il grosso delle risorse e `function-patch-and-transform` per applicare una patch finale sopra. Ogni step vede lo stato desiderato dello step precedente.
+
+## 5.3 Suggerimenti
+
+- Scegli **una** delle tue Composition del 101 da portare — l'`Application` del [modulo 3.3](../crossplane-101/define-application) è la più istruttiva, perché compone più risorse da un singolo XR. Lascia stare l'XRD; cambia solo la Composition.
+- Installa la function come una `Function` `pkg.crossplane.io/v1`, esattamente come hai installato `function-patch-and-transform` nel [modulo 3.2](../crossplane-101/first-composition). Trova le versioni correnti sul [Crossplane Marketplace](https://marketplace.upbound.io/functions) — pinna il tag, non usare mai `:latest`.
+- Il README di ogni function ha un esempio di Composition elaborato. Inizia copia-incollandolo dentro [`crossplane render`](./crossplane-cli) contro il tuo XR — vedrai lo stato desiderato renderizzato senza applicare niente al cluster, che è il loop di feedback più rapido mentre impari la forma dell'input.
+- L'input della function vive sotto il campo `input` dello step di pipeline. Per `function-go-templating` è una stringa `inline.template`; per `function-kcl` è una stringa `source`; per `function-python` è una stringa `script`. Lo schema è nel package Go `input/` di ogni function su GitHub.
+- Marca ogni risorsa composta come Ready nello stesso modo in cui lo fa `function-patch-and-transform` — la maggior parte delle function espone un blocco `readiness` o si appoggia a uno step `function-auto-ready` a valle. Dimenticarlo e il tuo XR resta `Ready=False` anche quando le risorse sottostanti sono sane. La discussione sui `readinessChecks` di patch-and-transform nel [modulo 3.2](../crossplane-101/first-composition) spiega la modalità di failure.
+- Itera contro `crossplane render`, non contro il cluster live. Applica solo quando l'output renderizzato corrisponde a quello che avresti prodotto con `function-patch-and-transform`.
+
+## 5.4 Dopo
+
+Hai visto che la pipeline della Composition è un contratto di runtime, non un singolo dialetto YAML — la scelta della function è una scelta di linguaggio, e la tua API Crossplane resta lo stesso XRD da entrambi i lati. È la leva che permette alle Composition di scalare su logica che sarebbe dolorosa da esprimere solo come patch.
+
+**Per approfondire:**
+
+- [Panoramica delle composition function di Crossplane](https://docs.crossplane.io/latest/composition/composition-functions/)
+- [Catalogo function `crossplane-contrib`](https://github.com/crossplane-contrib?q=function-) — ogni function di contrib, con README ed esempi di Composition.
+- [Crossplane Marketplace — Functions](https://marketplace.upbound.io/functions) — package versionati, snippet di install.
