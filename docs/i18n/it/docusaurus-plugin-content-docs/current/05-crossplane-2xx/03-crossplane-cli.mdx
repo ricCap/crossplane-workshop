@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: (Guidato) Usa la CLI Crossplane
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: dc7fee841463a55b25c4436dab1f03a0a33e9d34
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -12,6 +12,10 @@ import PairId from '@site/src/components/PairId';
 
 :::note Stai lavorando in solo, in locale?
 Stessi comandi, stesso cluster. Vedi [Setup locale solo (k3d)](../solo-local-setup).
+:::
+
+:::warning Docker richiesto per `render`
+[§5.3](#53-preview-a-composition-with-render) esegue la pipeline di function localmente in un container, quindi ti serve un daemon Docker funzionante sul tuo laptop. Senza Docker, installalo prima (vedi [Setup locale solo §0.1](../solo-local-setup) per istruzioni one-line) o salta avanti a [§5.4](#54-trace-a-live-xr-with-beta-trace) — `beta trace` e `beta validate` non ne hanno bisogno.
 :::
 
 ## 5.1 Prima di iniziare ⏱️ 4m
@@ -49,7 +53,7 @@ Server Version: v2.2.0-up.5
 
 (Le versioni possono differire — qualunque `v2.x` copre i subcomandi qui sotto. `Server Version` viene letta dall'installazione Crossplane del tuo kube-context corrente.)
 
-## 5.3 Anteprima di una Composition con `render` ⏱️ 7m
+## 5.3 Anteprima di una Composition con `render` ⏱️ 7m {#53-preview-a-composition-with-render}
 
 `crossplane render` esegue la pipeline di function della tua Composition contro un XR localmente e stampa le managed resource risultanti su stdout. Ha bisogno di Docker sul tuo laptop perché fa pull e run dell'immagine della function. Se Docker non è disponibile, salta avanti a [§5.4](#54-trace-a-live-xr-with-beta-trace).
 
