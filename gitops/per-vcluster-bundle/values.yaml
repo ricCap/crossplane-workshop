@@ -124,3 +124,28 @@ kyverno:
       enabled: false
     backgroundScan:
       enabled: false
+  # Disable the chart's three housekeeping hooks that all pull
+  # `bitnami/kubectl:1.32.3`:
+  #   * policyReportsCleanup  — post-upgrade, deletes legacy policyreports
+  #   * webhooksCleanup       — pre-delete, removes chart webhooks
+  #   * config.preserve       — post-delete, deletes the chart configmap
+  #
+  # Bitnami pulled its free Docker Hub images in 2025 (`bitnami/*` →
+  # `bitnamilegacy/*`), so the upstream tag the chart pins no longer
+  # resolves: the Jobs sit in `ImagePullBackOff` forever and the
+  # pre-delete / post-delete hooks will block participant vcluster
+  # teardown.
+  #
+  # All three hooks are housekeeping for chart upgrades / uninstalls
+  # and have nothing to do in a fresh, short-lived workshop vcluster
+  # (`reportsController.enabled: false` already keeps the report
+  # collections empty; the workshop never customises the configmap,
+  # so `config.preserve: false` is fine). Disabling them is cheaper
+  # than carrying an image override that depends on the unguaranteed
+  # `bitnamilegacy` mirror.
+  webhooksCleanup:
+    enabled: false
+  policyReportsCleanup:
+    enabled: false
+  config:
+    preserve: false
