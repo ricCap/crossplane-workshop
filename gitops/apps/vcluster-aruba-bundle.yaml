@@ -80,3 +80,17 @@ spec:
             duration: 30s
             factor: 2
             maxDuration: 5m
+      # Kyverno's controller auto-generates sibling rules (StatefulSet,
+      # DaemonSet, CronJob...) for any ClusterPolicy whose original
+      # rule matches a pod-creating workload, writing them back into
+      # `.spec.rules[]` with `autogen-*` names. The chart we render
+      # in git doesn't carry those rules, so every comparison after
+      # the first apply reports the policy OutOfSync forever — even
+      # though the policy is functionally correct and live. Ignoring
+      # entries whose name starts with `autogen-` silences the drift
+      # without masking legitimate changes to authored rules.
+      ignoreDifferences:
+        - group: kyverno.io
+          kind: ClusterPolicy
+          jqPathExpressions:
+            - '.spec.rules[] | select(.name | startswith("autogen-"))'

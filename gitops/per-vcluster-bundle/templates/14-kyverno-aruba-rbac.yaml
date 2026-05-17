@@ -1,0 +1,56 @@
+# Aggregated ClusterRole — grants Kyverno's admission controller
+# permission to list Aruba MR resources via `context.apiCall`.
+#
+# Why this exists: the count-cap rules in
+# templates/policies/13-mr-count-cap.yaml use `apiCall.urlPath`
+# (e.g. `/apis/dbaas.arubacloud.crossplane.io/v1alpha1/dbaas`) to
+# count existing per-pair MRs at admission time. Without explicit
+# RBAC, the apiserver rejects Kyverno's request and the admission
+# webhook surfaces it as:
+#
+#   failed to fetch data for APICall: failed to GET resource with
+#   raw url : /apis/dbaas.arubacloud.crossplane.io/v1alpha1/dbaas:
+#   unknown
+#
+# Kyverno's `unknown` is the stringification of an apiserver Status
+# response without a recognized `.reason` field — what you get when
+# vcluster's proxy strips the structured 403 (or when the apiserver
+# rejects an unrecognized kind, which can't happen here since the
+# CRD is installed by Provider in wave 0).
+#
+# Kyverno's chart-shipped admission ClusterRole carries an
+# `aggregationRule` selecting any ClusterRole with the
+# `rbac.kyverno.io/aggregate-to-admission-controller: "true"` label.
+# We label this one accordingly so the rules get merged in at the
+# aggregation layer — no need to patch Kyverno's own role.
+#
+# Both the cluster-scoped (`*.arubacloud.crossplane.io`) and the
+# namespaced (`*.arubacloud.m.crossplane.io`) groups are listed.
+# v0.3.0-workshop ships both; the workshop teaches the
+# cluster-scoped flavour, but a participant who experiments with
+# the namespaced variant should still hit the same admission caps.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aruba-bundle-kyverno-aruba-mr-reader
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+    workshop.example.io/component: kyverno-aruba-rbac
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+rules:
+  - apiGroups:
+      - dbaas.arubacloud.crossplane.io
+      - dbaas.arubacloud.m.crossplane.io
+      - database.arubacloud.crossplane.io
+      - database.arubacloud.m.crossplane.io
+      - containerregistry.arubacloud.crossplane.io
+      - containerregistry.arubacloud.m.crossplane.io
+      - blockstorage.arubacloud.crossplane.io
+      - blockstorage.arubacloud.m.crossplane.io
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
