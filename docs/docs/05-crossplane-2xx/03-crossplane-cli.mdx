@@ -13,6 +13,10 @@ import PairId from '@site/src/components/PairId';
 Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
+:::warning Docker required for `render`
+[§5.3](#53-preview-a-composition-with-render) runs the function pipeline locally in a container, so you need a working Docker daemon on your laptop. Without Docker, install it first (see [Solo local setup §0.1](../solo-local-setup) for one-line instructions) or skip ahead to [§5.4](#54-trace-a-live-xr-with-beta-trace) — `beta trace` and `beta validate` don't need it.
+:::
+
 ## 5.1 Before you start ⏱️ 4m
 
 The [Crossplane CLI](https://docs.crossplane.io/latest/cli/) is a single static binary that does most of the things `kubectl` cannot — preview a [Composition](../cheatsheet#core-objects) before you apply it, walk a live [XR](../cheatsheet#core-objects)'s resource tree, and validate manifests offline against a schema.
@@ -48,7 +52,7 @@ Server Version: v2.2.0-up.5
 
 (Versions may differ — anything `v2.x` covers the subcommands below. `Server Version` is read from your current kube-context's Crossplane install.)
 
-## 5.3 Preview a Composition with `render` ⏱️ 7m
+## 5.3 Preview a Composition with `render` ⏱️ 7m {#53-preview-a-composition-with-render}
 
 `crossplane render` runs your Composition's function pipeline against an XR locally and prints the resulting managed resources to stdout. It needs Docker on your laptop because it pulls and runs the function image. If Docker isn't available, skip ahead to [§5.4](#54-trace-a-live-xr-with-beta-trace).
 
