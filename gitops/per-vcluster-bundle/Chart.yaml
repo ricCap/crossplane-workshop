@@ -35,5 +35,13 @@ appVersion: "v0.3.0-workshop"
 # our policy YAMLs depend on.
 dependencies:
   - name: kyverno
-    version: "3.4.4"
+    # 3.4.4 pinned kubectl-hook Jobs at `bitnami/kubectl:1.32.3`,
+    # which Bitnami pulled from Docker Hub in 2025 along with the
+    # rest of the free catalogue (`bitnami/*` → `bitnamilegacy/*`).
+    # 3.6.4 (Kyverno v1.16.4) switched the hook image to
+    # `registry.k8s.io/kubectl:v1.32.7`, fixing the
+    # `ImagePullBackOff` on `policyReportsCleanup` /
+    # `webhooksCleanup` / `post-delete-configmap` Jobs without
+    # depending on the unguaranteed `bitnamilegacy` mirror.
+    version: "3.6.4"
     repository: "https://kyverno.github.io/kyverno/"
