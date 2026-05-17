@@ -3,6 +3,9 @@ sidebar_position: 2
 title: Microservice templates
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Microservice templates
 
 > You're a platform engineer. Your developers should be able to request a new `Application` and get an opinionated golden path back: a managed database, a GitHub repo wired up for CI, the workloads it needs in the cluster, and the glue between them. Everything they don't want to think about is decided for them.
@@ -10,6 +13,15 @@ title: Microservice templates
 ## What you're building
 
 An XR — call it `Application` — that takes a handful of inputs (name, team, database flavour) and composes everything a new microservice needs. One XR per service. Developers never write a Deployment, a Bucket MR, or a GitHub Repository directly; they edit one short YAML and push it.
+
+<ThemedImage
+  alt="One Application XR fans out into in-cluster native resources (two Deployments and a ConfigMap) and external resources via Providers (a managed database and a GitHub repository)."
+  sources={{
+    light: useBaseUrl('/diagrams/microservice-templates-scope-light.svg'),
+    dark: useBaseUrl('/diagrams/microservice-templates-scope-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 ## Suggested steps
 

@@ -3,6 +3,9 @@ sidebar_position: 79
 title: Cheatsheet
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Cheatsheet
 
 A reference you keep open. Every term, command, and link you'll need during the workshop is on this page. Skim it once, then come back whenever a module uses a word you don't remember.
@@ -141,6 +144,17 @@ You don't need any of these to finish the workshop — plain `kubectl` is enough
 2. **Your own composite kinds via XRDs + Compositions.** You declare a new kind with an `XRD` (schema) and a `Composition` (recipe); users apply an `XR` (an instance of your kind), and Crossplane fans it out into the resources the recipe declares — either native Kubernetes objects directly (in v2) or external resources via Providers.
 
 You'll do the second of these in modules 4-6 of this workshop, then add a Provider in module 7.
+
+**One picture for the whole loop:**
+
+<ThemedImage
+  alt="Users apply either an XR (which triggers a Composition that emits native resources or MRs) or an MR directly (which a Provider Pod watches and reconciles by calling an external API). The two halves of Crossplane meet when a Composition emits an MR."
+  sources={{
+    light: useBaseUrl('/diagrams/cheatsheet-crossplane-loop-light.svg'),
+    dark: useBaseUrl('/diagrams/cheatsheet-crossplane-loop-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 ### Core objects
 

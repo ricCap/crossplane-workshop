@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style diagram for the "Microservice templates" journey.
+  Shows what one Application XR fans out into at the end of the journey:
+  in-cluster workloads + external managed resources (DB, GitHub repo).
+
+  Hand-authored SVG (no .excalidraw source).
+
+  Color semantics:
+    blue   #a5d8ff = user-applied (the Application XR)
+    green  #b2f2bb = in-cluster native resources
+    purple #d0bfff = external resources (via Providers — DB, GitHub)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 14px; }
+    .user-label  { fill: #1971c2; font-size: 17px; font-style: italic; }
+    .in-label    { fill: #2f9e44; font-size: 16px; font-style: italic; }
+    .ext-label   { fill: #6741d9; font-size: 16px; font-style: italic; }
+    .box-fill-blue   { fill: #a5d8ff; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-fill-purple { fill: #d0bfff; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .group-in        { stroke: #2f9e44; stroke-width: 1.8; fill: none; stroke-dasharray: 8 6; opacity: 0.55; }
+    .group-ext       { stroke: #6741d9; stroke-width: 1.8; fill: none; stroke-dasharray: 8 6; opacity: 0.55; }
+  </style>
+
+  <!-- Top label -->
+  <text class="user-label" text-anchor="middle" x="490" y="40">Developer applies one Application XR</text>
+
+  <!-- Application XR (blue, top center) -->
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 350 70 C 348 62, 356 56, 366 56 L 626 58 C 636 58, 640 66, 638 74 L 636 170 C 636 180, 628 184, 618 184 L 360 182 C 350 182, 346 174, 348 166 Z" />
+    <text class="label" text-anchor="middle" x="493" y="100">Application XR</text>
+    <text class="muted" text-anchor="middle" x="493" y="128">spec.name</text>
+    <text class="muted" text-anchor="middle" x="493" y="148">spec.team</text>
+    <text class="muted" text-anchor="middle" x="493" y="168">spec.database</text>
+  </g>
+
+  <!-- Trunk arrow down -->
+  <path class="arrow" d="M 493 188 C 491 212, 495 232, 493 250" />
+  <polygon class="arrow" fill="#343a40" points="493,258 485,244 501,244" />
+
+  <text class="in-label" text-anchor="middle" x="493" y="278">Composition fans out into:</text>
+
+  <!-- In-cluster group (dashed green) -->
+  <path class="group-in"
+        d="M 40 300 C 38 290, 50 284, 64 286 L 460 290 C 474 290, 482 300, 480 314 L 478 524 C 478 538, 468 540, 454 540 L 60 536 C 46 536, 38 526, 40 514 Z" />
+  <text class="in-label" x="56" y="316">In-cluster (native)</text>
+
+  <!-- External group (dashed purple) -->
+  <path class="group-ext"
+        d="M 500 300 C 498 290, 510 284, 524 286 L 920 290 C 934 290, 942 300, 940 314 L 938 524 C 938 538, 928 540, 914 540 L 520 536 C 506 536, 498 526, 500 514 Z" />
+  <text class="ext-label" x="516" y="316">External (via Providers)</text>
+
+  <!-- In-cluster boxes: 3 stacked -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 80 332 L 440 334 Q 452 334 452 346 L 450 392 Q 450 404 438 404 L 82 402 Q 70 402 70 390 L 72 344 Q 72 332 80 332 Z" />
+    <text class="label" text-anchor="middle" x="261" y="362">Deployment (frontend)</text>
+    <text class="muted" text-anchor="middle" x="261" y="386">nginx serving /index.html</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 80 414 L 440 416 Q 452 416 452 428 L 450 472 Q 450 484 438 484 L 82 482 Q 70 482 70 470 L 72 426 Q 72 414 80 414 Z" />
+    <text class="label" text-anchor="middle" x="261" y="444">Deployment (backend)</text>
+    <text class="muted" text-anchor="middle" x="261" y="468">your service image</text>
+  </g>
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 80 494 L 440 496 Q 452 496 452 506 L 450 528 Q 450 538 438 538 L 82 536 Q 70 536 70 526 L 72 506 Q 72 494 80 494 Z" />
+    <text class="muted" text-anchor="middle" x="261" y="520">ConfigMap (env, wired to both)</text>
+  </g>
+
+  <!-- External boxes: 2 stacked (larger boxes since fewer of them) -->
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 540 332 L 900 334 Q 912 334 912 346 L 910 412 Q 910 424 898 424 L 542 422 Q 530 422 530 410 L 532 344 Q 532 332 540 332 Z" />
+    <text class="label" text-anchor="middle" x="721" y="362">Database MR</text>
+    <text class="muted" text-anchor="middle" x="721" y="386">managed RDS / Cloud SQL /</text>
+    <text class="muted" text-anchor="middle" x="721" y="406">Aruba DBaaS instance</text>
+  </g>
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 540 442 L 900 444 Q 912 444 912 456 L 910 522 Q 910 534 898 534 L 542 532 Q 530 532 530 520 L 532 454 Q 532 442 540 442 Z" />
+    <text class="label" text-anchor="middle" x="721" y="472">Repository MR</text>
+    <text class="muted" text-anchor="middle" x="721" y="496">GitHub repo, branch protection,</text>
+    <text class="muted" text-anchor="middle" x="721" y="516">CI workflow seeded</text>
+  </g>
+
+</svg>

@@ -4,6 +4,9 @@ title: Template per microservizi
 translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Template per microservizi
 
 > Sei un platform engineer. I tuoi sviluppatori dovrebbero poter richiedere una nuova `Application` e ottenere indietro un golden path opinionated: un database gestito, un repo GitHub cablato per la CI, i workload di cui ha bisogno nel cluster, e la colla che li tiene insieme. Tutto ciò a cui non vogliono pensare è già deciso per loro.
@@ -11,6 +14,17 @@ translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
 ## Cosa stai costruendo
 
 Un XR — chiamiamolo `Application` — che prende una manciata di input (nome, team, flavour del database) e compone tutto ciò che serve a un nuovo microservizio. Un XR per servizio. Gli sviluppatori non scrivono mai un Deployment, una MR Bucket o una GitHub Repository direttamente; modificano un solo YAML breve e lo pushano.
+
+<ThemedImage
+  alt="Un Application XR si dirama in risorse native in-cluster (due Deployment e una ConfigMap) e in risorse esterne via Provider (un database gestito e un repository GitHub)."
+  sources={{
+    light: useBaseUrl('/diagrams/microservice-templates-scope-light.svg'),
+    dark: useBaseUrl('/diagrams/microservice-templates-scope-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 ## Passi suggeriti
 
