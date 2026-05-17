@@ -240,6 +240,10 @@ Any module that has participants create real billed cloud resources opens with a
 
 Every "What just happened" post-task section opens with a plain-English recap aimed at a participant who is still building intuition: name what was done in concrete terms, avoid Crossplane jargon in the first sentence or two, and only then transition into the technical explanation (mechanics, follow-ups, links). *Because:* this section is where a stuck or skim-reading pair re-anchors before moving on — if it opens with `XRD` / `Composition` / `reconciliation` they bounce; if it opens with "you taught Kubernetes a new word and made it produce a ConfigMap" they get back on the rails. The deeper explanation is still valuable and stays, just one paragraph later.
 
+### Modules that depend on a sibling module declare it with `**Prerequisites.**` (2026-05-17)
+
+When a module assumes the participant has finished a specific sibling module (and has its on-disk artefacts or installed tooling on hand), the §x.1 "Before you start" section carries a one-line `**Prerequisites.**` paragraph pointing at the dependency, placed just before the closing "You're about to:" sentence. *Because:* the 2xx category is choose-your-own-adventure (per [`docs/docs/05-crossplane-2xx/01-overview.mdx`](../../../docs/docs/05-crossplane-2xx/01-overview.mdx)), so a participant can land on any module cold; without an explicit pointer, a dependent module's first task block silently assumes files (`xr.yaml`, `composition.yaml`, …) or binaries (`crossplane`) the participant doesn't have. *Decided while authoring `05-testing-compositions.mdx`.*
+
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--
