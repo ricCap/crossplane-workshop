@@ -37,7 +37,13 @@ spec:
         deny:
           conditions:
             all:
-              - key: "{{`{{ request.object.spec.forProvider.sizeGb || 0 }}`}}"
+              # Kyverno's JMESPath dialect requires backticks around
+              # the literal number default, but Helm's raw-string
+              # escape (used elsewhere in this file to pass Kyverno
+              # variables through unprocessed) is also delimited by
+              # backticks — so we can't nest them. printf emits the
+              # whole Kyverno expression verbatim instead.
+              - key: '{{ printf "{{ request.object.spec.forProvider.sizeGb || `0` }}" }}'
                 operator: GreaterThan
                 value: {{ .Values.shapePolicies.blockStorage.maxSizeGb }}
     - name: type-whitelist
