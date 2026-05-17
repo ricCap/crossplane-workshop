@@ -24,6 +24,7 @@ func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
 	gvrToListKind := map[schema.GroupVersionResource]string{
 		{Group: "", Version: "v1", Resource: "namespaces"}:                            "NamespaceList",
 		{Group: "", Version: "v1", Resource: "pods"}:                                  "PodList",
+		{Group: "", Version: "v1", Resource: "secrets"}:                               "SecretList",
 		{Group: "apps", Version: "v1", Resource: "deployments"}:                       "DeploymentList",
 		{Group: "pkg.crossplane.io", Version: "v1", Resource: "providers"}:            "ProviderList",
 		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}:   "ObjectList",
@@ -351,6 +352,31 @@ func TestUnstructuredNestedString_WrongType(t *testing.T) {
 	_, ok, _ := unstructuredNestedString(obj, "status", "phase")
 	if ok {
 		t.Fatal("expected ok=false when value is not a string")
+	}
+}
+
+// --- checkGithubSecretPresent --------------------------------------------
+
+func TestCheckGithubSecretPresent_Present(t *testing.T) {
+	s := u("v1", "Secret", "crossplane-system", "github-app-credentials", nil)
+	client := newFakeClient(t, s)
+	pass, details, err := checkGithubSecretPresent(context.Background(), client)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pass {
+		t.Fatalf("expected pass=true, got details=%q", details)
+	}
+}
+
+func TestCheckGithubSecretPresent_Missing(t *testing.T) {
+	client := newFakeClient(t)
+	pass, details, _ := checkGithubSecretPresent(context.Background(), client)
+	if pass {
+		t.Fatalf("expected pass=false when Secret is missing, details=%q", details)
+	}
+	if !strings.Contains(details, "not found") {
+		t.Fatalf("expected 'not found' in details, got %q", details)
 	}
 }
 

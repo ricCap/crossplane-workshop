@@ -37,6 +37,7 @@ var checks = map[string]Check{
 	"helm-release-ready":            checkHelmReleaseReady,
 	"first-mr-ready":                checkFirstMRReady,
 	"provider-helm-installed":       checkProviderHelmInstalled,
+	"github-secret-present":         checkGithubSecretPresent,
 	"provider-github-installed":     checkProviderGithubInstalled,
 	"provider-aws-installed":        checkProviderAWSInstalled,
 	"provider-gcp-installed":        checkProviderGCPInstalled,
@@ -62,6 +63,7 @@ var orderedCheckIDs = []string{
 	"helm-release-ready",
 	"provider-helm-installed",
 	"first-mr-ready",
+	"github-secret-present",
 	"provider-github-installed",
 	"provider-aws-installed",
 	"provider-gcp-installed",
@@ -82,6 +84,7 @@ var checkLabels = map[string]string{
 	"helm-release-ready":            "Helm Release Ready",
 	"provider-helm-installed":       "provider-helm Healthy",
 	"first-mr-ready":                "First MR Ready",
+	"github-secret-present":         "GitHub App credential staged",
 	"provider-github-installed":     "provider-github Healthy",
 	"provider-aws-installed":        "provider-aws-s3 Healthy",
 	"provider-gcp-installed":        "provider-gcp-storage Healthy",
@@ -251,6 +254,30 @@ func checkProviderHelmInstalled(ctx context.Context, client dynamic.Interface) (
 // Used by module 06-crossplane-3xx/03-provider-github.
 func checkProviderGithubInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
 	return checkProviderHealthy(ctx, client, "provider-github")
+}
+
+// checkGithubSecretPresent asserts that the `github-app-credentials` Secret
+// exists in the `crossplane-system` namespace of the pair's vcluster. The
+// Secret is operator-staged: the management cluster's
+// `github-app-credentials` Secret is mirrored into every pair vcluster via
+// the Composition's `sync.fromHost.secrets`. If this check is red, the
+// participant cannot reconcile a `ProviderConfig` against it — the upstream
+// `provider-github` Pod will sit in CrashLoopBackOff waiting for the key.
+//
+// Used by module 06-crossplane-3xx/03-provider-github §6.2 as the
+// pre-flight gate before the participant installs the provider.
+func checkGithubSecretPresent(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	secretsGVR := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "secrets",
+	}
+
+	_, err := client.Resource(secretsGVR).Namespace("crossplane-system").Get(ctx, "github-app-credentials", metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("Secret crossplane-system/github-app-credentials not found: %v", err), nil
+	}
+	return true, "Secret crossplane-system/github-app-credentials is present", nil
 }
 
 // checkProviderAWSInstalled asserts that Provider/provider-aws-s3 is Healthy.
