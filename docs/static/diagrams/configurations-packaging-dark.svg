@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Module 6.1 — dark variant. See configurations-packaging-light.svg for semantics. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #f1f3f5; }
+    .muted { fill: #ced4da; font-size: 14px; }
+    .author-label { fill: #ffd43b; font-size: 16px; font-style: italic; }
+    .ext-label    { fill: #b197fc; font-size: 16px; font-style: italic; }
+    .cluster-label { fill: #8ce99a; font-size: 16px; font-style: italic; }
+    .step-label   { fill: #ced4da; font-size: 14px; font-style: italic; }
+    .box-fill-yellow { fill: #b08900; fill-opacity: 0.55; }
+    .box-fill-green  { fill: #2f9e44; fill-opacity: 0.55; }
+    .box-fill-purple { fill: #7048e8; fill-opacity: 0.55; }
+    .box-stroke      { stroke: #f8f9fa; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #dee2e6; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <text class="author-label" x="40" y="34">Platform engineer authors (and builds)</text>
+
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 70 60 C 68 52, 76 46, 86 46 L 426 48 C 436 48, 440 56, 438 64 L 436 136 C 436 146, 428 150, 418 150 L 80 148 C 70 148, 66 142, 68 134 Z" />
+    <text class="label" text-anchor="middle" x="253" y="92">YAML sources</text>
+    <text class="muted" text-anchor="middle" x="253" y="118">XRD + Composition</text>
+    <text class="muted" text-anchor="middle" x="253" y="138">(the API + the recipe)</text>
+  </g>
+  <g>
+    <path class="box-fill-yellow box-stroke"
+          d="M 540 60 C 538 52, 546 46, 556 46 L 906 48 C 916 48, 920 56, 918 64 L 916 136 C 916 146, 908 150, 898 150 L 550 148 C 540 148, 536 142, 538 134 Z" />
+    <text class="label" text-anchor="middle" x="728" y="92">crossplane.yaml</text>
+    <text class="muted" text-anchor="middle" x="728" y="118">metadata + spec.dependsOn</text>
+    <text class="muted" text-anchor="middle" x="728" y="138">(pins providers + functions)</text>
+  </g>
+
+  <path class="arrow" d="M 253 156 C 320 188, 420 200, 480 210" />
+  <polygon class="arrow" fill="#dee2e6" points="480,210 466,206 470,218" />
+  <path class="arrow" d="M 728 156 C 660 188, 560 200, 502 210" />
+  <polygon class="arrow" fill="#dee2e6" points="502,210 514,204 510,216" />
+
+  <text class="step-label" text-anchor="middle" x="490" y="184">crossplane xpkg build</text>
+
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 350 222 C 348 214, 358 208, 368 208 L 614 210 C 624 210, 628 218, 626 226 L 624 298 C 624 308, 616 312, 606 312 L 360 310 C 350 310, 346 304, 348 296 Z" />
+    <text class="label" text-anchor="middle" x="487" y="252">.xpkg</text>
+    <text class="muted" text-anchor="middle" x="487" y="280">OCI artifact</text>
+    <text class="muted" text-anchor="middle" x="487" y="300">(versioned: vX.Y.Z)</text>
+  </g>
+
+  <path class="arrow" d="M 487 318 C 489 348, 487 366, 487 388" />
+  <polygon class="arrow" fill="#dee2e6" points="487,396 479,382 495,382" />
+  <text class="step-label" text-anchor="start" x="498" y="368">crossplane xpkg push</text>
+
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 350 408 C 348 400, 358 394, 368 394 L 614 396 C 624 396, 628 404, 626 412 L 624 488 C 624 498, 616 502, 606 502 L 360 500 C 350 500, 346 494, 348 486 Z" />
+    <text class="label" text-anchor="middle" x="487" y="438">OCI registry</text>
+    <text class="muted" text-anchor="middle" x="487" y="466">xpkg.upbound.io,</text>
+    <text class="muted" text-anchor="middle" x="487" y="486">ghcr.io/&lt;you&gt;/&lt;pkg&gt;, …</text>
+  </g>
+  <text class="ext-label" text-anchor="middle" x="487" y="384">External</text>
+
+  <path class="arrow" d="M 487 508 C 489 538, 487 556, 487 578" />
+  <polygon class="arrow" fill="#dee2e6" points="487,586 479,572 495,572" />
+  <text class="step-label" text-anchor="start" x="498" y="558">apply Configuration MR</text>
+
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 80 598 C 78 588, 88 584, 100 586 L 894 590 C 906 590, 914 600, 912 612 L 910 686 C 910 698, 900 702, 888 702 L 96 698 C 84 698, 78 688, 80 678 Z" />
+    <text class="label" text-anchor="middle" x="495" y="626">Configuration installed on target cluster</text>
+    <text class="muted" text-anchor="middle" x="495" y="654">Crossplane installs the package's XRDs + Compositions,</text>
+    <text class="muted" text-anchor="middle" x="495" y="676">then resolves and pulls the Providers + Functions from dependsOn</text>
+  </g>
+  <text class="cluster-label" text-anchor="middle" x="495" y="578">Target cluster</text>
+
+</svg>

@@ -4,6 +4,8 @@ title: Package as a Configuration
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Package as a Configuration ⏱️ 20m
 
@@ -22,6 +24,17 @@ Three reasons this matters:
 - **Lifecycle.** Crossplane reconciles a `Configuration` resource the same way it reconciles a `Provider` — `kubectl get configuration` shows revisions, health, and roll-back state.
 
 You're about to read three short upstream pages, then decide whether to actually build and push your `Application` API as a Configuration.
+
+The full lifecycle, end to end:
+
+<ThemedImage
+  alt="The platform engineer's YAML sources (XRD + Composition) plus a crossplane.yaml metadata file are built into a .xpkg OCI artifact, pushed to an OCI registry, then installed on a target cluster by applying a Configuration MR. Crossplane resolves and pulls the Providers and Functions declared in dependsOn."
+  sources={{
+    light: useBaseUrl('/diagrams/configurations-packaging-light.svg'),
+    dark: useBaseUrl('/diagrams/configurations-packaging-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 ## 6.2 Hints ⏱️ 15m
 
