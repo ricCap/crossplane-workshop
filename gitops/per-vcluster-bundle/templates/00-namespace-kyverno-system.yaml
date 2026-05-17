@@ -1,0 +1,23 @@
+# kyverno-system namespace inside the participant vcluster.
+# Hosts the Kyverno deployment (admission + background controllers,
+# Services, RBAC) and the workshop-pair-id ConfigMap that Kyverno
+# policies look up at admission time.
+#
+# Kyverno's policy engine resolves external-context ConfigMap
+# references against the namespace the controller runs in, so the
+# bundle deliberately co-locates both. The Kyverno chart is steered
+# here by `kyverno.namespaceOverride: kyverno-system` in values.yaml
+# (the Argo Application's destination namespace stays `default` so
+# the chart's `.Release.Namespace` doesn't follow the destination).
+#
+# Sync wave -1: this namespace must exist before any of the Kyverno
+# chart's resources (wave 0) or the workshop-pair-id ConfigMap.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/managed-by: aruba-bundle
+    workshop.example.io/component: kyverno-system
