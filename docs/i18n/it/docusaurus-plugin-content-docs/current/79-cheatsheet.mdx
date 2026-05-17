@@ -1,7 +1,7 @@
 ---
 sidebar_position: 79
 title: Cheatsheet
-translation_source_commit: c7c46a1e5e4bf3975f2ee36c5d17356f67a557c4
+translation_source_commit: eac0b3815669638e79816b64f63b994eb952acd4
 ---
 
 # Cheatsheet
@@ -46,6 +46,17 @@ metadata:
   name: example
 EOF
 ```
+
+Gli heredoc sono sintassi bash/zsh. Su **fish** o **PowerShell**, fai il pipe di una stringa quotata — stesso effetto, senza `<<EOF`:
+
+```fish
+echo 'apiVersion: v1
+kind: Namespace
+metadata:
+  name: example' | kubectl apply -f -
+```
+
+In ogni caso, quando un manifest supera le poche righe, salvalo in un file e `kubectl apply -f path/to/manifest.yaml` — funziona in qualsiasi shell, e puoi modificarlo e riapplicarlo senza scrollare nella history.
 
 ### Condizioni
 
