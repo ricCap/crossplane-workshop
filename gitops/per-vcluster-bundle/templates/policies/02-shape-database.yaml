@@ -99,6 +99,9 @@ spec:
         deny:
           conditions:
             all:
-              - key: "{{`{{ request.object.spec.forProvider.storage.sizeGb || 0 }}`}}"
+              # See 04-shape-blockstorage.yaml for the printf rationale:
+              # Kyverno's JMESPath wants backticks around the number,
+              # which collide with Helm's raw-string escape.
+              - key: '{{ printf "{{ request.object.spec.forProvider.storage.sizeGb || `0` }}" }}'
                 operator: GreaterThan
                 value: {{ .Values.shapePolicies.database.maxStorageGb }}
