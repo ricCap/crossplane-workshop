@@ -1254,6 +1254,67 @@ tasks:
         echo ""
         echo "${PAIR} can now `kubectl apply` Aruba managed resources."
 
+  workshop:disable-aruba:
+    desc: |
+      Inverse of `workshop:enable-aruba`. Deletes the per-pair ArgoCD
+      Cluster Secret so the `vcluster-aruba-bundle` ApplicationSet
+      drops the matching `aruba-bundle-<pair>` Application.
+
+      Two cases the task handles:
+
+        * Participant vcluster still alive — leave the Application's
+          `resources-finalizer.argocd.argoproj.io` in place so ArgoCD
+          cascades the bundle resources off the vcluster on its way
+          out.
+        * Participant vcluster already gone (e.g. the
+          DeveloperEnvironment XR was removed before this task ran,
+          as in #183) — the resources-finalizer would hang forever
+          against the unreachable destination, so strip the
+          Application finalizers first. Detected by the absence of
+          the `participant-<pair>` namespace; pass FORCE=yes to skip
+          the detection and strip unconditionally.
+
+      Idempotent: re-running with no Cluster Secret is a no-op.
+
+      Usage:
+        task workshop:disable-aruba PAIR=fancy-lemon
+        task workshop:disable-aruba PAIR=fancy-lemon FORCE=yes
+    requires:
+      vars: [PAIR]
+    cmds:
+      - |
+        set -euo pipefail
+        PAIR="{{.PAIR}}"
+        HOST_NS="participant-${PAIR}"
+        CLUSTER_SECRET="cluster-${PAIR}"
+        APPLICATION="aruba-bundle-${PAIR}"
+
+        if ! kubectl get secret "${CLUSTER_SECRET}" -n {{.ARGOCD_NS}} >/dev/null 2>&1; then
+          echo "No Cluster Secret ${CLUSTER_SECRET} in {{.ARGOCD_NS}} — nothing to do."
+          exit 0
+        fi
+
+        STRIP_FINALIZERS=no
+        if [ "${FORCE:-}" = "yes" ]; then
+          STRIP_FINALIZERS=yes
+        elif ! kubectl get ns "${HOST_NS}" >/dev/null 2>&1; then
+          echo "==> participant vcluster ${HOST_NS} is gone; will strip Application finalizers"
+          STRIP_FINALIZERS=yes
+        fi
+
+        if [ "${STRIP_FINALIZERS}" = "yes" ] && \
+           kubectl get application "${APPLICATION}" -n {{.ARGOCD_NS}} >/dev/null 2>&1; then
+          echo "==> 1/2 strip finalizers from ${APPLICATION}"
+          kubectl patch application "${APPLICATION}" -n {{.ARGOCD_NS}} \
+            --type=merge -p '{"metadata":{"finalizers":[]}}'
+        fi
+
+        echo "==> 2/2 delete ArgoCD Cluster Secret ${CLUSTER_SECRET}"
+        kubectl delete secret "${CLUSTER_SECRET}" -n {{.ARGOCD_NS}}
+
+        echo ""
+        echo "ApplicationSet will drop ${APPLICATION} on its next reconcile (~5s)."
+
   workshop:enable-aruba:all:
     desc: |
       Run `workshop:enable-aruba` for every discovered participant.
