@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Excalidraw-style hand-drawn diagram for module 7.4 — runtime phase.
+  Release MR (user) → Provider Pod → external API (Helm + cluster apiserver).
+
+  Hand-authored SVG (no .excalidraw source — redraw at excalidraw.com if needed).
+
+  Color semantics:
+    blue   #a5d8ff  = user (the Release MR)
+    green  #b2f2bb  = the Provider Pod (from install phase)
+    purple #d0bfff  = external world (Helm SDK + cluster apiserver)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 320" font-family="'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" font-size="18">
+  <style>
+    .label { fill: #1e1e1e; }
+    .muted { fill: #495057; font-size: 14px; }
+    .user-label  { fill: #1971c2; font-size: 17px; font-style: italic; }
+    .ext-label   { fill: #6741d9; font-size: 17px; font-style: italic; }
+    .box-fill-blue   { fill: #a5d8ff; }
+    .box-fill-green  { fill: #b2f2bb; }
+    .box-fill-purple { fill: #d0bfff; }
+    .box-stroke      { stroke: #1e1e1e; stroke-width: 2.2; fill-opacity: 1; stroke-linejoin: round; stroke-linecap: round; }
+    .arrow           { stroke: #343a40; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <!-- User label -->
+  <text class="user-label" x="40" y="64">User applies</text>
+  <text class="ext-label"  x="700" y="64">External world</text>
+
+  <!-- Release MR (blue / user) -->
+  <g>
+    <path class="box-fill-blue box-stroke"
+          d="M 60 116
+             C 58 108, 66 102, 76 102
+             L 264 104
+             C 274 104, 278 112, 276 120
+             L 274 192
+             C 274 202, 266 206, 256 206
+             L 70 204
+             C 60 204, 56 196, 58 188 Z" />
+    <text class="label" text-anchor="middle" x="167" y="148">Release MR</text>
+    <text class="muted" text-anchor="middle" x="167" y="172">podinfo</text>
+    <text class="muted" text-anchor="middle" x="167" y="190">chart 6.7.1</text>
+  </g>
+
+  <!-- Arrow: Release -> Pod ("watches") -->
+  <path class="arrow" d="M 282 154 C 320 148, 360 158, 392 154" />
+  <polygon class="arrow" fill="#343a40" points="392,154 380,148 382,160" />
+  <text class="muted" text-anchor="middle" x="338" y="138">watched by</text>
+
+  <!-- Provider Pod (green) -->
+  <g>
+    <path class="box-fill-green box-stroke"
+          d="M 398 116
+             C 396 108, 404 102, 414 102
+             L 568 104
+             C 578 104, 582 112, 580 120
+             L 578 192
+             C 578 202, 570 206, 560 206
+             L 416 204
+             C 406 204, 402 196, 404 188 Z" />
+    <text class="label" text-anchor="middle" x="488" y="148">Provider Pod</text>
+    <text class="muted" text-anchor="middle" x="488" y="180">provider-helm</text>
+  </g>
+
+  <!-- Arrow: Pod -> OCI registry ("pulls") -->
+  <path class="arrow" d="M 586 142 C 626 130, 666 130, 698 132" />
+  <polygon class="arrow" fill="#343a40" points="698,132 686,126 688,138" />
+  <text class="muted" text-anchor="middle" x="642" y="116">pulls chart</text>
+
+  <!-- Arrow: Pod -> apiserver ("applies") -->
+  <path class="arrow" d="M 586 172 C 626 184, 666 184, 698 182" />
+  <polygon class="arrow" fill="#343a40" points="698,182 686,176 688,188" />
+  <text class="muted" text-anchor="middle" x="642" y="206">applies resources</text>
+
+  <!-- OCI registry (purple / external, cylinder-ish) -->
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 704 84
+             C 702 78, 712 74, 722 74
+             L 920 76
+             C 930 76, 934 80, 932 86
+             L 930 130
+             C 930 138, 922 142, 912 142
+             L 716 140
+             C 706 140, 702 134, 704 126 Z" />
+    <text class="label" text-anchor="middle" x="818" y="106">OCI registry</text>
+    <text class="muted" text-anchor="middle" x="818" y="128">ghcr.io/.../charts</text>
+  </g>
+
+  <!-- Kubernetes apiserver (purple / external) -->
+  <g>
+    <path class="box-fill-purple box-stroke"
+          d="M 704 168
+             C 702 162, 712 158, 722 158
+             L 920 160
+             C 930 160, 934 164, 932 170
+             L 930 214
+             C 930 222, 922 226, 912 226
+             L 716 224
+             C 706 224, 702 218, 704 210 Z" />
+    <text class="label" text-anchor="middle" x="818" y="190">Kubernetes apiserver</text>
+    <text class="muted" text-anchor="middle" x="818" y="212">(this cluster)</text>
+  </g>
+
+</svg>

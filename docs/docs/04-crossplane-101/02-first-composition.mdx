@@ -5,6 +5,8 @@ title: Your first Composition
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Your first Composition ⏱️ 22m
 
@@ -22,26 +24,16 @@ You're using **Crossplane v2**, so the resources Crossplane composes can be plai
 
 ### What's about to happen, in one picture
 
-```mermaid
-flowchart TB
-  user(["You"])
-  xrd["XRD<br/>hellos.workshop.example.io"]
-  crd["CRD<br/>hellos.workshop.example.io<br/>(generated)"]
-  comp["Composition<br/>hellos.workshop.example.io"]
-  fn["function-patch-and-transform"]
-  xr["Hello XR<br/>hello-world"]
-  cm["ConfigMap<br/>hello-world"]
+<ThemedImage
+  alt="The platform team applies an XRD and Composition; the user applies a Hello XR; Crossplane runs the Composition and produces a ConfigMap."
+  sources={{
+    light: useBaseUrl('/diagrams/first-composition-overview-light.svg'),
+    dark: useBaseUrl('/diagrams/first-composition-overview-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
-  user -- "kubectl apply" --> xrd
-  xrd == "Crossplane generates" ==> crd
-  user -- "kubectl apply" --> comp
-  user -- "kubectl apply" --> xr
-  xr == "kind matches XRD ⟶ runs" ==> comp
-  comp == "pipeline step" ==> fn
-  fn == "emits desired state" ==> cm
-```
-
-The thick arrows are work Crossplane does for you; the thin arrows are things you `kubectl apply` yourself. Each step in the rest of this module is one of the thin arrows.
+Yellow boxes are things the **platform team** owns (XRD, Composition) — applied once. The blue box is what a **user** `kubectl apply`s — per request. The green box is what **Crossplane produces** in response. In this module *you wear both hats*; in a real platform the two roles live on different teams.
 
 ### The pieces in the picture, defined
 

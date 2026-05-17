@@ -6,6 +6,8 @@ translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
 
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Aggiungi un Provider ⏱️ 25m
 
@@ -49,31 +51,37 @@ Hai ormai visto la maggior parte dei componenti con cui è costruita una piattaf
 | **ProviderConfig** ← *nuovo questo modulo* | Configurazione runtime per-Provider (credenziali, endpoint target). Variante namespaced (in `*.m.crossplane.io` per i provider che si sono allineati a v2). | Tu | Namespaced | — |
 | **ClusterProviderConfig** ← *nuovo questo modulo* | Configurazione runtime per-Provider — la variante cluster-scoped di v2, condivisa tra namespace. | Tu | Cluster | — |
 
-### Un Provider a runtime, in una sola immagine
+### Un Provider, in due immagini
 
-```mermaid
-flowchart TB
-  user(["You"])
-  prov["Provider<br/>provider-helm:v1.2.0<br/>(package)"]
-  pod["Provider Pod<br/>(crossplane-system)"]
-  cpc["ClusterProviderConfig<br/>default"]
-  pc["ProviderConfig<br/>workshop-helm"]
-  rel["Release MR<br/>podinfo"]
-  helm[("OCI registry<br/>ghcr.io/stefanprodan/charts")]
-  cluster[("Kubernetes API<br/>(this cluster)")]
+Un Provider ha due fasi che vale la pena vedere separate — **install-time** (il platform engineer lo cabla) e **runtime** (l'utente applica una MR; il Pod del Provider la riconcilia).
 
-  user -- "kubectl apply" --> prov
-  prov == "Crossplane installs" ==> pod
-  user -- "kubectl apply" --> cpc
-  user -- "kubectl apply" --> pc
-  user -- "kubectl apply" --> rel
-  rel -- "providerConfigRef" --> pc
-  pod == "watches" ==> rel
-  pod == "pulls chart" ==> helm
-  pod == "applies chart resources to" ==> cluster
-```
+#### Install-time — cosa applica il platform engineer
 
-Un Provider è un package la cui installazione fa nascere un Pod long-running (frecce spesse: lavoro gestito da Crossplane). Il Pod osserva le MR dei suoi kind — `Release.helm.m.crossplane.io` qui — e traduce ognuna in chiamate verso un'API esterna (per `provider-helm` quell'"API" è l'SDK Helm che scarica chart e le applica all'apiserver dello stesso cluster).
+<ThemedImage
+  alt="Il platform engineer applica un pacchetto Provider; Crossplane core lo installa avviando un Pod Provider long-running."
+  sources={{
+    light: useBaseUrl('/diagrams/add-a-provider-install-light.svg'),
+    dark: useBaseUrl('/diagrams/add-a-provider-install-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+Il package del Provider è ciò che fa nascere il Pod long-running. I due ProviderConfig (cluster-scoped e namespaced) dicono a quel Pod *come autenticarsi* verso l'API esterna — non innescano riconciliazione da soli.
+
+#### Runtime — cosa succede quando un utente applica una MR
+
+<ThemedImage
+  alt="Un utente applica una Managed Resource Release. Il Pod del Provider la osserva, scarica la chart da un registry OCI e applica le risorse Kubernetes risultanti all'apiserver del cluster."
+  sources={{
+    light: useBaseUrl('/diagrams/add-a-provider-runtime-light.svg'),
+    dark: useBaseUrl('/diagrams/add-a-provider-runtime-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+Il Pod osserva le MR dei suoi kind — `Release.helm.m.crossplane.io` qui — e traduce ognuna in chiamate verso un'API esterna. Per `provider-helm` quell'"API" è l'SDK Helm che scarica chart e le applica all'apiserver dello stesso cluster. Per `provider-aws-s3` sarebbe l'SDK AWS; la forma è identica.
+
+*(Etichette del diagramma in inglese per coerenza con il codice e i nomi delle risorse.)*
 
 Stai per: installare un Provider, configurarlo (con entrambe le varianti di `ProviderConfig`) e applicare una Managed Resource che installa una Helm chart.
 
