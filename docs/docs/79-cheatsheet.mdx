@@ -16,8 +16,48 @@ A reference you keep open. Every term, command, and link you'll need during the 
 | **Resource** | The smallest API object you can create | `Pod`, `Service` |
 | **Kind** | The resource type name | `Pod` |
 | **Namespace** | A scope for resources that are not cluster-wide | `default`, `crossplane-system` |
-| **Namespaced vs cluster-scoped** | Whether a resource lives inside a namespace (most things) or at the cluster level (`Node`, `Namespace`, CRDs) | — |
+| **Namespaced vs cluster-scoped** | Whether a resource lives inside a namespace (most things) or at the cluster level (`Node`, `Namespace`, CRDs). See [Object scope](#object-scope) below | — |
 | **CRD** (CustomResourceDefinition) | A way for controllers to register new kinds with the API server | `providers.pkg.crossplane.io` |
+
+### Object scope: cluster vs namespace {#object-scope}
+
+Every Kubernetes kind is either **namespaced** (lives inside a `Namespace`) or **cluster-scoped** (lives at the cluster level, with no `Namespace`). The scope is fixed by the kind's CRD — you don't pick it per object.
+
+The mental model:
+
+- **Namespaced** → "one of these *per namespace*". Commands need `-n <ns>`. Two objects can share a name as long as they're in different namespaces.
+- **Cluster-scoped** → "one of these *in the cluster*". No `-n` flag — names are unique cluster-wide.
+
+| Kind | Scope | Why |
+|---|---|---|
+| `Pod`, `Deployment`, `Service`, `ConfigMap`, `Secret`, `Job` | Namespaced | They belong to whichever team owns the namespace |
+| `Role`, `RoleBinding` | Namespaced | Grants confined to one namespace |
+| `Namespace`, `Node`, `PersistentVolume`, `StorageClass` | Cluster | Shared infrastructure |
+| `CRD` (CustomResourceDefinition) | Cluster | A CRD extends the API server itself |
+| `ClusterRole`, `ClusterRoleBinding` | Cluster | Grants that span namespaces |
+
+To find the scope of any kind, ask the API server:
+
+```bash
+kubectl api-resources --namespaced=true      # every namespaced kind
+kubectl api-resources --namespaced=false     # every cluster-scoped kind
+kubectl api-resources | grep -i secret       # spot-check one kind — the NAMESPACED column says true/false
+```
+
+Commands change subtly:
+
+```bash
+kubectl get pods -n crossplane-system        # namespaced — must say which namespace
+kubectl get pods --all-namespaces            # namespaced — across every namespace
+kubectl get nodes                            # cluster-scoped — -n is silently ignored
+```
+
+Two practical consequences:
+
+- **A namespaced object only sees same-namespace references.** A `Pod` in `team-a` cannot mount a `Secret` from `team-b`. The namespace is the boundary; RBAC enforces it.
+- **Deleting a `Namespace` deletes everything namespaced inside it** — `Pods`, `ConfigMaps`, XRs, namespaced ProviderConfigs. Cluster-scoped objects (`PersistentVolumes`, `ClusterRoles`) survive.
+
+Crossplane adds one twist on top: a CRD or XRD is itself cluster-scoped, but the *kind it defines* can be either namespaced or cluster-scoped depending on its `spec.scope`. See [Core objects](#core-objects) in §1.3.
 
 ### Commands you'll run
 

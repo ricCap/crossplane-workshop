@@ -1,7 +1,7 @@
 ---
 sidebar_position: 79
 title: Cheatsheet
-translation_source_commit: eac0b3815669638e79816b64f63b994eb952acd4
+translation_source_commit: 84f8fa3be0091350826a2298bc12f56c2e44b7c6
 ---
 
 # Cheatsheet
@@ -17,8 +17,48 @@ Una pagina di riferimento da tenere aperta. Ogni termine, comando e link che ti 
 | **Resource** | Il più piccolo oggetto API che puoi creare | `Pod`, `Service` |
 | **Kind** | Il nome del tipo di risorsa | `Pod` |
 | **Namespace** | Uno scope per le risorse che non sono cluster-wide | `default`, `crossplane-system` |
-| **Namespaced vs cluster-scoped** | Se una risorsa vive dentro un namespace (la maggior parte) o a livello di cluster (`Node`, `Namespace`, CRD) | — |
+| **Namespaced vs cluster-scoped** | Se una risorsa vive dentro un namespace (la maggior parte) o a livello di cluster (`Node`, `Namespace`, CRD). Vedi [Object scope](#object-scope) qui sotto | — |
 | **CRD** (CustomResourceDefinition) | Il modo in cui i controller registrano nuovi kind nell'API server | `providers.pkg.crossplane.io` |
+
+### Object scope: cluster vs namespace {#object-scope}
+
+Ogni kind Kubernetes è o **namespaced** (vive dentro un `Namespace`) o **cluster-scoped** (vive a livello di cluster, senza `Namespace`). Lo scope è fissato dal CRD del kind — non lo scegli per singolo oggetto.
+
+Il modello mentale:
+
+- **Namespaced** → "uno di questi *per namespace*". I comandi richiedono `-n <ns>`. Due oggetti possono avere lo stesso nome a patto che stiano in namespace diversi.
+- **Cluster-scoped** → "uno di questi *nel cluster*". Nessun flag `-n` — i nomi sono unici a livello di cluster.
+
+| Kind | Scope | Perché |
+|---|---|---|
+| `Pod`, `Deployment`, `Service`, `ConfigMap`, `Secret`, `Job` | Namespaced | Appartengono al team che possiede il namespace |
+| `Role`, `RoleBinding` | Namespaced | Permessi confinati a un singolo namespace |
+| `Namespace`, `Node`, `PersistentVolume`, `StorageClass` | Cluster | Infrastruttura condivisa |
+| `CRD` (CustomResourceDefinition) | Cluster | Un CRD estende l'API server stesso |
+| `ClusterRole`, `ClusterRoleBinding` | Cluster | Permessi che attraversano più namespace |
+
+Per scoprire lo scope di un kind qualsiasi, chiedilo all'API server:
+
+```bash
+kubectl api-resources --namespaced=true      # ogni kind namespaced
+kubectl api-resources --namespaced=false     # ogni kind cluster-scoped
+kubectl api-resources | grep -i secret       # spot-check su un kind — la colonna NAMESPACED dice true/false
+```
+
+I comandi cambiano in modo sottile:
+
+```bash
+kubectl get pods -n crossplane-system        # namespaced — devi dire quale namespace
+kubectl get pods --all-namespaces            # namespaced — su tutti i namespace
+kubectl get nodes                            # cluster-scoped — -n viene ignorato silenziosamente
+```
+
+Due conseguenze pratiche:
+
+- **Un oggetto namespaced vede solo riferimenti nello stesso namespace.** Un `Pod` in `team-a` non può montare un `Secret` di `team-b`. Il namespace è il confine; l'RBAC lo fa rispettare.
+- **Cancellare un `Namespace` cancella tutto ciò che è namespaced al suo interno** — `Pods`, `ConfigMaps`, XR, ProviderConfig namespaced. Gli oggetti cluster-scoped (`PersistentVolumes`, `ClusterRoles`) sopravvivono.
+
+Crossplane aggiunge una piega sopra a tutto questo: un CRD o XRD è cluster-scoped *come oggetto*, ma il *kind che definisce* può essere namespaced o cluster-scoped a seconda del suo `spec.scope`. Vedi [Core objects](#core-objects) in §1.3.
 
 ### Comandi che lancerai
 
