@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: a8bf03892b6de5d5992bc9b88d95de805047d54a
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -151,28 +151,107 @@ NAME                   SYNCED   READY   EXTERNAL-NAME
 
 <ValidateCheck check="aruba-mr-ready" />
 
-## 7.4 Connettiti con `mysql` ⏱️ 7m
+## 7.4 Connettiti con `mysql` ⏱️ 12m
 
-Crossplane ha scritto i dettagli di connessione in un Secret chiamato `<your-pair-id>-mysql-conn` in `default`. Ispeziona quali chiavi ci sono dentro prima di cablarlo a un Pod:
+Un'istanza DBaaS è solo il server MySQL. Per connetterti davvero ti serve un **database logico** da interrogare e un **utente** autorizzato a interrogarlo. Entrambi sono managed resource dello stesso provider che hai già usato per il DBaaS: `Database`, `DBaaSUser`, `DatabaseGrant`. Comporrai tutte e tre, poi recupererai l'endpoint del DBaaS (l'unico pezzo che il provider non pubblica ancora), assemblerai un Secret di connessione, e farai il ping del DB.
+
+### 1. Cattura l'ID Aruba del DBaaS
+
+L'API Aruba usa ID opachi per collegare queste risorse. Leggi l'ID del tuo DBaaS una volta e riusalo:
 
 ```bash
-kubectl get secret <your-pair-id>-mysql-conn -o jsonpath='{.data}' | jq 'keys'
+DBAAS_ID=$(kubectl get dbaas <your-pair-id>-mysql -o jsonpath='{.status.atProvider.id}')
+PROJECT_ID=$(kubectl get configmap workshop-aruba-shared -o jsonpath='{.data.projectId}')
+echo "DBAAS_ID=$DBAAS_ID  PROJECT_ID=$PROJECT_ID"
 ```
 
-Output atteso (i nomi delle chiavi possono variare leggermente):
+### 2. Componi Database + DBaaSUser
 
-```json
-[
-  "endpoint",
-  "password",
-  "port",
-  "username"
-]
+La password dell'utente è un Secret che crei *tu*; il provider la legge e la passa ad Aruba. Aruba applica le regole sulla password lato server — 8+ caratteri con maiuscola + minuscola + cifra + un singolo carattere speciale sicuro è la scelta minima comune:
+
+```bash
+kubectl create secret generic appuser-pw \
+  --from-literal=password='Workshop2026!ok'
+
+cat <<EOF | kubectl apply -f -
+apiVersion: database.arubacloud.crossplane.io/v1alpha1
+kind: Database
+metadata:
+  name: appdb
+spec:
+  forProvider:
+    name: appdb
+    dbaasId: ${DBAAS_ID}
+    projectId: ${PROJECT_ID}
+  providerConfigRef: { name: default }
+---
+apiVersion: dbaasuser.arubacloud.crossplane.io/v1alpha1
+kind: DBaaSUser
+metadata:
+  name: appuser
+spec:
+  forProvider:
+    username: appuser
+    dbaasId: ${DBAAS_ID}
+    projectId: ${PROJECT_ID}
+    passwordSecretRef:
+      name: appuser-pw
+      namespace: default
+      key: password
+  providerConfigRef: { name: default }
+EOF
 ```
 
-Il provider espone le chiavi di connection-detail che vede dall'API Aruba; il Secret è il contratto.
+Aspetta che entrambe raggiungano `Ready=True` — di solito sotto il minuto:
 
-### Esegui un Pod one-shot che fa il ping del DB
+```bash
+kubectl wait --for=condition=Ready database/appdb dbaasuser/appuser --timeout=2m
+```
+
+### 3. Collegali con un `DatabaseGrant`
+
+`DatabaseGrant` è la riga `GRANT … TO …`: dice ad Aruba quale utente può accedere a quale database con quale ruolo. Fa riferimento alle due risorse che hai appena creato, quindi recupera prima i loro ID:
+
+```bash
+DB_ID=$(kubectl get database appdb -o jsonpath='{.status.atProvider.id}')
+USER_ID=$(kubectl get dbaasuser appuser -o jsonpath='{.status.atProvider.id}')
+
+cat <<EOF | kubectl apply -f -
+apiVersion: databasegrant.arubacloud.crossplane.io/v1alpha1
+kind: DatabaseGrant
+metadata:
+  name: appuser-on-appdb
+spec:
+  forProvider:
+    projectId: ${PROJECT_ID}
+    dbaasId: ${DBAAS_ID}
+    database: ${DB_ID}
+    userId: ${USER_ID}
+    role: readwrite
+  providerConfigRef: { name: default }
+EOF
+
+kubectl wait --for=condition=Ready databasegrant/appuser-on-appdb --timeout=2m
+```
+
+### 4. Recupera l'endpoint del DBaaS
+
+Il provider non pubblica ancora l'endpoint del DBaaS nel Secret di connessione della MR (il Secret viene creato, ma è vuoto — vedi il callout "Sotto il cofano" sotto). Apri il tuo DBaaS nella console Aruba, clicca la scheda **Networking** e copia l'endpoint privato. La porta MySQL standard è `3306`.
+
+### 5. Costruisci il Secret di connessione
+
+Cuci insieme l'endpoint con i nomi di utente/password/database in un Secret di Kubernetes che il Pod possa leggere:
+
+```bash
+kubectl create secret generic <your-pair-id>-mysql-conn \
+  --from-literal=endpoint='<endpoint-dal-passo-4>' \
+  --from-literal=port='3306' \
+  --from-literal=username='appuser' \
+  --from-literal=password='Workshop2026!ok' \
+  --from-literal=database='appdb'
+```
+
+### 6. Esegui un Pod one-shot che fa il ping del DB
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -187,14 +266,14 @@ spec:
       image: mysql:8
       command: ["sh", "-c"]
       args:
-        - mysql -h "$endpoint" -P "$port" -u "$username" -p"$password" -e 'SELECT 1 AS ok;'
+        - mysql -h "$endpoint" -P "$port" -u "$username" -p"$password" "$database" -e 'SELECT 1 AS ok;'
       envFrom:
         - secretRef:
             name: <your-pair-id>-mysql-conn
 EOF
 ```
 
-`envFrom: secretRef` carica ogni chiave del Secret di connessione come variabile d'ambiente con il nome della chiave. Il comando shell poi le richiama per nome. Se il tuo Secret avesse chiavi diverse (ad es. `host` invece di `endpoint`), aggiorna l'argomento `mysql -h "$endpoint"` di conseguenza.
+`envFrom: secretRef` carica ogni chiave del Secret di connessione come variabile d'ambiente con il nome della chiave. Il comando shell poi le richiama per nome.
 
 Quando il Pod completa:
 
@@ -209,18 +288,30 @@ ok
 1
 ```
 
-Hai instradato una query SQL attraverso un `kubectl apply` di una MR Crossplane, dentro una vera istanza MySQL Aruba, di ritorno attraverso la rete del cluster del workshop, e fuori dall'altra parte.
+Hai instradato una query SQL attraverso quattro `kubectl apply` di MR Crossplane, dentro una vera istanza MySQL Aruba, di ritorno attraverso la rete del cluster del workshop, e fuori dall'altra parte.
+
+:::note Sotto il cofano
+
+In un provider completo, il passo 4 non esisterebbe — la MR DBaaS scriverebbe `endpoint` / `port` direttamente nel suo Secret di connessione, e la MR utente aggiungerebbe `username` / `password`. `provider-arubacloud` non lo fa ancora, perché il Terraform provider embedded non restituisce quegli attributi dalla chiamata di create. Non c'è un gap Crossplane qui; è un gap del provider upstream. Tracciato nella issue queue del provider.
+
+C'è anche una verruca ergonomica nei passi 2–3: `dbaasId` / `database` / `userId` di ogni MR sono ID Aruba letterali che copi tra i passi di apply. Quando il provider farà crescere riferimenti cross-resource `dbaasIdRef` / `databaseRef` / `userIdRef`, quei campi diventeranno puntatori dichiarativi tra le MR e il dolore dell'ordine di apply sparisce.
+
+:::
 
 ## 7.5 Pulizia ⏱️ 3m
 
-Aruba fattura il DBaaS a ore. Cancellalo subito:
+Aruba fattura il DBaaS a ore. Cancella le MR in ordine inverso di dipendenza così ogni risorsa figlia viene rimossa pulitamente da Aruba prima che il suo parent sparisca:
 
 ```bash
 kubectl delete pod <your-pair-id>-db-test
+kubectl delete secret <your-pair-id>-mysql-conn appuser-pw
+kubectl delete databasegrant appuser-on-appdb
+kubectl delete dbaasuser appuser
+kubectl delete database appdb
 kubectl delete dbaas <your-pair-id>-mysql
 ```
 
-Crossplane riconcilia la cancellazione contro Aruba, che smonta l'istanza MySQL. Il Secret di connessione è di proprietà della MR DBaaS e viene mietuto insieme a lei.
+Crossplane riconcilia ogni cancellazione contro Aruba, che smonta l'istanza MySQL e le sue risorse collegate.
 
 Se ti dimentichi, il tuo istruttore farà ripulisce tutto al teardown del workshop — ma il DBaaS continuerà ad accumulare ore fino ad allora.
 
@@ -236,6 +327,6 @@ Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applic
 
 ### Per approfondire
 
-- **Componi uno stack MySQL a privilegio minimo.** Questo modulo ha creato l'istanza DBaaS e si è collegato come admin — bene per un workshop, mai per produzione. Le app reali hanno bisogno di un login non-admin: un `Database.database.arubacloud.crossplane.io` (schema logico) + `DBaaSUser` (login non-admin) + `DatabaseGrant` (la riga `GRANT … TO …` che li collega). Avvolgi le quattro MR in un XR come `AppDatabase` così gli utenti della piattaforma ottengono un workflow opinionated "dammi un DB per l'app X" da una sola riga di YAML — stessa forma dell'[`Application`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101.
+- **Avvolgi le quattro MR di §7.4 in un XR `AppDatabase`.** Adesso uno sviluppatore che vuole un database deve scrivere `DBaaS` + `Database` + `DBaaSUser` + `DatabaseGrant`, incollare ID tra loro, recuperare l'endpoint a mano. Un team di piattaforma trasforma questo in una sola Composite Resource — `AppDatabase` — il cui XRD chiede allo sviluppatore due campi (nome app, dimensione) e la cui Composition si srotola nelle quattro MR. Stessa forma dell'XR [`Application`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101. Una volta che il provider upstream aggiunge i riferimenti cross-resource `dbaasIdRef` / `databaseRef` / `userIdRef` e pubblica l'endpoint nel Secret di connessione, la superficie sviluppatore-facing del tuo XR collassa a `kind: AppDatabase` + un nome, e il resto di §7.4 sparisce.
 - [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.3.0-workshop`.
 - [Riferimento API Aruba Cloud](https://api.arubacloud.com/docs/) — l'API upstream con cui parla il provider.
