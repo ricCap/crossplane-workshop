@@ -256,6 +256,66 @@ Same `Provider` → `ProviderConfig` → MR shape as AWS / GCP / Azure, applied 
 
 ### Go deeper
 
-- **Compose a least-privilege MySQL stack.** This module created the DBaaS instance and connected as admin — fine for a workshop, never for production. Real apps need a non-admin login: a `Database.database.arubacloud.crossplane.io` (logical schema) + `DBaaSUser` (non-admin login) + `DatabaseGrant` (the `GRANT … TO …` row that wires them together). Wrap the four MRs in an XR like `AppDatabase` so platform users get an opinionated "give me a DB for app X" workflow from one line of YAML — same shape as the [`Application`](../crossplane-101/define-application) you wrote in 101 module 4.
+- **Replace the §7.4 console steps with Crossplane MRs.** The user-and-database you clicked together in the Aruba console have native MR equivalents: `Database.database.arubacloud.crossplane.io` (logical schema), `DBaaSUser` (non-admin login), `DatabaseGrant` (the `GRANT … TO …` row that wires them together). Same `Provider` → API contract as the `DBaaS` MR you already wrote; you just need the parent DBaaS's Aruba ID from `kubectl get dbaas <your-pair-id>-mysql -o jsonpath='{.status.atProvider.id}'`. A working three-MR sequence (you fill in `<DBAAS_ID>` and `<PROJECT_ID>` from the workshop ConfigMap):
+
+  ```yaml
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: appuser-pw
+  stringData:
+    password: <pick-one-Aruba-accepts>
+  ---
+  apiVersion: database.arubacloud.crossplane.io/v1alpha1
+  kind: Database
+  metadata:
+    name: appdb
+  spec:
+    forProvider:
+      name: appdb
+      dbaasId: <DBAAS_ID>
+      projectId: <PROJECT_ID>
+    providerConfigRef: { name: default }
+  ---
+  apiVersion: dbaasuser.arubacloud.crossplane.io/v1alpha1
+  kind: DBaaSUser
+  metadata:
+    name: appuser
+  spec:
+    forProvider:
+      username: appuser
+      dbaasId: <DBAAS_ID>
+      projectId: <PROJECT_ID>
+      passwordSecretRef:
+        name: appuser-pw
+        namespace: default
+        key: password
+    providerConfigRef: { name: default }
+  ```
+
+  Apply that, wait for `Database/appdb` and `DBaaSUser/appuser` to be `Ready=True`, capture each MR's `.status.atProvider.id`, and `kubectl apply` the `DatabaseGrant` last:
+
+  ```yaml
+  apiVersion: databasegrant.arubacloud.crossplane.io/v1alpha1
+  kind: DatabaseGrant
+  metadata:
+    name: appuser-on-appdb
+  spec:
+    forProvider:
+      projectId: <PROJECT_ID>
+      dbaasId: <DBAAS_ID>
+      database: <DATABASE_ID-from-status.atProvider.id>
+      userId: <DBAASUSER_ID-from-status.atProvider.id>
+      role: readwrite
+    providerConfigRef: { name: default }
+  ```
+
+  Two caveats — both upstream-fixable, both annoying right now:
+
+  1. **No `*Ref` cross-references** on these MR Kinds yet, so the dbaasId, database, and userId fields are literal Aruba IDs you paste between steps. When the provider grows `dbaasIdRef` / `databaseRef` / `userIdRef`, those three lines become declarative cross-MR pointers and the order-of-apply pain disappears.
+  2. **Aruba password rules are server-side.** First rejection is usually fixable by trying 8+ chars with upper + lower + digit + a single safe special; check the console's "Create user" tooltip if you're not sure.
+
+  Once both are fixed, wrap all four MRs in an `AppDatabase` XR and platform users get a one-line "give me a DB for app X" workflow — same shape as the [`Application`](../crossplane-101/define-application) you wrote in 101 module 4.
+
 - [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — provider source, full Kind catalogue, version index. The workshop pins `v0.3.0-workshop`.
 - [Aruba Cloud API reference](https://api.arubacloud.com/docs/) — the upstream API the provider talks to.
