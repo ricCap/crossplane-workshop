@@ -150,28 +150,41 @@ NAME                   SYNCED   READY   EXTERNAL-NAME
 
 <ValidateCheck check="aruba-mr-ready" />
 
-## 7.4 Connect with `mysql` ⏱️ 7m
+## 7.4 Connect with `mysql` ⏱️ 10m
 
-Crossplane has written the connection details to a Secret named `<your-pair-id>-mysql-conn` in `default`. Inspect what keys are inside before you wire them to a Pod:
+You now have a running MySQL instance — but Crossplane can't tell you where it lives or hand you a login. The Aruba provider doesn't yet publish the DBaaS endpoint, port, or admin credentials to the MR's connection Secret (the secret is created, but it's empty). That's a provider limitation, not a workshop one — see the "Under the hood" callout at the end of this section.
+
+So this step is three small manual hops: read the endpoint from Aruba's console, create a database + user on the DBaaS, then build the connection Secret yourself.
+
+### 1. Read the endpoint
+
+Open your DBaaS in the Aruba console (your instructor will share the link). The detail view has a **Networking** tab — copy the private endpoint shown there. Standard MySQL port is `3306`.
+
+For the rest of this section, we'll call those values `<endpoint>` and `3306`.
+
+### 2. Create a database + user
+
+Click the **Users and database** tab in the same DBaaS detail view. Use the two buttons:
+
+- **Create database** → name it `appdb` (or anything; remember what you chose).
+- **Create user** → username `appuser`, set a password Aruba accepts (typically: 8+ chars, upper + lower + digit + special). Remember the password.
+
+Aruba enforces the password rules server-side; if your first pick is rejected, try something more conservative (e.g. mixed alphanumerics plus a single `!`).
+
+### 3. Build the connection Secret
+
+Stitch the four values into a Kubernetes Secret your Pod can read:
 
 ```bash
-kubectl get secret <your-pair-id>-mysql-conn -o jsonpath='{.data}' | jq 'keys'
+kubectl create secret generic <your-pair-id>-mysql-conn \
+  --from-literal=endpoint='<endpoint>' \
+  --from-literal=port='3306' \
+  --from-literal=username='appuser' \
+  --from-literal=password='<the-password>' \
+  --from-literal=database='appdb'
 ```
 
-Expected output (key names may vary slightly):
-
-```json
-[
-  "endpoint",
-  "password",
-  "port",
-  "username"
-]
-```
-
-The provider exposes whatever connection-detail keys it sees from Aruba's API; the Secret is the contract.
-
-### Run a one-shot Pod that pings the DB
+### 4. Run a one-shot Pod that pings the DB
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -193,7 +206,7 @@ spec:
 EOF
 ```
 
-`envFrom: secretRef` loads every key from the connection Secret as an environment variable with the key name. The shell command then references each by name. If your Secret had different keys (e.g., `host` instead of `endpoint`), update the `mysql -h "$endpoint"` argument accordingly.
+`envFrom: secretRef` loads every key from the connection Secret as an environment variable with the key name. The shell command then references each by name.
 
 When the Pod completes:
 
@@ -209,6 +222,14 @@ ok
 ```
 
 You've routed a SQL query through `kubectl apply` of a Crossplane MR, into a real Aruba MySQL instance, back through your workshop cluster's network, and out the other side.
+
+:::note Under the hood
+
+In a mature provider you'd skip steps 1–3 entirely: the MR would write `endpoint` / `port` / `username` / `password` straight to the connection Secret, and `envFrom` would just work. `provider-arubacloud` doesn't yet — the embedded Terraform provider doesn't return those attributes from the create call, so there's nothing for Crossplane to publish.
+
+There's an equally-Crossplane-native version of steps 2–3 using three more MRs (`Database`, `DBaaSUser`, `DatabaseGrant`) that we'd showcase if the provider supported cross-resource references for them; right now those MR types require literal Aruba IDs, so they trade one form of manual paste for another. Tracked in the provider's issue queue; once it lands, this section collapses back to the one-step version.
+
+:::
 
 ## 7.5 Clean up ⏱️ 3m
 
