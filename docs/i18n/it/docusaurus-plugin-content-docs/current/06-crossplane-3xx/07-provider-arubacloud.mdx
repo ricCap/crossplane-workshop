@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: 680af4ed96944b4b05ec742b1195b68ef282f496
+translation_source_commit: 415a8b8375799f97ec224f452a581b6ad3e25a3e
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -257,6 +257,66 @@ Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applic
 
 ### Per approfondire
 
-- **Componi uno stack MySQL a privilegio minimo.** Questo modulo ha creato l'istanza DBaaS e si è collegato come admin — bene per un workshop, mai per produzione. Le app reali hanno bisogno di un login non-admin: un `Database.database.arubacloud.crossplane.io` (schema logico) + `DBaaSUser` (login non-admin) + `DatabaseGrant` (la riga `GRANT … TO …` che li collega). Avvolgi le quattro MR in un XR come `AppDatabase` così gli utenti della piattaforma ottengono un workflow opinionated "dammi un DB per l'app X" da una sola riga di YAML — stessa forma dell'[`Application`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101.
+- **Sostituisci i passi console di §7.4 con MR Crossplane.** L'utente e il database che hai cliccato insieme nella console Aruba hanno equivalenti MR nativi: `Database.database.arubacloud.crossplane.io` (schema logico), `DBaaSUser` (login non-admin), `DatabaseGrant` (la riga `GRANT … TO …` che li collega). Stesso contratto `Provider` → API della MR `DBaaS` che hai già scritto; ti serve solo l'ID Aruba del DBaaS parent da `kubectl get dbaas <your-pair-id>-mysql -o jsonpath='{.status.atProvider.id}'`. Una sequenza di tre MR funzionante (riempi tu `<DBAAS_ID>` e `<PROJECT_ID>` dal ConfigMap del workshop):
+
+  ```yaml
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: appuser-pw
+  stringData:
+    password: <scegli-una-che-Aruba-accetti>
+  ---
+  apiVersion: database.arubacloud.crossplane.io/v1alpha1
+  kind: Database
+  metadata:
+    name: appdb
+  spec:
+    forProvider:
+      name: appdb
+      dbaasId: <DBAAS_ID>
+      projectId: <PROJECT_ID>
+    providerConfigRef: { name: default }
+  ---
+  apiVersion: dbaasuser.arubacloud.crossplane.io/v1alpha1
+  kind: DBaaSUser
+  metadata:
+    name: appuser
+  spec:
+    forProvider:
+      username: appuser
+      dbaasId: <DBAAS_ID>
+      projectId: <PROJECT_ID>
+      passwordSecretRef:
+        name: appuser-pw
+        namespace: default
+        key: password
+    providerConfigRef: { name: default }
+  ```
+
+  Applica, aspetta che `Database/appdb` e `DBaaSUser/appuser` siano `Ready=True`, cattura il `.status.atProvider.id` di ognuna, e `kubectl apply` il `DatabaseGrant` per ultimo:
+
+  ```yaml
+  apiVersion: databasegrant.arubacloud.crossplane.io/v1alpha1
+  kind: DatabaseGrant
+  metadata:
+    name: appuser-on-appdb
+  spec:
+    forProvider:
+      projectId: <PROJECT_ID>
+      dbaasId: <DBAAS_ID>
+      database: <DATABASE_ID-da-status.atProvider.id>
+      userId: <DBAASUSER_ID-da-status.atProvider.id>
+      role: readwrite
+    providerConfigRef: { name: default }
+  ```
+
+  Due caveat — entrambi risolvibili upstream, entrambi fastidiosi adesso:
+
+  1. **Niente `*Ref` cross-resource** ancora su questi Kind, quindi i campi dbaasId, database e userId sono ID Aruba letterali che incolli tra un passo e l'altro. Quando il provider farà crescere `dbaasIdRef` / `databaseRef` / `userIdRef`, quelle tre righe diventeranno puntatori dichiarativi cross-MR e il dolore dell'ordine di apply sparisce.
+  2. **Le regole sulla password Aruba sono server-side.** Il primo rifiuto di solito si risolve provando 8+ caratteri con maiuscola + minuscola + cifra + un singolo carattere speciale sicuro; controlla il tooltip della console "Create user" se non sei sicuro.
+
+  Una volta sistemati entrambi, avvolgi tutte e quattro le MR in un XR `AppDatabase` e gli utenti della piattaforma ottengono un workflow "dammi un DB per l'app X" da una sola riga — stessa forma dell'[`Application`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101.
+
 - [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.3.0-workshop`.
 - [Riferimento API Aruba Cloud](https://api.arubacloud.com/docs/) — l'API upstream con cui parla il provider.
