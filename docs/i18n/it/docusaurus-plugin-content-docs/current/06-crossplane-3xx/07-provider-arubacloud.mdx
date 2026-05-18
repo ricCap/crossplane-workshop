@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: 680af4ed96944b4b05ec742b1195b68ef282f496
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -151,28 +151,41 @@ NAME                   SYNCED   READY   EXTERNAL-NAME
 
 <ValidateCheck check="aruba-mr-ready" />
 
-## 7.4 Connettiti con `mysql` ⏱️ 7m
+## 7.4 Connettiti con `mysql` ⏱️ 10m
 
-Crossplane ha scritto i dettagli di connessione in un Secret chiamato `<your-pair-id>-mysql-conn` in `default`. Ispeziona quali chiavi ci sono dentro prima di cablarlo a un Pod:
+Ora hai un'istanza MySQL in funzione — ma Crossplane non può ancora dirti dove vive né consegnarti un login. Il provider Aruba non pubblica ancora endpoint, port o credenziali admin del DBaaS nel Secret di connessione della MR (il Secret viene creato, ma è vuoto). È una limitazione del provider, non del workshop — vedi il callout "Sotto il cofano" alla fine di questa sezione.
+
+Quindi questo passaggio si divide in tre piccoli salti manuali: leggi l'endpoint dalla console Aruba, crea un database + utente sul DBaaS, poi costruisci a mano il Secret di connessione.
+
+### 1. Leggi l'endpoint
+
+Apri il tuo DBaaS nella console Aruba (il link te lo passa l'istruttore). La vista dei dettagli ha una scheda **Networking** — copia l'endpoint privato che vedi lì. La porta standard MySQL è `3306`.
+
+Per il resto della sezione chiameremo quei valori `<endpoint>` e `3306`.
+
+### 2. Crea un database + utente
+
+Clicca la scheda **Users and database** nella stessa vista dei dettagli del DBaaS. Usa i due bottoni:
+
+- **Create database** → chiamalo `appdb` (o come preferisci; ricordati cosa hai scelto).
+- **Create user** → username `appuser`, scegli una password che Aruba accetti (di solito: 8+ caratteri, maiuscole + minuscole + cifra + carattere speciale). Ricordati la password.
+
+Aruba applica le regole sulla password lato server; se la prima scelta viene rifiutata, prova qualcosa di più conservativo (es. alfanumerico misto più un singolo `!`).
+
+### 3. Costruisci il Secret di connessione
+
+Cuci insieme i quattro valori in un Secret di Kubernetes che il tuo Pod possa leggere:
 
 ```bash
-kubectl get secret <your-pair-id>-mysql-conn -o jsonpath='{.data}' | jq 'keys'
+kubectl create secret generic <your-pair-id>-mysql-conn \
+  --from-literal=endpoint='<endpoint>' \
+  --from-literal=port='3306' \
+  --from-literal=username='appuser' \
+  --from-literal=password='<la-password>' \
+  --from-literal=database='appdb'
 ```
 
-Output atteso (i nomi delle chiavi possono variare leggermente):
-
-```json
-[
-  "endpoint",
-  "password",
-  "port",
-  "username"
-]
-```
-
-Il provider espone le chiavi di connection-detail che vede dall'API Aruba; il Secret è il contratto.
-
-### Esegui un Pod one-shot che fa il ping del DB
+### 4. Esegui un Pod one-shot che fa il ping del DB
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -194,7 +207,7 @@ spec:
 EOF
 ```
 
-`envFrom: secretRef` carica ogni chiave del Secret di connessione come variabile d'ambiente con il nome della chiave. Il comando shell poi le richiama per nome. Se il tuo Secret avesse chiavi diverse (ad es. `host` invece di `endpoint`), aggiorna l'argomento `mysql -h "$endpoint"` di conseguenza.
+`envFrom: secretRef` carica ogni chiave del Secret di connessione come variabile d'ambiente con il nome della chiave. Il comando shell poi le richiama per nome.
 
 Quando il Pod completa:
 
@@ -210,6 +223,14 @@ ok
 ```
 
 Hai instradato una query SQL attraverso un `kubectl apply` di una MR Crossplane, dentro una vera istanza MySQL Aruba, di ritorno attraverso la rete del cluster del workshop, e fuori dall'altra parte.
+
+:::note Sotto il cofano
+
+In un provider maturo salteresti i passi 1–3 del tutto: la MR scriverebbe `endpoint` / `port` / `username` / `password` direttamente nel Secret di connessione, e `envFrom` funzionerebbe e basta. `provider-arubacloud` non lo fa ancora — il Terraform provider embedded non restituisce quegli attributi dalla chiamata di create, quindi Crossplane non ha nulla da pubblicare.
+
+Esiste anche una versione altrettanto Crossplane-native dei passi 2–3 che usa altre tre MR (`Database`, `DBaaSUser`, `DatabaseGrant`); le mostreremmo se il provider supportasse i riferimenti cross-resource per queste — al momento quei Kind richiedono ID Aruba letterali, quindi scambieresti un copia-incolla manuale con un altro. Tracciato nella issue queue del provider; quando atterra, questa sezione collassa di nuovo alla versione one-step.
+
+:::
 
 ## 7.5 Pulizia ⏱️ 3m
 
