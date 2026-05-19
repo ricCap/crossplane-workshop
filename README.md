@@ -40,7 +40,7 @@ graph TB
 Solid edges show GitOps sync and HTTP routing; dashed edges show Crossplane composition. The "Per-pair sandbox" node represents the namespace, vCluster Helm release, HTTPRoute, ResourceQuota, and Platform user that the `DeveloperEnvironment` Composition produces for each participant pair.
 
 
-**Routing**: Envoy Gateway terminates TLS for `crossplane.workshops.riccardocapraro.com` and `platform-crossplane.workshops.riccardocapraro.com`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the DeveloperEnvironment Composition.
+**Routing**: Envoy Gateway terminates TLS for `crossplane.workshop.riccardocapraro.com` and `platform-crossplane.workshop.riccardocapraro.com`. Per-pair traffic goes to `/team/<pair>/` (frontend) and `/team/<pair>/api/` (backend), routed via HTTPRoutes created by the DeveloperEnvironment Composition.
 
 ## Prerequisites
 
@@ -88,7 +88,7 @@ task solo:down      # when you're done
 ```
 
 Participants who haven't cloned this repo can follow the same steps from the published
-docs at https://crossplane.workshops.riccardocapraro.com/solo-local-setup (plain `kubectl apply -f`
+docs at https://crossplane.workshop.riccardocapraro.com/solo-local-setup (plain `kubectl apply -f`
 against the raw `gitops/solo/all.yaml`, public GHCR images, nothing else).
 
 ## Adding participants
@@ -132,9 +132,9 @@ Each module ends with one or more validator checks (entries in `validator/checks
 
 | What | URL |
 |------|-----|
-| Docs site | https://crossplane.workshops.riccardocapraro.com/ |
-| Wall (all tiles) | https://crossplane.workshops.riccardocapraro.com/wall |
-| vCluster Platform | https://platform-crossplane.workshops.riccardocapraro.com/ |
+| Docs site | https://crossplane.workshop.riccardocapraro.com/ |
+| Wall (all tiles) | https://crossplane.workshop.riccardocapraro.com/wall |
+| vCluster Platform | https://platform-crossplane.workshop.riccardocapraro.com/ |
 | ArgoCD UI | `task argocd:ui` (port-forwards to https://localhost:8080) |
 | Local gateway | `task wall:ui` (port-forwards to https://localhost:8443) |
 
