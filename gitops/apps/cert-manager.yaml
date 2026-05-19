@@ -26,6 +26,19 @@ spec:
           limits:
             cpu: 250m
             memory: 256Mi
+        # Bypass broken hairpin NAT on Aruba: when cert-manager runs the
+        # HTTP-01 self-check, the workshop hostnames must resolve to the
+        # Envoy proxy ClusterIP (in-cluster) instead of the external LB
+        # IP, otherwise the request loops out to the cloud LB and can't
+        # come back. The IP is the ClusterIP of the auto-generated
+        # Envoy proxy Service `envoy-envoy-gateway-system-workshop-*`
+        # in the envoy-gateway-system namespace. If the Gateway is ever
+        # deleted and recreated, this IP must be refreshed.
+        hostAliases:
+          - ip: "10.96.220.209"
+            hostnames:
+              - crossplane.workshop.riccardocapraro.com
+              - platform-crossplane.workshop.riccardocapraro.com
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
