@@ -1,0 +1,48 @@
+# PROTOTYPE: self-signed CA fallback for when Let's Encrypt is
+# unavailable (e.g. broken hairpin NAT blocks ACME HTTP-01 self-check).
+#
+# Three resources, applied in order by cert-manager:
+#  1. `workshop-selfsigned-bootstrap` — issues a single self-signed cert
+#     used only as the workshop root CA.
+#  2. `workshop-ca` Certificate — the workshop root, signed by (1).
+#     Lives 10y in Secret `workshop-ca` in cert-manager namespace.
+#  3. `workshop-ca` ClusterIssuer — issues leaf certs (workshop-tls,
+#     platform-tls, …) signed by the root CA.
+#
+# To make browsers happy, distribute `workshop-ca` Secret's tls.crt to
+# participants and have them trust it once. Without the trust step,
+# every hostname shows the standard "your connection is not private"
+# warning — participants can click through.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: workshop-selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: workshop-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: workshop.riccardocapraro.com
+  secretName: workshop-ca
+  duration: 87600h # 10 years
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: workshop-selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: workshop-ca
+spec:
+  ca:
+    secretName: workshop-ca

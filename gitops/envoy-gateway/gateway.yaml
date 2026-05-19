@@ -12,7 +12,12 @@ metadata:
   name: workshop
   namespace: envoy-gateway-system
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # PROTOTYPE: swapped from `letsencrypt-prod` to `workshop-ca` while
+    # ACME HTTP-01 is blocked by broken hairpin NAT on the cloud LB.
+    # Self-signed CA from gitops/cert-manager/selfsigned-issuer.yaml.
+    # Participants will see browser warnings unless they trust the
+    # workshop-ca Secret manually.
+    cert-manager.io/cluster-issuer: workshop-ca
 spec:
   gatewayClassName: eg
   listeners:
