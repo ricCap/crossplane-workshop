@@ -1,0 +1,6 @@
+apiVersion: workshop.example.io/v1alpha1
+kind: DeveloperEnvironment
+metadata:
+  name: cheery-apricot
+spec:
+  pairId: cheery-apricot
