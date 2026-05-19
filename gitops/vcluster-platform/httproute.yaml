@@ -1,4 +1,4 @@
-# Routes traffic for platform-crossplane.workshops.riccardocapraro.com to vCluster Platform.
+# Routes traffic for platform-crossplane.workshop.riccardocapraro.com to vCluster Platform.
 # Platform is installed via `task bootstrap:vcluster-platform` (not ArgoCD)
 # to keep the admin password out of git.
 apiVersion: gateway.networking.k8s.io/v1
@@ -12,7 +12,7 @@ spec:
       namespace: envoy-gateway-system
       sectionName: https-platform
   hostnames:
-    - "platform-crossplane.workshops.riccardocapraro.com"
+    - "platform-crossplane.workshop.riccardocapraro.com"
   rules:
     - matches:
         - path:
