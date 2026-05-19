@@ -474,7 +474,7 @@ tasks:
       Set PLATFORM_ADMIN_PASSWORD env var or be prompted interactively.
 
       MANUAL FOLLOW-UP — license activation. After this task finishes, an
-      admin must open https://platform-crossplane.workshops.riccardocapraro.it
+      admin must open https://platform-crossplane.workshops.riccardocapraro.com
       in a browser, log in as `admin` with PLATFORM_ADMIN_PASSWORD, and
       accept the license to activate the trial. Until that's done, the
       Platform proxy returns 4xx for participant kubeconfig requests and
@@ -504,7 +504,7 @@ tasks:
           --set admin.username=admin \
           --set "admin.password=${PLATFORM_ADMIN_PASSWORD}" \
           --set ingress.enabled=false \
-          --set config.loftHost=platform-crossplane.workshops.riccardocapraro.it \
+          --set config.loftHost=platform-crossplane.workshops.riccardocapraro.com \
           --set config.costControl.enabled=false \
           --set replicaCount=1 \
           --set "resources.requests.cpu=200m" \
@@ -513,7 +513,7 @@ tasks:
           --set "resources.limits.memory=2Gi" \
           --wait --timeout 5m
 
-        echo "vCluster Platform installed. UI: https://platform-crossplane.workshops.riccardocapraro.it"
+        echo "vCluster Platform installed. UI: https://platform-crossplane.workshops.riccardocapraro.com"
 
   bootstrap:root-app:
     desc: Apply the root app-of-apps Application.
@@ -609,7 +609,7 @@ tasks:
                                 Keys → Create. Treat as a secret.
 
       Optional env vars (sensible defaults):
-        PLATFORM_HOST           https://platform-crossplane.workshops.riccardocapraro.it
+        PLATFORM_HOST           https://platform-crossplane.workshops.riccardocapraro.com
         PLATFORM_PROJECT        default
         PLATFORM_INSECURE       false (set to true for self-signed
                                 Platform — e.g. local vind without LE)
@@ -622,7 +622,7 @@ tasks:
       Usage:
         PLATFORM_ACCESS_KEY=<key> task platform:register-vclusters
     vars:
-      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.it"}}'
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.com"}}'
       PLATFORM_PROJECT: '{{.PLATFORM_PROJECT | default "default"}}'
       PLATFORM_INSECURE: '{{.PLATFORM_INSECURE | default "false"}}'
     cmds:
@@ -792,14 +792,14 @@ tasks:
       just point your kubeconfig at the management cluster.
 
       Optional env vars (sensible defaults):
-        PLATFORM_HOST           https://platform-crossplane.workshops.riccardocapraro.it
+        PLATFORM_HOST           https://platform-crossplane.workshops.riccardocapraro.com
                                 (used as the kubeconfig server URL host)
         PLATFORM_PROJECT        default
 
       Usage:
         task pairs:issue-kubeconfigs
     vars:
-      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.it"}}'
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.com"}}'
       PLATFORM_PROJECT: '{{.PLATFORM_PROJECT | default "default"}}'
     cmds:
       - |
@@ -1428,7 +1428,7 @@ tasks:
 
       This is the OPERATOR path, NOT the participant path. Participants
       never port-forward — they connect through vCluster Platform at
-      https://platform-crossplane.workshops.riccardocapraro.it which proxies the
+      https://platform-crossplane.workshops.riccardocapraro.com which proxies the
       authenticated request to the in-cluster vcluster API. To verify
       that path (and require Platform to actually be reachable), use
       `verify:pair:platform`.
@@ -1590,7 +1590,7 @@ tasks:
 
       Prereqs:
         1. vCluster Platform is exposed at PLATFORM_HOST (defaults to
-           https://platform-crossplane.workshops.riccardocapraro.it).
+           https://platform-crossplane.workshops.riccardocapraro.com).
         2. The pair's VirtualClusterInstance is registered in project
            `default` (the DeveloperEnvironment Composition creates it,
            but Platform-side registration is currently a manual step
@@ -1605,7 +1605,7 @@ tasks:
 
       Usage: task verify:pair:platform PAIR=fancy-lemon
     vars:
-      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.it"}}'
+      PLATFORM_HOST: '{{.PLATFORM_HOST | default "https://platform-crossplane.workshops.riccardocapraro.com"}}'
       PROJECT: '{{.PROJECT | default "default"}}'
     requires:
       vars: [PAIR]
