@@ -46,7 +46,7 @@ Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml`
 
 ## Verification: two paths, on purpose
 
-The participant vcluster's apiserver is a ClusterIP Service inside the management cluster — not publicly accessible. Participants reach it through **vCluster Platform** at `https://platform-crossplane.workshops.riccardocapraro.it`, which terminates auth, looks up the user's `VirtualClusterInstance`, and proxies the request to the in-cluster vcluster API. The cluster apiserver itself stays private.
+The participant vcluster's apiserver is a ClusterIP Service inside the management cluster — not publicly accessible. Participants reach it through **vCluster Platform** at `https://platform-crossplane.workshops.riccardocapraro.com`, which terminates auth, looks up the user's `VirtualClusterInstance`, and proxies the request to the in-cluster vcluster API. The cluster apiserver itself stays private.
 
 That gives us two distinct verify flows, and they should not be confused:
 
@@ -58,7 +58,7 @@ That gives us two distinct verify flows, and they should not be confused:
 
 The two per-pair tasks run the management-side checks (helm/argocd/XRD/Composition/XR/ns/pod) first; they only differ in the final inner-vcluster smoke test. `verify:all` adds an explicit `Synced=True` assertion per pair (slightly stronger than the per-pair task's "XR exists + pod Ready") before dispatching.
 
-Use the local task on a vind because Platform isn't exposed there (no LE cert for `platform-crossplane.workshops.riccardocapraro.it`, no DNS record). Use the platform task on Aruba so an outage on the Envoy Gateway / Platform / DNS path actually makes the check fail — otherwise you've validated the operator's port-forward, not the participant experience.
+Use the local task on a vind because Platform isn't exposed there (no LE cert for `platform-crossplane.workshops.riccardocapraro.com`, no DNS record). Use the platform task on Aruba so an outage on the Envoy Gateway / Platform / DNS path actually makes the check fail — otherwise you've validated the operator's port-forward, not the participant experience.
 
 ## Planning
 
@@ -210,7 +210,7 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 ## Post-bootstrap: Platform license activation
 
-After `task bootstrap:all` succeeds, vCluster Platform is installed but **its license is not yet active**. An admin must open https://platform-crossplane.workshops.riccardocapraro.it in a browser, log in as `admin` with the password supplied to `bootstrap:vcluster-platform`, and accept the EULA to activate the trial license. Until that's done, the Platform proxy returns 4xx for participant kubeconfig requests and `task verify:pair:platform` / `task verify:all MODE=platform` will fail with auth errors.
+After `task bootstrap:all` succeeds, vCluster Platform is installed but **its license is not yet active**. An admin must open https://platform-crossplane.workshops.riccardocapraro.com in a browser, log in as `admin` with the password supplied to `bootstrap:vcluster-platform`, and accept the EULA to activate the trial license. Until that's done, the Platform proxy returns 4xx for participant kubeconfig requests and `task verify:pair:platform` / `task verify:all MODE=platform` will fail with auth errors.
 
 This step is intentionally manual — Loft requires a human to accept the EULA, there is no headless flag. Do it once per fresh Platform install (i.e. once per cluster rebuild). The license persists across `helm upgrade` of the chart and across `loft` pod restarts.
 
@@ -446,7 +446,7 @@ Required env vars:
 
 Optional env vars:
 
-- `PLATFORM_HOST` (default `https://platform-crossplane.workshops.riccardocapraro.it`),
+- `PLATFORM_HOST` (default `https://platform-crossplane.workshops.riccardocapraro.com`),
   `PLATFORM_PROJECT` (default `default`) — used as the kubeconfig
   server URL host/path.
 - `RCLONE_REMOTE` (default `gdrive`), `RCLONE_FOLDER` (default
