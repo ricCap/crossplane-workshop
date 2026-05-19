@@ -1,6 +1,0 @@
-apiVersion: workshop.example.io/v1alpha1
-kind: DeveloperEnvironment
-metadata:
-  name: merry-cherry
-spec:
-  pairId: merry-cherry
