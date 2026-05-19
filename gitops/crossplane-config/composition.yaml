@@ -380,7 +380,7 @@ spec:
                         # the aggregate. Total fits inside a single
                         # 20Gi node disk slice, well below any
                         # reasonable Aruba node size.
-                        requests.storage: 20Gi
+                        requests.storage: 80Gi
             patches:
               - type: CombineFromComposite
                 combine:
