@@ -27,7 +27,7 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
-      hostname: "crossplane.workshops.riccardocapraro.it"
+      hostname: "crossplane.workshops.riccardocapraro.com"
       tls:
         mode: Terminate
         certificateRefs:
@@ -40,7 +40,7 @@ spec:
     - name: https-platform
       protocol: HTTPS
       port: 443
-      hostname: "platform-crossplane.workshops.riccardocapraro.it"
+      hostname: "platform-crossplane.workshops.riccardocapraro.com"
       tls:
         mode: Terminate
         certificateRefs:
