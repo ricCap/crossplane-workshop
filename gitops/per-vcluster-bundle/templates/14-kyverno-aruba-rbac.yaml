@@ -26,7 +26,7 @@
 #
 # Both the cluster-scoped (`*.arubacloud.crossplane.io`) and the
 # namespaced (`*.arubacloud.m.crossplane.io`) groups are listed.
-# v0.3.0-workshop ships both; the workshop teaches the
+# v0.4.0-workshop ships both; the workshop teaches the
 # cluster-scoped flavour, but a participant who experiments with
 # the namespaced variant should still hit the same admission caps.
 apiVersion: rbac.authorization.k8s.io/v1

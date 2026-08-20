@@ -3,18 +3,27 @@
 # already installed in module 3) pulls the OCI image and registers
 # the Aruba MR CRDs.
 #
-# Image pinned to v0.3.0-workshop, which carries:
-#   - Native Terraform provider repointed at upstream
-#     Arubacloud/terraform-provider-arubacloud v0.1.4 (the fork
-#     workaround for the Read fix is no longer needed —
-#     closes ricCap/provider-arubacloud#11).
-#   - controller-runtime logger wired
-#     (closes ricCap/provider-arubacloud#3).
-#   - CRD `required` arrays propagated from TF schema
-#     (closes ricCap/provider-arubacloud#4).
-#   - Consistent Kind capitalization (Database, ContainerRegistry,
-#     BlockStorage, DBaaS, SecurityGroup, etc. —
-#     closes ricCap/provider-arubacloud#5).
+# Image pinned to v0.4.0-workshop, which regenerates every MR API
+# against upstream Arubacloud/terraform-provider-arubacloud v1.0.1
+# (ricCap/provider-arubacloud#12). Same Kind catalogue as
+# v0.3.0-workshop — no group or Kind added or removed — so the
+# shape policies and the module 06 walkthrough are unaffected.
+# Schema deltas worth knowing:
+#   - Every MR gains an optional `spec.forProvider.timeout` (Go
+#     duration) overriding the provider-level Create/Delete timeout.
+#   - ContainerRegistry `settings` is now **required**, and
+#     `settings.adminUser` with it (and may not be `admin`, which
+#     Aruba reserves). The workshop never applies a ContainerRegistry
+#     — it is allow-listed but unused — so no doc example changes.
+#   - DBaaS `billingPeriod` is now Computed: omit it and the API's
+#     value is adopted rather than the field being unset.
+#   - Immutability is now documented on the fields that already
+#     forced replacement (DBaaS engineId/location/projectId/zone,
+#     Database name, BlockStorage type). Behaviour unchanged.
+#
+# Carried forward from v0.3.0-workshop: controller-runtime logger
+# wired (#3), CRD `required` arrays propagated from the TF schema
+# (#4), consistent Kind capitalization (#5).
 #
 # Sync wave 0: needs the namespace, but doesn't depend on anything
 # else in this bundle. ProviderConfig (wave 1) waits on this.

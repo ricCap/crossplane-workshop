@@ -18,7 +18,7 @@ pairId: ""
 # story (Track 0.4 / `task release`) bumps this when the upstream
 # provider ships a new tag.
 provider:
-  package: ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
+  package: ghcr.io/riccap/provider-arubacloud:v0.4.0-workshop
 
 # Shape policies — what participants are allowed to create. Tuned
 # for the smoke-tested ITBG-Bergamo region; override per-event via
@@ -29,7 +29,7 @@ shapePolicies:
   # `DBaaS` is the headline MR module 06 walks participants through
   # (`docs/docs/06-crossplane-3xx/07-provider-arubacloud.mdx`); the
   # other three remain in case future modules use them.
-  # See ricCap/provider-arubacloud#5 for the full v0.3.0-workshop kind list.
+  # See ricCap/provider-arubacloud#5 for the full v0.4.0-workshop kind list.
   allowedKinds:
     - DBaaS
     - Database

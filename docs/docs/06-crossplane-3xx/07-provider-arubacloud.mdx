@@ -44,7 +44,7 @@ Expected output:
 
 ```
 NAME                  INSTALLED   HEALTHY   PACKAGE
-provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
+provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.4.0-workshop
 ```
 
 <ValidateCheck check="provider-arubacloud-installed" />
@@ -327,5 +327,5 @@ Same `Provider` → `ProviderConfig` → MR shape as AWS / GCP / Azure, applied 
 ### Go deeper
 
 - **Wrap §7.4's four MRs in an `AppDatabase` XR.** Right now a developer who wants a database has to author `DBaaS` + `Database` + `DBaaSUser` + `DatabaseGrant`, paste IDs between them, look up the endpoint by hand. A platform team turns that into a single Composite Resource — `AppDatabase` — whose XRD asks the developer for two fields (app name, size) and whose Composition fans out into the four MRs. Same shape as the [`Application`](../crossplane-101/define-application) XR you wrote in 101 module 4. Once the upstream provider adds `dbaasIdRef` / `databaseRef` / `userIdRef` cross-resource references and publishes the endpoint to the connection Secret, your XR's developer-facing surface collapses to `kind: AppDatabase` + a name, and the rest of §7.4 disappears.
-- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — provider source, full Kind catalogue, version index. The workshop pins `v0.3.0-workshop`.
+- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — provider source, full Kind catalogue, version index. The workshop pins `v0.4.0-workshop`.
 - [Aruba Cloud API reference](https://api.arubacloud.com/docs/) — the upstream API the provider talks to.
