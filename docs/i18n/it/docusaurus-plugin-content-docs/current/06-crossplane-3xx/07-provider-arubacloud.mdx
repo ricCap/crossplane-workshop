@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: (Guidato) Crea risorse in Aruba
-translation_source_commit: a8bf03892b6de5d5992bc9b88d95de805047d54a
+translation_source_commit: 15154117bafbdaee66a76c304307166844542093
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -45,7 +45,7 @@ Output atteso:
 
 ```
 NAME                  INSTALLED   HEALTHY   PACKAGE
-provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.3.0-workshop
+provider-arubacloud   True        True      ghcr.io/riccap/provider-arubacloud:v0.4.0-workshop
 ```
 
 <ValidateCheck check="provider-arubacloud-installed" />
@@ -328,5 +328,5 @@ Stessa forma `Provider` → `ProviderConfig` → MR di AWS / GCP / Azure, applic
 ### Per approfondire
 
 - **Avvolgi le quattro MR di §7.4 in un XR `AppDatabase`.** Adesso uno sviluppatore che vuole un database deve scrivere `DBaaS` + `Database` + `DBaaSUser` + `DatabaseGrant`, incollare ID tra loro, recuperare l'endpoint a mano. Un team di piattaforma trasforma questo in una sola Composite Resource — `AppDatabase` — il cui XRD chiede allo sviluppatore due campi (nome app, dimensione) e la cui Composition si srotola nelle quattro MR. Stessa forma dell'XR [`Application`](../crossplane-101/define-application) che hai scritto nel modulo 4 del 101. Una volta che il provider upstream aggiunge i riferimenti cross-resource `dbaasIdRef` / `databaseRef` / `userIdRef` e pubblica l'endpoint nel Secret di connessione, la superficie sviluppatore-facing del tuo XR collassa a `kind: AppDatabase` + un nome, e il resto di §7.4 sparisce.
-- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.3.0-workshop`.
+- [`provider-arubacloud`](https://github.com/ricCap/provider-arubacloud) — sorgente del provider, catalogo completo dei Kind, indice delle versioni. Il workshop pinna `v0.4.0-workshop`.
 - [Riferimento API Aruba Cloud](https://api.arubacloud.com/docs/) — l'API upstream con cui parla il provider.
