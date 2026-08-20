@@ -1,5 +1,5 @@
 # Stage 1 — build the Docusaurus static bundle
-FROM node:20.19-alpine3.21 AS builder
+FROM node:22-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ ENV WORKSHOP_REF=${WORKSHOP_REF}
 RUN npm run build
 
 # Stage 2 — serve via nginx
-FROM nginx:1.27-alpine3.21
+FROM nginx:1.31-alpine3.24
 
 # Drop the default nginx config and replace with our own
 RUN rm /etc/nginx/conf.d/default.conf
