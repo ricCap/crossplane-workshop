@@ -1,0 +1,59 @@
+---
+sidebar_position: 12
+title: Create your project
+---
+
+# Create your project ⏱️ 10m
+
+:::caution Preview draft
+Commands are from the CLI docs and not yet dry-run. No validator check is wired to this module yet.
+:::
+
+## 3.1 Before you start ⏱️ 3m
+
+A Crossplane project is a folder that holds everything you publish: the API definition, the Composition, the functions, examples, and tests. `crossplane project init` creates it, and a file called `crossplane-project.yaml` records where to publish the package.
+
+The one concept to take from this module is the **XRD** (composite resource definition): it defines the API you offer. You write an example of the object a user would apply, and the CLI generates the XRD from it.
+
+You're about to create the project, write an example `WebApp`, and generate its API.
+
+## 3.2 Create the project ⏱️ 7m
+
+### 1. Initialize the project
+
+```bash
+export PAIR=<your pair ID>
+crossplane project init my-platform --registry "$REGISTRY/$PAIR"
+cd my-platform
+ls
+```
+
+You should see `apis`, `examples`, `functions`, `operations`, `tests`, and `crossplane-project.yaml`.
+
+### 2. Write an example of the object users will apply
+
+```bash
+mkdir -p examples/webapps
+cat <<'EOF' > examples/webapps/podinfo.yaml
+apiVersion: platform.example.org/v1alpha1
+kind: WebApp
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  image: ghcr.io/stefanprodan/podinfo:6.7.1
+  replicas: 2
+EOF
+```
+
+### 3. Generate the API from the example
+
+```bash
+crossplane xrd generate examples/webapps/podinfo.yaml --from xr
+```
+
+The command writes `apis/webapps/definition.yaml`. Open it and find the `spec.image` and `spec.replicas` fields the CLI inferred from your example.
+
+## 3.3 What just happened
+
+You defined a `WebApp` API by showing one example of it. Next you tell Crossplane what a `WebApp` should create.

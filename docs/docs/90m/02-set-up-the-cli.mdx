@@ -1,0 +1,58 @@
+---
+sidebar_position: 11
+title: Set up the CLI
+---
+
+# Set up the CLI ⏱️ 5m
+
+:::caution Preview draft
+Commands are from the CLI docs and not yet dry-run. No validator check is wired to this module yet.
+:::
+
+## 2.1 Before you start ⏱️ 1m
+
+The Crossplane CLI is a single binary. It does the work you would otherwise do by hand: it scaffolds a project, generates the API and Composition files, renders them locally, and packages them for your cluster. The `project`, `function`, and `dependency` commands are marked beta, so you pin a version to get the output this workshop shows.
+
+You're about to check Docker, install the CLI, and log in to the workshop registry.
+
+## 2.2 Install and log in ⏱️ 4m
+
+### 1. Check Docker
+
+```bash
+docker version
+```
+
+Both a `Client` and a `Server` section should print. If `Server` is missing, start your container runtime and run the command again.
+
+### 2. Install the CLI
+
+```bash
+curl -sfL "https://cli.crossplane.io/install.sh" | XP_VERSION=v2.5.0 sh
+sudo mv crossplane /usr/local/bin/
+crossplane version --client
+```
+
+The installer downloads the binary into the current directory and does not add it to your `PATH`, which is why the `mv` is needed.
+
+### 3. Log in to the registry
+
+Your credentials bundle has a registry address and a login. Export them and log in:
+
+```bash
+export REGISTRY=<registry address from your bundle>
+docker login "$REGISTRY"
+```
+
+### 4. Point `kubectl` at your workshop cluster
+
+```bash
+export KUBECONFIG=<path to the kubeconfig from your bundle>
+kubectl get namespaces
+```
+
+You should see a list of namespaces. Crossplane is already installed in your workshop cluster, so there is no install step.
+
+## 2.3 What just happened
+
+You have the tools to build a platform API: the CLI to author and package it, Docker to run it locally, a registry to publish it to, and a cluster to run it in.

@@ -10,3 +10,12 @@
 #
 # The backlog is currently empty — every English doc has an Italian
 # translation. See AGENTS.md §Localization.
+
+# 90 minute preview (draft, not translated yet)
+90m/01-overview.mdx
+90m/02-set-up-the-cli.mdx
+90m/03-create-your-project.mdx
+90m/04-compose.mdx
+90m/05-iterate-locally.mdx
+90m/06-package-and-ship.mdx
+90m/07-change-and-rebuild.mdx
