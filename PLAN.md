@@ -48,9 +48,28 @@ Rejected:
 - **Aruba Container Registry** — separate credentials and flow per attendee, plus pull secrets. The provider does have a `containerregistries` kind, so revisit if the on-cluster registry disappoints; credential handling unverified.
 - **ttl.sh** — no login, no secrets, expiring. Emergency fallback only, and anyone can read the images.
 
-Open details: which registry software (Zot or CNCF Distribution behind a proxy — neither tested here); writes confined to each pair's own `<pair>/` prefix with reads open to everyone; a persistent volume with a size limit, since ~30 pairs pushing function images onto a ~78 GiB single node is not free; and TLS from the existing cert-manager + Envoy Gateway so `project push` needs no insecure flag.
+Candidate software, none tested on the cluster yet:
 
-**Biggest unknown: hairpin traffic.** This repo already works around broken hairpin NAT for cert-manager with `hostAliases` (c393e41). Crossplane inside a pair cluster, and the node pulling function images, may both fail to reach `registry.<domain>` through its own public address. First test is pulling a pushed package from inside a pair cluster; if that fails, the fix is a service alias or a containerd mirror for the hostname. Accepted consequence of anonymous read: anyone who knows the hostname can read attendees' demo packages.
+- **Zot** — htpasswd auth plus per-prefix access policies in one small binary. Covers per-pair push and anonymous read at the smallest footprint, which is why it was the first pick.
+- **CNCF Distribution behind a proxy** — the auth layer has to be hand-rolled in front of it.
+- **Harbor** — projects, robot accounts and per-project quotas natively, which is exactly the per-pair-push / anonymous-read shape instead of building it. The cost is a much larger footprint (core, portal, registry, registryctl, jobservice, plus Postgres and Redis as stateful dependencies); its documented minimum is roughly 2 CPU / 4 GiB, worth confirming against the real chart before committing.
+
+Writes stay confined to each pair's own `<pair>/` prefix with reads open to everyone, and TLS comes from the existing cert-manager + Envoy Gateway so `project push` needs no insecure flag.
+
+**Re-discuss this design before building it. The live cluster will have more than one node.** That invalidates the single-node assumptions this section and §Cluster sizing were written against, and it changes the registry design rather than just its sizing. Settle the following first:
+
+- **Storage.** One replica on an RWO block volume pins the registry to a node and makes that node a single point of failure for every pair's push. Multi-node wants either RWX storage or an S3-backed registry — and Aruba object storage is already in the provider's surface (see AGENTS.md §External credential bootstrap), so an object-storage backend is probably the right answer and removes the "~78 GiB on one node" capacity worry entirely.
+- **Capacity.** With more nodes, Harbor stops being obviously too expensive. Re-run the choice between Zot and Harbor once the real node count and flavor are known, rather than inheriting the single-node decision.
+- **Pulls happen on every node.** Any containerd-level workaround (mirror entry, host alias) has to be applied to all of them, not just one.
+
+**Biggest unknown: hairpin traffic**, and the 90m dry run on 2026-10-18 showed it matters more than "the pull might fail". `crossplane project push` bakes the repository from `crossplane-project.yaml` at **build** time — a `--repository` override at push fails with `failed to find configuration image`. So the hostname an attendee builds with must be the same one their pair cluster pulls from. One name has to work identically from laptops and from inside the cluster; there is no "push to A, pull from B" escape.
+
+Two further constraints, both verified locally rather than assumed:
+
+- **Crossplane rejects registry hosts that are not fully qualified.** A bare name like `my-registry:5000` is refused with "must be a fully qualified image name"; the host needs a dot. Fine for a real DNS name, but it rules out short in-cluster service names.
+- **There are two different pullers with different TLS tolerance.** Crossplane's package manager fetched the xpkg over plain HTTP happily, while containerd refused the *function runtime image* with `http: server gave HTTP response to HTTPS client` until given an explicit mirror entry. On the live cluster this means the certificate has to satisfy containerd on every node, not just the CLI.
+
+This repo already works around broken hairpin NAT for cert-manager with `hostAliases` (c393e41). First test is pulling a pushed package from inside a pair cluster; if that fails, the fix is a service alias or a containerd mirror for the hostname, applied across all nodes. Accepted consequence of anonymous read: anyone who knows the hostname can read attendees' demo packages.
 
 ### Keeping both versions
 
@@ -74,13 +93,15 @@ A check only runs where a page embeds a `<ValidateCheck>` button, so nothing nee
 ### Open questions
 
 - **Will the venue network and attendee laptops allow installing the CLI and pulling images?** This decides how much has to be pre-baked, and the whole format rests on it.
-- **Denmark's attendee count and infrastructure are unknown.** The Aruba node tops out around 5–6 pairs (see below), so this may need a node-pool scale-up or a different cluster entirely.
-- Every CLI command in the drafted modules is transcribed from the v2.5 docs and **not dry-run**. The `project`, `function` and `dependency` command groups are all beta, and the docs are thin on push and install, so pin the CLI version and dry-run the whole flow before committing to any timing above.
+- **Denmark's attendee count is still unknown, but the live cluster will have more than one node.** That settles the question §Cluster sizing left open — the single-node ceiling of 5–6 pairs no longer applies, and the registry design has to be revisited for it (see above).
+- The CLI flow is **no longer transcription**: modules 02–06 were dry-run end to end against a pinned v2.5.0 binary on 2026-10-18, through `project init`, `xrd generate`, `composition generate`, `function generate`, `dependency add`, `composition render`, `resource validate`, `project build`, `project push`, `xpkg install` and `resource trace`, ending in a Ready XR with a live Deployment and Service. Real timings on a cold laptop are still unmeasured. Note `xrd` and `resource` are beta groups too — six are marked beta, not the three listed earlier.
 - 60 minutes is tight for 15 minutes of writing a go-templating function — supply a near-complete template with two or three fields to fill in.
 - Attendees without Docker cannot render or build at all. Keep a shared instructor machine or a hosted fallback.
 - `crossplane project run` is deliberately **not** used: it creates its own KIND cluster and a local registry, and the slow first run on conference wifi is the single biggest risk in the flow.
 
 ## Cluster sizing — what we actually have on Aruba
+
+**Superseded for the live event: it will run on more than one node.** Everything below is a true measurement of the single-node cluster as it stood in May 2026, and the per-pair budget maths still applies per node — but the headline conclusions (a 5–6 pair ceiling, single-node failure mode as the biggest unmitigated risk) no longer describe what will be delivered on. Re-measure once the real node pool exists.
 
 Measured 2026-05-10 via `kubectl get nodes -o wide`, `kubectl describe
 node`, `kubectl get sc`, and `kubectl get pods -A`. This is the
