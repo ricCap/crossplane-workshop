@@ -3,10 +3,92 @@ sidebar_position: 14
 title: Iterate locally
 ---
 
-# Iterate locally
+import PairId from '@site/src/components/PairId';
 
-Render your Composition and validate your example without a cluster.
+# Iterate locally ⏱️ 8m
 
-:::note Coming soon
-This module is a placeholder in the preview. It takes about 8m in the 90 minute plan.
+<PairId />
+
+:::caution Preview draft
+The commands below are verified against CLI v2.5.0, but no validator check is wired to this module yet.
 :::
+
+:::note Running solo locally?
+Nothing in this module touches a cluster, so the solo path is identical. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 5.1 Before you start ⏱️ 2m
+
+You can run your Composition without a cluster. `composition render` executes the function pipeline on your laptop and prints exactly what Crossplane would create.
+
+This is the loop you stay in while writing a Composition: edit the template, render, look at the output. No pushing, no installing, no waiting for a controller.
+
+**Prerequisites.** You need the filled-in template from [Compose](./compose). Docker must be running — the CLI executes each function as a container.
+
+You're about to render your Composition and validate the result.
+
+## 5.2 Render and validate ⏱️ 6m
+
+### 1. Render the Composition
+
+```bash
+crossplane composition render examples/webapps/podinfo.yaml apis/webapps/composition.yaml
+```
+
+You get the composite resource followed by the resources your template produced. The Deployment should carry the values from your example `WebApp`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: deployment
+  name: podinfo
+  namespace: default
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - image: ghcr.io/stefanprodan/podinfo:6.7.1
+        name: app
+```
+
+If `replicas` or `image` come out empty, a `FILL ME IN` is still in your template.
+
+Change `replicas` to `3` in `examples/webapps/podinfo.yaml`, run the command again, and watch the output follow. That round trip is a couple of seconds.
+
+### 2. Validate what you rendered
+
+Rendering proves your template produces YAML. It does not prove the YAML is a valid Deployment.
+
+```bash
+crossplane composition render examples/webapps/podinfo.yaml apis/webapps/composition.yaml > rendered.yaml
+crossplane resource validate apis/ rendered.yaml
+```
+
+```
+[✓] platform.example.org/v1alpha1, Kind=WebApp, podinfo validated successfully
+[✓] apps/v1, Kind=Deployment, podinfo validated successfully
+[✓] v1, Kind=Service, podinfo validated successfully
+Total 3 resources: 0 missing schemas, 3 success cases, 0 failure cases
+```
+
+The first argument is where the schemas come from, the second is what gets checked. The first run downloads the Crossplane schema image, so give it a moment.
+
+To see it catch something, misspell a field in your template: change `replicas:` to `replicaz:` in `01-compose.yaml.gotmpl`, then render and validate again.
+
+```
+[x] schema validation error apps/v1, Kind=Deployment, podinfo : unknown field "spec.replicaz"
+Total 3 resources: 0 missing schemas, 2 success cases, 1 failure cases
+```
+
+Note that the render still succeeded. Templating produces text and has no idea what a Deployment is, so a typo like this would otherwise surface minutes later as a resource that silently never scales. Put the field back before moving on.
+
+## 5.3 What just happened
+
+You ran your platform API end to end without a cluster. Your `WebApp` went in, a Deployment and a Service came out, and both were checked against the real Kubernetes schemas.
+
+Everything so far lives on your laptop. The next module packages it and puts it somewhere your workshop cluster can use it.
+
+- [Composition functions](https://docs.crossplane.io/latest/concepts/compositions/)
