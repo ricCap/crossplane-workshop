@@ -10,7 +10,7 @@ import PairId from '@site/src/components/PairId';
 <PairId />
 
 :::caution Preview draft
-Commands are from the CLI docs and not yet dry-run. No validator check is wired to this module yet.
+The commands below are verified against CLI v2.5.0, but no validator check is wired to this module yet.
 :::
 
 :::note Running solo locally?
@@ -36,7 +36,23 @@ cd my-platform
 ls
 ```
 
-You should see `apis`, `examples`, `functions`, `operations`, `tests`, and `crossplane-project.yaml`.
+You should see:
+
+```
+apis
+crossplane-project.yaml
+examples
+functions
+operations
+tests
+```
+
+`crossplane-project.yaml` records where your package gets published. The `--registry` flag you passed becomes its `spec.repository`:
+
+```yaml
+spec:
+  repository: <your registry>/<your pair ID>/my-platform
+```
 
 ### 2. Write an example of the object users will apply
 
@@ -60,7 +76,20 @@ EOF
 crossplane xrd generate examples/webapps/podinfo.yaml --from xr
 ```
 
-The command writes `apis/webapps/definition.yaml`. Open it and find the `spec.image` and `spec.replicas` fields the CLI inferred from your example.
+It prints:
+
+```
+Created CompositeResourceDefinition (XRD) at webapps/definition.yaml
+```
+
+That path is relative to `apis/`, so the file is at `apis/webapps/definition.yaml`. Open it and find the `spec.image` and `spec.replicas` fields the CLI inferred from your example:
+
+```yaml
+image:
+  type: string
+replicas:
+  type: integer
+```
 
 ## 3.3 What just happened
 
