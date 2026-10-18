@@ -3,10 +3,157 @@ sidebar_position: 15
 title: Package and ship
 ---
 
-# Package and ship
+import PairId from '@site/src/components/PairId';
 
-Build the package, push it to the workshop registry, install it in your workshop cluster, and apply a WebApp.
+# Package and ship ⏱️ 12m
 
-:::note Coming soon
-This module is a placeholder in the preview. It takes about 12m in the 90 minute plan.
+<PairId />
+
+:::caution Preview draft
+The commands below are verified against CLI v2.5.0, but no validator check is wired to this module yet.
 :::
+
+:::note Running solo locally?
+`task solo:all` does not set up a registry yet, so you need the extra steps in the collapsed block in §6.2 before you can push. Everything after that is identical. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 6.1 Before you start ⏱️ 2m
+
+Everything so far has been files on your laptop. A **package** turns them into a single artefact you publish to a registry, and that your workshop cluster installs by name.
+
+The package is a Configuration. It carries your XRD, your Composition, and the function image your template lives in.
+
+**Prerequisites.** You need the rendering project from [Iterate locally](./iterate-locally), and your registry address and login from [Set up the CLI](./set-up-the-cli).
+
+You're about to build the package, push it, install it, and use it.
+
+## 6.2 Publish and install ⏱️ 10m
+
+### 1. Build the package
+
+```bash
+crossplane project build
+```
+
+```
+Building function compose-webapp...
+✓ Building function compose-webapp
+Building configuration package...
+✓ Building configuration package
+Built project "my-platform" to _output/my-platform.xpkg
+```
+
+The `.xpkg` is a few tens of megabytes, because your function ships as a container image inside it.
+
+### 2. Push it
+
+The registry is read from `spec.repository` in `crossplane-project.yaml` at **build** time, not at push time. If you need to change it, edit that file and build again — a `--repository` flag on push alone fails with `failed to find configuration image`.
+
+```bash
+crossplane project push -t v0.1.0
+```
+
+```
+Pushing function package <your registry>/<your pair ID>/my-platform_compose-webapp...
+✓ Pushing function package
+Pushing configuration image <your registry>/<your pair ID>/my-platform:v0.1.0...
+✓ Pushing configuration image
+```
+
+Two things go up: the configuration, and a sibling repository holding your function image. The tag must be a semantic version.
+
+<details>
+<summary>Solo: standing up a local registry first</summary>
+
+The solo path has no registry, so create one and point your project at it. Use a port other than 5000 — on macOS, AirPlay Receiver already listens there.
+
+```bash
+k3d registry create workshop-registry --port 5111
+```
+
+Your cluster and your laptop have to agree on **one** hostname, because the registry name is baked into the package at build time. Your machine's LAN address satisfies both, and Crossplane requires a fully qualified host, so a short name like `k3d-workshop-registry` is rejected.
+
+```bash
+export REGISTRY=$(ipconfig getifaddr en0):5111   # macOS; on Linux use `hostname -I`
+sed -i '' "s|repository: .*|repository: $REGISTRY/local/my-platform|" crossplane-project.yaml
+```
+
+The registry speaks plain HTTP, which Crossplane's package manager accepts but the node's container runtime does not. Tell k3s to use HTTP for it, then restart the node:
+
+```bash
+docker exec k3d-crossplane-workshop-solo-server-0 sh -c "mkdir -p /etc/rancher/k3s && printf 'mirrors:\n  \"$REGISTRY\":\n    endpoint:\n      - \"http://$REGISTRY\"\n' > /etc/rancher/k3s/registries.yaml"
+docker restart k3d-crossplane-workshop-solo-server-0
+```
+
+Without this the Configuration installs, but the function pod fails with `http: server gave HTTP response to HTTPS client`.
+
+</details>
+
+### 3. Install it into your workshop cluster
+
+```bash
+crossplane xpkg install configuration <your registry>/<your pair ID>/my-platform:v0.1.0 --wait 120s
+```
+
+```
+configuration/local-my-platform created
+```
+
+Check it settled. `INSTALLED` and `HEALTHY` should both be `True`, and the function your package depends on is installed for you:
+
+```bash
+kubectl get configuration.pkg
+kubectl get function.pkg
+```
+
+```
+NAME                INSTALLED   HEALTHY   PACKAGE
+local-my-platform   True        True      <your registry>/<your pair ID>/my-platform:v0.1.0
+```
+
+Your API is now part of the cluster:
+
+```bash
+kubectl get xrd
+```
+
+```
+NAME                           ESTABLISHED   OFFERED   AGE
+webapps.platform.example.org   True                    42s
+```
+
+### 4. Use your own API
+
+```bash
+kubectl apply -f examples/webapps/podinfo.yaml
+kubectl get deployment,service -n default
+```
+
+```
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/podinfo   2/2     2            2           20s
+
+NAME              TYPE        CLUSTER-IP     PORT(S)   AGE
+service/podinfo   ClusterIP   10.43.57.173   80/TCP    20s
+```
+
+### 5. See what it built
+
+```bash
+crossplane resource trace webapp podinfo -n default
+```
+
+```
+NAME                              SYNCED   READY   STATUS
+WebApp/podinfo (default)          True     True    Available
+├─ Deployment/podinfo (default)   -        -
+└─ Service/podinfo (default)      -        -
+```
+
+## 6.3 What just happened
+
+You published your own platform API and then used it. Someone on another team could now install that same package by name and get a `WebApp` kind in their cluster, without seeing a single Deployment or Service.
+
+That is the whole point of the exercise: one YAML file in, a coordinated set of real resources out, and the detail owned by you rather than copy-pasted into every team's repo.
+
+- [Crossplane packages](https://docs.crossplane.io/latest/concepts/packages/)
