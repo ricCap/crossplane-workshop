@@ -4,13 +4,14 @@ title: Change and rebuild
 ---
 
 import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Change and rebuild ⏱️ 7m
 
 <PairId />
 
 :::caution Preview draft
-The commands below are verified against CLI v2.5.0, but no validator check is wired to this module yet.
+This module is part of the 90 minute workshop preview. The commands are verified against CLI v2.5.0.
 :::
 
 :::note Running solo locally?
@@ -110,6 +111,8 @@ podinfo   ClusterIP   10.43.57.173   8080/TCP   7m25s
 ```
 
 Same Service, same cluster IP, new port. It was updated in place, not replaced — which is what the `setResourceNameAnnotation` in your template buys you.
+
+<ValidateCheck check="webapp-service-updated" />
 
 ## 7.3 What just happened
 

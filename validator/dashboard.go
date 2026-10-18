@@ -64,7 +64,7 @@ type dashboardResponse struct {
 	Pairs       []pairRow   `json:"pairs"`
 }
 
-// handleDashboard runs every check in orderedCheckIDs against every pair
+// handleDashboard runs every check in the active ordered list against every pair
 // discovered on the management cluster and returns a single aggregated
 // response. Per-check and per-pair errors become failed cells; only a
 // failure to build the management client itself 5xxs the whole request.
@@ -114,8 +114,9 @@ func buildDashboardJSON(ctx context.Context) ([]byte, int) {
 		return body, http.StatusInternalServerError
 	}
 
-	checkCols := make([]checkInfo, 0, len(orderedCheckIDs))
-	for _, id := range orderedCheckIDs {
+	ordered := activeOrderedCheckIDs()
+	checkCols := make([]checkInfo, 0, len(ordered))
+	for _, id := range ordered {
 		label := checkLabels[id]
 		if label == "" {
 			label = id
@@ -148,16 +149,17 @@ func buildDashboardJSON(ctx context.Context) ([]byte, int) {
 }
 
 // runPairChecks builds one vcluster client for the pair and runs every
-// check in orderedCheckIDs against it. If the client can't be built,
+// check in the active ordered list against it. If the client can't be built,
 // every cell is populated with the same error so the facilitator can see
 // at a glance that the pair's vcluster itself is the problem, not any
 // individual check.
 func runPairChecks(ctx context.Context, mgmtClient *kubernetes.Clientset, pair string) pairRow {
-	row := pairRow{ID: pair, Results: make([]checkResult, 0, len(orderedCheckIDs))}
+	ordered := activeOrderedCheckIDs()
+	row := pairRow{ID: pair, Results: make([]checkResult, 0, len(ordered))}
 
 	vcClient, err := vclientForPair(ctx, mgmtClient, pair)
 	if err != nil {
-		for _, id := range orderedCheckIDs {
+		for _, id := range ordered {
 			row.Results = append(row.Results, checkResult{
 				ID:      id,
 				Pass:    false,
@@ -168,7 +170,7 @@ func runPairChecks(ctx context.Context, mgmtClient *kubernetes.Clientset, pair s
 	}
 
 	stageLocked := false
-	for _, id := range orderedCheckIDs {
+	for _, id := range ordered {
 		fn, ok := checks[id]
 		if !ok {
 			row.Results = append(row.Results, checkResult{

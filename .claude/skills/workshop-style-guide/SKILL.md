@@ -244,6 +244,12 @@ Every "What just happened" post-task section opens with a plain-English recap ai
 
 When a module assumes the participant has finished a specific sibling module (and has its on-disk artefacts or installed tooling on hand), the §x.1 "Before you start" section carries a one-line `**Prerequisites.**` paragraph pointing at the dependency, placed just before the closing "You're about to:" sentence. *Because:* the 2xx category is choose-your-own-adventure (per [`docs/docs/05-crossplane-2xx/01-overview.mdx`](../../../docs/docs/05-crossplane-2xx/01-overview.mdx)), so a participant can land on any module cold; without an explicit pointer, a dependent module's first task block silently assumes files (`xr.yaml`, `composition.yaml`, …) or binaries (`crossplane`) the participant doesn't have. *Decided while authoring `05-testing-compositions.mdx`.*
 
+### Laptop-only task modules carry no validator check (2026-10-18)
+
+A task section ends with exactly one `<ValidateCheck />` **when the validator can see what the participant did**. The validator only ever reads cluster state, so a module whose entire output is files on the participant's laptop — a scaffolded project, an edited template, a local render — has nothing for it to assert and ships without a check. *Because:* the alternative is worse in both directions. Inventing a check that cannot really pass gives a red button for correct work, and dropping the module to "content" misdescribes a section where the participant types commands for ten minutes.
+
+This came up across the CLI-first 90 minute track, where modules 03, 04 and 05 (`project init`, `composition generate`, `composition render`) produce no cluster state at all; the first checkable moment is module 06, once the package is installed. When this applies, say so in the module rather than leaving the omission to be read as an oversight. *Decided while wiring the 90m checks.*
+
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--

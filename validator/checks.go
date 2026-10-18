@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +46,14 @@ var checks = map[string]Check{
 	"provider-arubacloud-installed": checkArubaProviderInstalled,
 	"aruba-policies-present":        checkArubaPoliciesPresent,
 	"aruba-mr-ready":                checkArubaMRReady,
+
+	// 90-minute CLI-first track. These are additions rather than
+	// replacements: the 3-hour checks above are untouched, because
+	// hello-xr-ready and application-ready look for kinds in
+	// workshop.example.io that the CLI-generated API does not have.
+	"configuration-installed": checkConfigurationInstalled,
+	"webapp-xr-ready":         checkWebAppXRReady,
+	"webapp-service-updated":  checkWebAppServiceUpdated,
 }
 
 // orderedCheckIDs lists the checks in the order participants are expected
@@ -73,6 +82,34 @@ var orderedCheckIDs = []string{
 	"aruba-mr-ready",
 }
 
+// ordered90mCheckIDs is the same idea as orderedCheckIDs, for the
+// 90-minute CLI-first track. It is a separate slice rather than a
+// rewrite of the one above so the 3-hour dashboard keeps working
+// unchanged; `activeOrderedCheckIDs` picks between them.
+//
+// It is short on purpose. Modules 03, 04 and 05 produce only files on
+// the participant's laptop — a project scaffold, a Composition, a
+// rendered manifest — and the validator only ever sees cluster state,
+// so there is nothing for it to assert until the package is installed
+// in module 06.
+var ordered90mCheckIDs = []string{
+	"cluster-reachable",
+	"configuration-installed",
+	"webapp-xr-ready",
+	"webapp-service-updated",
+}
+
+// activeOrderedCheckIDs returns the ordered list for the track this
+// validator instance is serving. WORKSHOP_TRACK=90m selects the
+// CLI-first list; anything else, including unset, keeps the 3-hour
+// list, so an existing deployment behaves exactly as before.
+func activeOrderedCheckIDs() []string {
+	if os.Getenv("WORKSHOP_TRACK") == "90m" {
+		return ordered90mCheckIDs
+	}
+	return orderedCheckIDs
+}
+
 // checkLabels maps a check ID to a human-readable column label used by
 // the dashboard. Missing entries fall back to the ID itself.
 var checkLabels = map[string]string{
@@ -92,6 +129,10 @@ var checkLabels = map[string]string{
 	"provider-arubacloud-installed": "provider-arubacloud Healthy",
 	"aruba-policies-present":        "Aruba Kyverno policies present",
 	"aruba-mr-ready":                "Aruba MR Ready",
+
+	"configuration-installed": "Configuration installed",
+	"webapp-xr-ready":         "WebApp XR Ready",
+	"webapp-service-updated":  "WebApp rebuilt (Service :8080)",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -656,4 +697,157 @@ func unstructuredNestedSlice(obj map[string]interface{}, fields ...string) ([]in
 		cur = next
 	}
 	return nil, false, nil
+}
+
+// ---------------------------------------------------------------------
+// 90-minute CLI-first track
+//
+// These three mirror what a participant has actually done by the end of
+// modules 06 and 07: published a Configuration package, used the API it
+// installed, and shipped a second version of it.
+//
+// The GVRs below are fixed because the workshop fixes them — module 03
+// gives the example XR verbatim, so every pair's API is
+// `platform.example.org/v1alpha1 WebApp`. That is the same bargain
+// hello-xr-ready makes with `workshop.example.io`.
+// ---------------------------------------------------------------------
+
+var configurationsGVR = schema.GroupVersionResource{
+	Group:    "pkg.crossplane.io",
+	Version:  "v1",
+	Resource: "configurations",
+}
+
+var webappsGVR = schema.GroupVersionResource{
+	Group:    "platform.example.org",
+	Version:  "v1alpha1",
+	Resource: "webapps",
+}
+
+// checkConfigurationInstalled asserts that at least one Crossplane
+// Configuration package is installed and reports Healthy=True. This is
+// the signal that `crossplane project push` plus `crossplane xpkg
+// install configuration` worked end to end — including the registry
+// being reachable from inside the cluster, which is the step most
+// likely to fail.
+//
+// It does not pin the package name: that is derived from the
+// participant's own registry path (`local-my-platform` and such), so
+// any Healthy Configuration counts.
+func checkConfigurationInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	list, err := client.Resource(configurationsGVR).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Configurations: %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Configuration packages installed yet", nil
+	}
+
+	var unhealthy string
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			unhealthy = fmt.Sprintf("Configuration %s has no status.conditions yet", item.GetName())
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] != "Healthy" {
+				continue
+			}
+			if cond["status"] == "True" {
+				return true, fmt.Sprintf("Configuration %s is Healthy", item.GetName()), nil
+			}
+			msg, _ := cond["message"].(string)
+			unhealthy = fmt.Sprintf("Configuration %s is not Healthy yet: %s", item.GetName(), msg)
+		}
+	}
+
+	if unhealthy == "" {
+		unhealthy = fmt.Sprintf("found %d Configuration(s) but none reported Healthy", len(list.Items))
+	}
+	return false, unhealthy, nil
+}
+
+// checkWebAppXRReady asserts that a WebApp composite resource exists and
+// reports Ready=True — meaning the participant applied their own API and
+// Crossplane composed the Deployment and Service behind it.
+func checkWebAppXRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	list, err := client.Resource(webappsGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list WebApp XRs (is the Configuration installed?): %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no WebApp XRs found in the cluster", nil
+	}
+
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] == "Ready" && cond["status"] == "True" {
+				return true, fmt.Sprintf("WebApp %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
+			}
+		}
+	}
+
+	first := list.Items[0]
+	return false, fmt.Sprintf("WebApp %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
+}
+
+// checkWebAppServiceUpdated asserts that the Service composed for a
+// WebApp is serving on port 8080 rather than 80.
+//
+// That is the specific edit module 07 asks for, and it is the only
+// cheap way to tell from cluster state that the rebuild loop actually
+// completed: the participant changed the template, pushed a new
+// version, cleared the digest-pinned Function, and the live Service
+// followed. A Ready XR alone cannot distinguish v0.1.0 from v0.2.0.
+func checkWebAppServiceUpdated(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	servicesGVR := schema.GroupVersionResource{Version: "v1", Resource: "services"}
+
+	list, err := client.Resource(webappsGVR).Namespace("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list WebApp XRs: %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no WebApp XRs found, so nothing has been rebuilt yet", nil
+	}
+
+	for _, xr := range list.Items {
+		ns := xr.GetNamespace()
+		if ns == "" {
+			ns = "default"
+		}
+		svc, err := client.Resource(servicesGVR).Namespace(ns).Get(ctx, xr.GetName(), metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+		ports, ok, _ := unstructuredNestedSlice(svc.Object, "spec", "ports")
+		if !ok {
+			continue
+		}
+		for _, raw := range ports {
+			port, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			// JSON numbers decode as int64 through unstructured.
+			if n, ok := port["port"].(int64); ok && n == 8080 {
+				return true, fmt.Sprintf("Service %s/%s is serving on 8080", ns, xr.GetName()), nil
+			}
+		}
+		return false, fmt.Sprintf("Service %s/%s is not on 8080 yet — has the new package version been installed?", ns, xr.GetName()), nil
+	}
+
+	return false, "no Service found for any WebApp XR", nil
 }

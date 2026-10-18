@@ -4,13 +4,14 @@ title: Set up the CLI
 ---
 
 import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Set up the CLI ⏱️ 5m
 
 <PairId />
 
 :::caution Preview draft
-The commands below are verified against CLI v2.5.0, but no validator check is wired to this module yet.
+This module is part of the 90 minute workshop preview. The commands are verified against CLI v2.5.0.
 :::
 
 :::note Running solo locally?
@@ -70,6 +71,8 @@ kubectl get namespaces
 ```
 
 You should see a list of namespaces. Crossplane is already installed in your workshop cluster, so there is no install step.
+
+<ValidateCheck check="cluster-reachable" />
 
 ## 2.3 What just happened
 
