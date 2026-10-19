@@ -34,7 +34,7 @@ Stai per esplorare cosa sblocca ognuno dei tre — niente sotto-passi guidati, s
 
 ## 2.3 Suggerimenti
 
-- Operations è una feature **alpha** in Crossplane v2. L'installazione di Crossplane sul tuo cluster del workshop **non** la abilita di default — il deployment di Crossplane deve girare con `--enable-operations`. Rilancia il comando di install dal [modulo 3.1](../crossplane-101/install-crossplane) con il valore `args` extra:
+- Operations è una feature **alpha** in Crossplane v2. L'installazione di Crossplane sul tuo cluster del workshop **non** la abilita di default — il deployment di Crossplane deve girare con `--enable-operations`. Crossplane è preinstallato nel tuo cluster del workshop, quindi per abilitarla devi aggiornare tu quella release:
 
   ```bash
   helm upgrade --install crossplane upbound-stable/crossplane \

@@ -33,7 +33,7 @@ You're about to explore what each kind unlocks — no guided substeps, only poin
 
 ## 2.3 Hints
 
-- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Re-run the install command from [module 3.1](../crossplane-101/install-crossplane) with the extra `args` value:
+- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Crossplane comes pre-installed in your workshop cluster, so turning this on means upgrading that release yourself:
 
   ```bash
   helm upgrade --install crossplane upbound-stable/crossplane \

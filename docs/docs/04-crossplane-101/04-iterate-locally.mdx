@@ -1,0 +1,80 @@
+---
+sidebar_position: 4
+title: Iterate locally
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Iterate locally ⏱️ 8m
+
+<PairId />
+
+:::note Running solo locally?
+Nothing in this module touches a cluster, so the solo path is identical. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 4.1 Before you start ⏱️ 2m
+
+You can run your Composition without a cluster. `composition render` executes the function pipeline on your laptop and prints exactly what Crossplane would create.
+
+This is the loop you stay in while writing a Composition: edit the recipe, render, read the output. No pushing, no installing, no waiting for a controller to catch up.
+
+**Prerequisites.** You need the Composition from [Compose](./compose). Docker must be running — the CLI executes each function as a container.
+
+You're about to render your Composition and validate the result.
+
+## 4.2 Render and validate ⏱️ 6m
+
+### 1. Render the Composition
+
+```bash
+crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml
+```
+
+You get the composite resource followed by the six resources your recipe produces:
+
+```
+kind: Application      name: hello
+kind: ConfigMap        name: backend
+kind: Deployment       name: backend
+kind: Service          name: backend     port: 5678
+kind: ConfigMap        name: frontend
+kind: Deployment       name: frontend
+kind: Service          name: frontend    port: 80
+```
+
+Check the frontend ConfigMap: the `message` from your example `Application` should appear in the HTML. That is the patch doing its job — a field on your API reaching a file inside a container.
+
+Change `message` in `examples/applications/hello.yaml`, render again, and watch the output follow. That round trip is a couple of seconds, against the minutes a cluster round trip costs.
+
+### 2. Validate what you rendered
+
+Rendering proves your recipe produces YAML. It does not prove the YAML is valid Kubernetes.
+
+```bash
+crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml > rendered.yaml
+crossplane resource validate apis/ rendered.yaml
+```
+
+```
+[✓] v1, Kind=ConfigMap, frontend validated successfully
+[✓] apps/v1, Kind=Deployment, frontend validated successfully
+[✓] v1, Kind=Service, frontend validated successfully
+Total 7 resources: 0 missing schemas, 7 success cases, 0 failure cases
+```
+
+The first argument says where the schemas come from, the second says what to check. The first run downloads the Crossplane schema image, so give it a moment.
+
+To see it catch something, misspell a field in your recipe — change `replicas:` to `replicaz:` on the frontend Deployment — then render and validate again:
+
+```
+[x] schema validation error apps/v1, Kind=Deployment, frontend : unknown field "spec.replicaz"
+```
+
+Note the render still succeeded. The pipeline produces YAML and has no idea what a Deployment is, which is exactly why validate exists. Put the field back before moving on.
+
+## 4.3 What just happened
+
+You ran your platform API end to end without a cluster. An `Application` went in, six Kubernetes objects came out, and all of them were checked against the real schemas.
+
+Everything so far lives on your laptop. The next module puts it somewhere your workshop cluster can use.

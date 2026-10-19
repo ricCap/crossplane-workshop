@@ -1,0 +1,235 @@
+---
+sidebar_position: 3
+title: Compose
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Compose ⏱️ 15m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, nothing cluster-specific in this module. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 3.1 Before you start ⏱️ 3m
+
+Your `Application` API exists but produces nothing. A **Composition** is the recipe that says what an `Application` turns into — here, a frontend and a backend, each with a Deployment, a Service and a ConfigMap.
+
+A Composition runs a **pipeline** of functions. You will use `function-patch-and-transform`, which takes a list of resources to create and lets you patch values from the XR into them.
+
+**Prerequisites.** You need the project from [Create your project](./create-your-project), with `apis/applications/definition.yaml` in it.
+
+You're about to generate the Composition, add the function it needs, and fill in the six resources an `Application` becomes.
+
+## 3.2 Write the recipe ⏱️ 12m
+
+### 1. Generate the Composition
+
+```bash
+crossplane composition generate apis/applications/definition.yaml
+```
+
+```
+Ensuring function-auto-ready dependency...
+✓ Ensuring function-auto-ready dependency
+Writing Composition...
+✓ Writing Composition
+```
+
+This writes `apis/applications/composition.yaml`, adds `function-auto-ready` to your project's dependencies, and creates a `schemas/` directory. Leave `schemas/` alone — it is generated, and it is what gives your editor autocomplete in step 3.
+
+### 2. Add the function that builds the resources
+
+```bash
+crossplane dependency add xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform
+```
+
+The generated Composition only has `function-auto-ready`, which reports on resources but creates none. `function-patch-and-transform` is the one that makes them.
+
+### 3. Fill in the recipe
+
+Replace `apis/applications/composition.yaml` with the following. It is long, but it is six variations on one idea: a resource to create, and the patches that pull values out of the `Application`.
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: applications.workshop.example.io
+spec:
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: Application
+  mode: Pipeline
+  pipeline:
+    - step: crossplane-contrib-function-patch-and-transform
+      functionRef:
+        name: crossplane-contrib-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: frontend-configmap
+            base:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: frontend
+                namespace: default
+              data:
+                index.html: |
+                  <!DOCTYPE html>
+                  <html><head><meta charset="utf-8"><title>Tile</title>
+                  <style>
+                    body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+                    #title { font-size: 2rem; font-weight: 700; }
+                  </style>
+                  </head><body>
+                  <div id="title">Loading...</div>
+                  <script>
+                    fetch('./api/message')
+                      .then(r => r.text())
+                      .then(txt => {
+                        try {
+                          const d = JSON.parse(txt);
+                          const el = document.getElementById('title');
+                          el.innerText = d.message || '(no message)';
+                          if (d.color) el.style.color = d.color;
+                        } catch (e) {
+                          document.getElementById('title').innerText = 'Bad response: ' + txt;
+                        }
+                      })
+                      .catch(e => {
+                        document.getElementById('title').innerText = 'Error: ' + e.message;
+                      });
+                  </script>
+                  </body></html>
+            readinessChecks:
+              - type: None
+          - name: frontend-deployment
+            base:
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: frontend
+                namespace: default
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels: { app: frontend }
+                template:
+                  metadata:
+                    labels: { app: frontend }
+                  spec:
+                    containers:
+                      - name: nginx
+                        image: public.ecr.aws/docker/library/nginx:alpine
+                        ports:
+                          - containerPort: 80
+                        volumeMounts:
+                          - name: html
+                            mountPath: /usr/share/nginx/html
+                    volumes:
+                      - name: html
+                        configMap:
+                          name: frontend
+            readinessChecks:
+              - type: MatchCondition
+                matchCondition:
+                  type: Available
+                  status: "True"
+          - name: frontend-service
+            base:
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: frontend
+                namespace: default
+              spec:
+                selector: { app: frontend }
+                ports:
+                  - port: 80
+                    targetPort: 80
+            readinessChecks:
+              - type: None
+          - name: backend-configmap
+            base:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: backend
+                namespace: default
+              data:
+                message: '{"message":"placeholder","color":"#2563eb"}'
+            readinessChecks:
+              - type: None
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.message
+                    - fromFieldPath: spec.color
+                  strategy: string
+                  string:
+                    fmt: '{"message":"%s","color":"%s"}'
+                toFieldPath: data.message
+          - name: backend-deployment
+            base:
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: backend
+                namespace: default
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels: { app: backend }
+                template:
+                  metadata:
+                    labels: { app: backend }
+                  spec:
+                    containers:
+                      - name: nginx
+                        image: public.ecr.aws/docker/library/nginx:alpine
+                        ports:
+                          - containerPort: 80
+                        volumeMounts:
+                          - name: api
+                            mountPath: /usr/share/nginx/html/api
+                    volumes:
+                      - name: api
+                        configMap:
+                          name: backend
+            readinessChecks:
+              - type: MatchCondition
+                matchCondition:
+                  type: Available
+                  status: "True"
+          - name: backend-service
+            base:
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: backend
+                namespace: default
+              spec:
+                selector: { app: backend }
+                ports:
+                  - port: 5678
+                    targetPort: 80
+            readinessChecks:
+              - type: None
+```
+
+Three things worth looking at before moving on:
+
+- **The Services are named `frontend` and `backend`, on ports 80 and 5678.** Your workshop cluster routes `/team/<your pair ID>/` to the first and `/team/<your pair ID>/api/` to the second, by those exact names and ports. Rename them and your tile stops working.
+- **`fromFieldPath: spec.message`** is how a value on the `Application` reaches the HTML the frontend serves. That one line is the whole point of the API: the developer sets `message`, and the platform decides what that means.
+- **`readinessChecks: - type: None`** tells `function-auto-ready` not to wait on resources that have no meaningful ready condition.
+
+## 3.3 What just happened
+
+You wrote the recipe that turns one short `Application` file into six Kubernetes objects, and the API you designed in the last module is now backed by something real.
+
+The recipe is still only a file on your laptop. The next module runs it without a cluster.

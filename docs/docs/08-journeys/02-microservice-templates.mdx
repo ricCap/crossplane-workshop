@@ -25,7 +25,7 @@ An XR — call it `Application` — that takes a handful of inputs (name, team, 
 
 ## Suggested steps
 
-1. Start from the [Define an Application](../crossplane-101/define-application) module — the namespaced XRD + Composition that emits frontend/backend Deployments and a ConfigMap. That is the shape you'll grow into a full platform XR.
+1. Start from the [Compose](../crossplane-101/compose) module — the namespaced XRD + Composition that emits frontend/backend Deployments and a ConfigMap. That is the shape you'll grow into a full platform XR.
 2. Add a managed database. Pick whichever cloud your team already uses: [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), or [provider-azure](../crossplane-3xx/provider-azure). The modules walk you through one MR (a bucket); the same setup unlocks every other resource the provider exposes — including the managed-database CRDs.
 3. Add a GitHub repo per `Application` with [provider-github](../crossplane-3xx/provider-github). Reuse the same `Application` XR — let the Composition emit a `Repository` MR alongside the workloads.
 4. Package the whole platform as an OCI artifact with [Package as a Configuration](../crossplane-3xx/configurations). Pin its provider/function dependencies. Now another cluster can install your IDP with one `kubectl apply`.
@@ -39,7 +39,7 @@ An XR — call it `Application` — that takes a handful of inputs (name, team, 
 
 ## References
 
-- [Define an Application](../crossplane-101/define-application)
+- [Compose](../crossplane-101/compose)
 - [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), [provider-azure](../crossplane-3xx/provider-azure)
 - [provider-github](../crossplane-3xx/provider-github)
 - [Package as a Configuration](../crossplane-3xx/configurations)

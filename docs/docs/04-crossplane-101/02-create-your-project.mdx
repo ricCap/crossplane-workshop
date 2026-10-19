@@ -1,0 +1,94 @@
+---
+sidebar_position: 2
+title: Create your project
+---
+
+import PairId from '@site/src/components/PairId';
+
+# Create your project ⏱️ 10m
+
+<PairId />
+
+:::note Running solo locally?
+Your pair ID is `local`. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 2.1 Before you start ⏱️ 3m
+
+A Crossplane project is a folder holding everything you publish: your API definition, the Composition that implements it, any functions, examples and tests. `crossplane project init` creates it, and `crossplane-project.yaml` records where the finished package gets published.
+
+The one concept to take from this module is the **XRD**, the composite resource definition. It defines the API you offer other teams. You will not write one by hand — you write an example of the object someone would apply, and the CLI derives the API from it.
+
+You're about to create the project, write an example `Application`, and generate its API.
+
+## 2.2 Scaffold the project ⏱️ 7m
+
+### 1. Initialize the project
+
+```bash
+export PAIR=<your pair ID>
+crossplane project init my-platform --registry "$REGISTRY/$PAIR"
+cd my-platform
+ls
+```
+
+```
+apis
+crossplane-project.yaml
+examples
+functions
+operations
+tests
+```
+
+`crossplane-project.yaml` records where your package gets published. The `--registry` value you passed became its `spec.repository`:
+
+```yaml
+spec:
+  repository: <your registry>/<your pair ID>/my-platform
+```
+
+### 2. Write an example of the object other teams will apply
+
+This is your platform's product: one short file that asks for an application, with none of the Deployments, Services or ConfigMaps that make it real.
+
+```bash
+mkdir -p examples/applications
+cat <<'EOF' > examples/applications/hello.yaml
+apiVersion: workshop.example.io/v1alpha1
+kind: Application
+metadata:
+  name: hello
+  namespace: default
+spec:
+  message: "Hello from our platform"
+  color: "#2563eb"
+EOF
+```
+
+### 3. Generate the API from the example
+
+```bash
+crossplane xrd generate examples/applications/hello.yaml --from xr
+```
+
+```
+Created CompositeResourceDefinition (XRD) at applications/definition.yaml
+```
+
+That path is relative to `apis/`, so the file is at `apis/applications/definition.yaml`. Open it and find the two fields the CLI inferred from your example:
+
+```yaml
+message:
+  type: string
+color:
+  type: string
+```
+
+The CLI reads shapes, not intent. It saw two strings and wrote two strings — it has no way to know that `message` should be required or that `color` should carry a default. Those are decisions you add by hand once the shape is right, and `apis/applications/definition.yaml` is now yours to edit.
+
+## 2.3 What just happened
+
+You defined an API by showing one example of it. `Application` is now a kind your cluster could offer, with a schema derived from a file a developer could have written.
+
+Nothing yet says what an `Application` *becomes*. That's the next module.

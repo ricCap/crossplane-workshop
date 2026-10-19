@@ -18,7 +18,7 @@ Un XR `LandingZone` che prende un nome di team e una region. La Composition rico
 2. Scegli un cloud e percorri una MR bucket end to end: [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp) o [provider-azure](../crossplane-3xx/provider-azure). Il bucket è usa-e-getta — le credenziali e il `ClusterProviderConfig` che metti su sono ciò che riuserai.
 3. Su Aruba si applica la stessa forma una volta che `provider-aruba` atterra in 3XX — CRD Aruba VPC / subnet / security-group, cablati attraverso lo stesso flusso di install + `ClusterProviderConfig`.
 4. Sostituisci il bucket con le primitive della landing zone. Sfoglia le CRD del provider sul [Crossplane Marketplace](https://marketplace.upbound.io/providers) — ogni versione pubblicata elenca i kind che spedisce e i campi che accettano. VPC, subnet, security group, route table, IAM role — scegli ciò di cui la tua landing zone ha bisogno.
-5. Avvolgi le primitive in un XRD + Composition. Riusa il pattern da [Definisci un'Application](../crossplane-101/define-application): un input XR (nome del team + region), diverse MR composte sotto.
+5. Avvolgi le primitive in un XRD + Composition. Riusa il pattern da [Compose](../crossplane-101/compose): un input XR (nome del team + region), diverse MR composte sotto.
 6. Pacchettizza la landing zone come [Configuration](../crossplane-3xx/configurations) così altri cluster — staging, prod — installano la stessa forma con un solo comando.
 
 ## Stretch goal
@@ -31,7 +31,7 @@ Un XR `LandingZone` che prende un nome di team e una region. La Composition rico
 
 - [Pattern di setup di un Provider](../crossplane-2xx/provider-setup-pattern)
 - [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), [provider-azure](../crossplane-3xx/provider-azure)
-- [Definisci un'Application](../crossplane-101/define-application)
+- [Compose](../crossplane-101/compose)
 - [Pacchettizza come Configuration](../crossplane-3xx/configurations)
 - [Crossplane Marketplace](https://marketplace.upbound.io/providers)
 - [function-go-templating](https://github.com/crossplane-contrib/function-go-templating)
