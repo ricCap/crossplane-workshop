@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -23,26 +22,26 @@ func newFakeClient(t *testing.T, objs ...runtime.Object) dynamic.Interface {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	gvrToListKind := map[schema.GroupVersionResource]string{
-		{Group: "", Version: "v1", Resource: "namespaces"}:                            "NamespaceList",
-		{Group: "", Version: "v1", Resource: "pods"}:                                  "PodList",
-		{Group: "", Version: "v1", Resource: "secrets"}:                               "SecretList",
-		{Group: "apps", Version: "v1", Resource: "deployments"}:                       "DeploymentList",
-		{Group: "pkg.crossplane.io", Version: "v1", Resource: "providers"}:            "ProviderList",
+		{Group: "", Version: "v1", Resource: "namespaces"}:                              "NamespaceList",
+		{Group: "", Version: "v1", Resource: "pods"}:                                    "PodList",
+		{Group: "", Version: "v1", Resource: "secrets"}:                                 "SecretList",
+		{Group: "apps", Version: "v1", Resource: "deployments"}:                         "DeploymentList",
+		{Group: "pkg.crossplane.io", Version: "v1", Resource: "providers"}:              "ProviderList",
 		{Group: "kubernetes.crossplane.io", Version: "v1alpha2", Resource: "objects"}:   "ObjectList",
 		{Group: "kubernetes.m.crossplane.io", Version: "v1alpha1", Resource: "objects"}: "ObjectList",
-		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "hellos"}:        "HelloList",
-		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "applications"}: "ApplicationList",
+		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "hellos"}:         "HelloList",
+		{Group: "workshop.example.io", Version: "v1alpha1", Resource: "applications"}:   "ApplicationList",
 		// Kyverno + Aruba MR list-kinds for the Track 5 validator
 		// checks added with #44's per-vcluster bundle. Both
 		// cluster-scoped and namespaced (.m.) flavours of every
 		// curated Aruba Kind, since checkArubaMRReady walks both.
-		{Group: "kyverno.io", Version: "v1", Resource: "clusterpolicies"}:                                       "ClusterPolicyList",
-		{Group: "database.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "databases"}:                "DatabaseList",
-		{Group: "database.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "databases"}:              "DatabaseList",
+		{Group: "kyverno.io", Version: "v1", Resource: "clusterpolicies"}:                                             "ClusterPolicyList",
+		{Group: "database.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "databases"}:                      "DatabaseList",
+		{Group: "database.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "databases"}:                    "DatabaseList",
 		{Group: "containerregistry.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"}:   "ContainerRegistryList",
 		{Group: "containerregistry.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "containerregistries"}: "ContainerRegistryList",
-		{Group: "blockstorage.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:        "BlockStorageList",
-		{Group: "blockstorage.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:      "BlockStorageList",
+		{Group: "blockstorage.arubacloud.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:              "BlockStorageList",
+		{Group: "blockstorage.arubacloud.m.crossplane.io", Version: "v1alpha1", Resource: "blockstorages"}:            "BlockStorageList",
 	}
 	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, gvrToListKind, objs...)
 }
@@ -302,44 +301,17 @@ func TestCheckApplicationReady_NotReady(t *testing.T) {
 // a dispatch entry in `checks`. A typo in either slice would otherwise only
 // fail at request time.
 func TestOrderedCheckIDs_AllResolve(t *testing.T) {
-	// Both tracks get the same guarantee: every id in an ordered list
-	// dispatches to a real check and has a dashboard label. A check
-	// missing from the map returns "unknown check" at runtime, and one
-	// missing a label silently falls back to its raw id as a column
-	// heading.
-	lists := map[string][]string{
-		"orderedCheckIDs":    orderedCheckIDs,
-		"ordered90mCheckIDs": ordered90mCheckIDs,
-	}
-
-	for name, ids := range lists {
-		for _, id := range ids {
-			if _, ok := checks[id]; !ok {
-				t.Errorf("%s has %q but it is not registered in checks map", name, id)
-			}
-			if _, ok := checkLabels[id]; !ok {
-				t.Errorf("%s has %q but it has no entry in checkLabels", name, id)
-			}
+	// Every id in the ordered list must dispatch to a real check and
+	// carry a dashboard label. A check missing from the map returns
+	// "unknown check" at runtime, and one missing a label silently falls
+	// back to its raw id as a column heading.
+	for _, id := range orderedCheckIDs {
+		if _, ok := checks[id]; !ok {
+			t.Errorf("orderedCheckIDs has %q but it is not registered in checks map", id)
 		}
-	}
-}
-
-func TestActiveOrderedCheckIDs_SelectsTrack(t *testing.T) {
-	// Unset and unrecognised values must both keep the 3-hour list, so
-	// that an existing validator deployment is unaffected by this change.
-	t.Setenv("WORKSHOP_TRACK", "")
-	if got := activeOrderedCheckIDs(); !reflect.DeepEqual(got, orderedCheckIDs) {
-		t.Errorf("with WORKSHOP_TRACK unset, expected the 3-hour list, got %v", got)
-	}
-
-	t.Setenv("WORKSHOP_TRACK", "180m")
-	if got := activeOrderedCheckIDs(); !reflect.DeepEqual(got, orderedCheckIDs) {
-		t.Errorf("with an unrecognised WORKSHOP_TRACK, expected the 3-hour list, got %v", got)
-	}
-
-	t.Setenv("WORKSHOP_TRACK", "90m")
-	if got := activeOrderedCheckIDs(); !reflect.DeepEqual(got, ordered90mCheckIDs) {
-		t.Errorf("with WORKSHOP_TRACK=90m, expected the 90m list, got %v", got)
+		if _, ok := checkLabels[id]; !ok {
+			t.Errorf("orderedCheckIDs has %q but it has no entry in checkLabels", id)
+		}
 	}
 }
 
@@ -531,4 +503,3 @@ func TestCheckArubaMRReady_NoMRsNoCRDs(t *testing.T) {
 		t.Fatal("expected pass=false when no Aruba MR CRDs are registered")
 	}
 }
-

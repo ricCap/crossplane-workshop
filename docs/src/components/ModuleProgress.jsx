@@ -30,16 +30,23 @@ import React, { useState, useEffect, useCallback } from 'react';
  */
 
 // The 101 path in module order — the only checks the strip counts.
-// `hello-pod` and `hello-xr-ready` are intentionally absent (treated as
-// optional, see comment above): both back short-lived artifacts that
-// the module's own cleanup step deletes, so including them would flip
-// the pill backwards as soon as a participant followed the
-// instructions. Update this list when the 101 modules change shape.
+//
+// 101 is now CLI-first: the participant scaffolds a project, writes a
+// Composition and renders it locally before anything reaches a cluster.
+// Those three modules produce no cluster state, so the validator has
+// nothing to assert about them and they are absent here by necessity,
+// not by choice — the strip tracks the three moments that *are*
+// observable.
+//
+// `crossplane-installed` is deliberately absent too: Crossplane is
+// pre-installed in the pair cluster, so including it would show 1/4
+// before the participant had done anything. `hello-pod` stays out for
+// the original reason — module 02's own cleanup step deletes the pod,
+// which would flip the strip backwards.
 const CORE_CHECK_IDS = [
   'cluster-reachable',
-  'crossplane-installed',
+  'configuration-installed',
   'application-ready',
-  'helm-release-ready',
 ];
 
 const PAIR_ID_CHANGE_EVENT = 'workshop:pair-id-changed';
@@ -149,8 +156,8 @@ export default function ModuleProgress({ pairId: propPairId }) {
   const done = passing >= total;
 
   const title = done
-    ? `Pair ${pairId}: all ${total} 101 checks passing`
-    : `Pair ${pairId}: ${passing}/${total} 101 checks · next ${labelById.get(nextId) || nextId}`;
+    ? `Pair ${pairId}: all ${total} core checks passing`
+    : `Pair ${pairId}: ${passing}/${total} core checks · next ${labelById.get(nextId) || nextId}`;
 
   return (
     <div style={pillStyle} aria-label={title} title={title}>
