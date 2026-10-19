@@ -20,7 +20,7 @@ Same commands, same cluster. See [Solo local setup (k3d)](../solo-local-setup).
 
 Crossplane installs cleanly, but it doesn't *do* anything yet. You haven't told it what kinds of resources to create or how to create them. This module is the smallest possible end-to-end loop: define a tiny API, write a recipe that creates one ConfigMap, apply an instance, watch the ConfigMap appear.
 
-You're using **Crossplane v2**, so the resources Crossplane composes can be plain Kubernetes objects — `ConfigMap`, `Deployment`, `Service`, anything. No provider package required for the basic case. (You'll see why provider packages still matter for some use cases in [module 7](./add-a-provider).)
+You're using **Crossplane v2**, so the resources Crossplane composes can be plain Kubernetes objects — `ConfigMap`, `Deployment`, `Service`, anything. No provider package required for the basic case. (You'll see why provider packages still matter for some use cases in [Add a Provider](../crossplane-2xx/add-a-provider).)
 
 ### What's about to happen, in one picture
 
