@@ -15,7 +15,7 @@
 # these six are retranslated once the content settles after review.
 04-crossplane-101/01-set-up-the-cli.mdx
 04-crossplane-101/02-create-your-project.mdx
-04-crossplane-101/03-compose.mdx
+04-crossplane-101/03-define-application.mdx
 04-crossplane-101/04-iterate-locally.mdx
 04-crossplane-101/05-package-and-ship.mdx
-04-crossplane-101/06-change-and-rebuild.mdx
+04-crossplane-101/06-modify-application.mdx

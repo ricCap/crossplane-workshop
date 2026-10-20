@@ -14,7 +14,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 ## 6.1 Prima di iniziare ⏱️ 5m
 
-In [Compose](../crossplane-101/compose) hai scritto un XRD e una Composition applicando YAML direttamente al tuo cluster del workshop. Funziona su un cluster. Il problema successivo è la distribuzione: come fa un altro team — o il te-stesso-del-futuro su un cluster fresco — a installare la stessa API `Application` in un solo passo?
+In [Define an Application](../crossplane-101/define-application) hai scritto un XRD e una Composition applicando YAML direttamente al tuo cluster del workshop. Funziona su un cluster. Il problema successivo è la distribuzione: come fa un altro team — o il te-stesso-del-futuro su un cluster fresco — a installare la stessa API `Application` in un solo passo?
 
 Un [**package Configuration**](https://docs.crossplane.io/latest/packages/configurations/) è la risposta. È un'immagine OCI che impacchetta i tuoi XRD e Composition insieme ai Provider e alle Function da cui dipendono, e dichiara esplicitamente le versioni delle dipendenze. Il cluster ricevente scarica una sola immagine; Crossplane risolve il resto.
 

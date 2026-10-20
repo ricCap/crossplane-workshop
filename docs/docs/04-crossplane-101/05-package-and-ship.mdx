@@ -1,12 +1,14 @@
 ---
 sidebar_position: 5
-title: Package and ship
+title: Publish your platform
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Package and ship ⏱️ 12m
+# Publish your platform ⏱️ 12m
 
 <PairId />
 
@@ -20,7 +22,16 @@ Everything so far has been files on your laptop. A **package** turns them into o
 
 The package is a Configuration. It carries your XRD, your Composition, and a record of the functions they depend on.
 
-**Prerequisites.** You need the rendering project from [Iterate locally](./iterate-locally), and your registry address and login from [Set up the CLI](./set-up-the-cli).
+<ThemedImage
+  alt="The platform engineer builds XRD and Composition sources into a versioned .xpkg OCI artifact, pushes it to a registry, and the cluster installs it."
+  sources={{
+    light: useBaseUrl('/diagrams/configurations-packaging-light.svg'),
+    dark: useBaseUrl('/diagrams/configurations-packaging-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
+
+**Prerequisites.** You need the rendering project from [Try it before you ship](./iterate-locally), and your registry address and login from [Set up the CLI](./set-up-the-cli).
 
 You're about to build the package, push it, install it, and watch your own API produce a running application.
 

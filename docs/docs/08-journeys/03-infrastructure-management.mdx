@@ -17,7 +17,7 @@ A `LandingZone` XR that takes a team name and a region. The Composition reconcil
 2. Pick a cloud and walk one bucket MR end to end: [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), or [provider-azure](../crossplane-3xx/provider-azure). The bucket is throwaway — the credentials and `ClusterProviderConfig` you set up are what you'll reuse.
 3. On Aruba, the same shape applies once `provider-aruba` lands in 3XX — Aruba VPC / subnet / security-group CRDs, wired through the same install + `ClusterProviderConfig` flow.
 4. Replace the bucket with the landing-zone primitives. Browse the provider's CRDs on the [Crossplane Marketplace](https://marketplace.upbound.io/providers) — every published version lists the kinds it ships and the fields they accept. VPC, subnet, security group, route table, IAM role — pick what your landing zone needs.
-5. Wrap the primitives in an XRD + Composition. Reuse the pattern from [Compose](../crossplane-101/compose): one XR input (team name + region), several composed MRs underneath.
+5. Wrap the primitives in an XRD + Composition. Reuse the pattern from [Define an Application](../crossplane-101/define-application): one XR input (team name + region), several composed MRs underneath.
 6. Package the landing zone as a [Configuration](../crossplane-3xx/configurations) so other clusters — staging, prod — install the same shape with one command.
 
 ## Stretch goals
@@ -30,7 +30,7 @@ A `LandingZone` XR that takes a team name and a region. The Composition reconcil
 
 - [Provider setup pattern](../crossplane-2xx/provider-setup-pattern)
 - [provider-aws](../crossplane-3xx/provider-aws), [provider-gcp](../crossplane-3xx/provider-gcp), [provider-azure](../crossplane-3xx/provider-azure)
-- [Compose](../crossplane-101/compose)
+- [Define an Application](../crossplane-101/define-application)
 - [Package as a Configuration](../crossplane-3xx/configurations)
 - [Crossplane Marketplace](https://marketplace.upbound.io/providers)
 - [function-go-templating](https://github.com/crossplane-contrib/function-go-templating)

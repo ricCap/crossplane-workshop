@@ -13,7 +13,7 @@ An XR — call it `SecurityReview` — that represents one application going thr
 
 ## Suggested steps
 
-1. Define the `SecurityReview` XRD. One spec input (application ID), one status field per check, one overall phase. The pattern from [Compose](../crossplane-101/compose) translates directly — same XRD shape, different composed kinds.
+1. Define the `SecurityReview` XRD. One spec input (application ID), one status field per check, one overall phase. The pattern from [Define an Application](../crossplane-101/define-application) translates directly — same XRD shape, different composed kinds.
 2. Install [provider-http](https://github.com/crossplane-contrib/provider-http). Each department's check becomes a `DisposableRequest` MR: GET the endpoint, parse the response, succeed when the condition matches.
 3. Compose the `DisposableRequest`s behind the `SecurityReview` XR. Each request reads its target URL from the XR's spec; each request's outcome lands on a dedicated status field.
 4. Surface multi-step status with [`function-status-transformer`](https://github.com/crossplane-contrib/function-status-transformer). Map each composed-request condition to a meaningful condition on the XR (`SecurityCheckPassed`, `LegalCheckPassed`, etc.) so `kubectl describe securityreview` reads like a checklist.
@@ -28,7 +28,7 @@ An XR — call it `SecurityReview` — that represents one application going thr
 
 ## References
 
-- [Compose](../crossplane-101/compose)
+- [Define an Application](../crossplane-101/define-application)
 - [Crossplane Operations](../crossplane-2xx/operations)
 - [Crossplane CLI](../crossplane-2xx/crossplane-cli)
 - [provider-github](../crossplane-3xx/provider-github)

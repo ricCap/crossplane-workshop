@@ -1,11 +1,13 @@
 ---
 sidebar_position: 3
-title: Compose
+title: Define an Application
 ---
 
 import PairId from '@site/src/components/PairId';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
-# Compose ⏱️ 15m
+# Define an Application ⏱️ 15m
 
 <PairId />
 
@@ -18,6 +20,15 @@ Same commands, nothing cluster-specific in this module. See [Solo local setup (k
 Your `Application` API exists but produces nothing. A **Composition** is the recipe that says what an `Application` turns into — here, a frontend and a backend, each with a Deployment, a Service and a ConfigMap.
 
 A Composition runs a **pipeline** of functions. You will use `function-patch-and-transform`, which takes a list of resources to create and lets you patch values from the XR into them.
+
+<ThemedImage
+  alt="One Application XR, carrying spec.message and spec.color, fans out into six composed resources: a ConfigMap, Deployment and Service for both frontend and backend."
+  sources={{
+    light: useBaseUrl('/diagrams/define-application-fanout-light.svg'),
+    dark: useBaseUrl('/diagrams/define-application-fanout-dark.svg'),
+  }}
+  style={{ maxWidth: '100%', height: 'auto' }}
+/>
 
 **Prerequisites.** You need the project from [Create your project](./create-your-project), with `apis/applications/definition.yaml` in it.
 

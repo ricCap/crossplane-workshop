@@ -46,11 +46,11 @@ Il `pipeline` di una Composition è una lista di step function. Ogni step riceve
 
 ## 5.3 Suggerimenti
 
-- Scegli **una** delle tue Composition del 101 da portare — l'`Application` del [Compose](../crossplane-101/compose) è la più istruttiva, perché compone più risorse da un singolo XR. Lascia stare l'XRD; cambia solo la Composition.
-- Installa la function come una `Function` `pkg.crossplane.io/v1`, esattamente come hai installato `function-patch-and-transform` nel [Compose](../crossplane-101/compose). Trova le versioni correnti sul [Crossplane Marketplace](https://marketplace.upbound.io/functions) — pinna il tag, non usare mai `:latest`.
+- Scegli **una** delle tue Composition del 101 da portare — l'`Application` del [Define an Application](../crossplane-101/define-application) è la più istruttiva, perché compone più risorse da un singolo XR. Lascia stare l'XRD; cambia solo la Composition.
+- Installa la function come una `Function` `pkg.crossplane.io/v1`, esattamente come hai installato `function-patch-and-transform` nel [Define an Application](../crossplane-101/define-application). Trova le versioni correnti sul [Crossplane Marketplace](https://marketplace.upbound.io/functions) — pinna il tag, non usare mai `:latest`.
 - Il README di ogni function ha un esempio di Composition elaborato. Inizia copia-incollandolo dentro [`crossplane render`](./crossplane-cli) contro il tuo XR — vedrai lo stato desiderato renderizzato senza applicare niente al cluster, che è il loop di feedback più rapido mentre impari la forma dell'input.
 - L'input della function vive sotto il campo `input` dello step di pipeline. Per `function-go-templating` è una stringa `inline.template`; per `function-kcl` è una stringa `source`; per `function-python` è una stringa `script`. Lo schema è nel package Go `input/` di ogni function su GitHub.
-- Marca ogni risorsa composta come Ready nello stesso modo in cui lo fa `function-patch-and-transform` — la maggior parte delle function espone un blocco `readiness` o si appoggia a uno step `function-auto-ready` a valle. Dimenticarlo e il tuo XR resta `Ready=False` anche quando le risorse sottostanti sono sane. La discussione sui `readinessChecks` di patch-and-transform nel [Compose](../crossplane-101/compose) spiega la modalità di failure.
+- Marca ogni risorsa composta come Ready nello stesso modo in cui lo fa `function-patch-and-transform` — la maggior parte delle function espone un blocco `readiness` o si appoggia a uno step `function-auto-ready` a valle. Dimenticarlo e il tuo XR resta `Ready=False` anche quando le risorse sottostanti sono sane. La discussione sui `readinessChecks` di patch-and-transform nel [Define an Application](../crossplane-101/define-application) spiega la modalità di failure.
 - Itera contro `crossplane render`, non contro il cluster live. Applica solo quando l'output renderizzato corrisponde a quello che avresti prodotto con `function-patch-and-transform`.
 
 ## 5.4 Dopo
