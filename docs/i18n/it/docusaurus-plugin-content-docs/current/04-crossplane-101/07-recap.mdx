@@ -10,19 +10,30 @@ Ottimo lavoro. Hai finito il percorso guidato centrale del workshop. Fai un resp
 
 ## Cosa hai costruito
 
-| Modulo | Cosa sta girando ora |
+| Modulo | Cosa hai adesso |
 |---|---|
-| Installa Crossplane | UXP v2 in `crossplane-system`, più la Web UI in sola lettura |
-| La tua prima Composition | `function-patch-and-transform` installata, un XRD `Hello` + Composition, un XR che ha composto una `ConfigMap` — senza alcun Provider |
-| Definisci un'Application | Un XRD `Application` + Composition che si dispiega in un Deployment frontend, un Deployment backend, due Service e una ConfigMap — il tutto da un solo XR |
-| Modifica la tua Application | Una modifica della Composition che ha rimodellato il frontend in esecuzione senza che nessuno toccasse l'XR |
-| Aggiungi un Provider | `provider-helm` installato, un `ClusterProviderConfig` e un `ProviderConfig` namespaced, e una MR `Release` che installa la chart `podinfo` |
+| Configura la CLI | La CLI di Crossplane fissata a una versione nota, Docker pronto a eseguire le function e `kubectl` puntato al cluster del workshop |
+| Crea il tuo progetto | Una cartella di progetto, un `Application` di esempio e un XRD che la CLI ha derivato da esso — la tua API, definita mostrandone un esempio |
+| Definisci un'Application | Una Composition che trasforma un solo `Application` in sei oggetti: un frontend e un backend, ciascuno con Deployment, Service e ConfigMap |
+| Provala prima di pubblicare | Il ciclo render-e-valida — tutta la tua piattaforma esercitata sul laptop, senza coinvolgere un cluster |
+| Pubblica la tua piattaforma | Un package Configuration in una registry, installato nel cluster per nome, e il tuo tile vivo sul wall |
+| Modifica la tua Application | Una nuova versione del package che ha rimodellato un'applicazione in esecuzione che nessuno ha ri-applicato |
 
 ## Cosa sai adesso
 
-Hai visto entrambe le metà di Crossplane. La **metà composition** — XRD più Composition più una function — ti permette di pubblicare la tua API Kubernetes a partire da una pipeline di manifesti, senza alcun Provider. La **metà provider** — Provider più ProviderConfig più Managed Resource — estende Crossplane per parlare con qualsiasi cosa fuori dal cluster (oggi una registry Helm; domani API cloud e altri cluster). Le piattaforme reali mescolano entrambe.
+Hai pubblicato un'API Kubernetes. `Application` è un kind che il tuo cluster comprende, con uno schema che hai progettato, sostenuto da una ricetta che hai scritto — e uno sviluppatore che la consuma scrive sei righe di YAML e non vede mai un Deployment.
 
-Il singolo punto da portarsi a casa: **una modifica della Composition ha rimodellato workload reali senza che il consumatore facesse nulla.** Quella proprietà — cambia la ricetta, ogni istanza esistente riconcilia — è il primitivo su cui è costruita ogni piattaforma Crossplane.
+Tre cose valgono la pena di essere portate fuori dalla stanza:
+
+- **La CLI scrive il boilerplate.** Non hai scritto a mano un XRD né cablato una pipeline di function da zero. Hai mostrato un esempio alla CLI e lei ha derivato l'API; hai aggiunto una function come dipendenza e riempito le risorse.
+- **Il ciclo è locale.** `composition render` e `resource validate` eseguono la pipeline reale contro gli schemi reali sul tuo laptop. Gran parte della vita di una Composition si svolge in quel ciclo, non in un cluster.
+- **La versione è l'unità di cambiamento.** Hai modificato una ricetta, pubblicato `v0.2.0`, e un `Application` che qualcuno aveva già creato l'ha seguita. Nessuno ha modificato un oggetto vivo, e nulla è andato alla deriva tra ciò che il cluster esegue e ciò che la ricetta dice.
+
+Quest'ultima proprietà — cambia la ricetta, ogni istanza esistente riconcilia — è il primitivo su cui è costruita ogni piattaforma Crossplane.
+
+## Cosa non hai ancora visto
+
+Tutto ciò che hai composto era un oggetto Kubernetes nativo. L'altra metà di Crossplane è il **Provider**: un package che gli insegna a gestire cose fuori dal cluster — release Helm, database cloud, repository, altri cluster. È la prima tappa del 2XX.
 
 ## Dove andare adesso
 
