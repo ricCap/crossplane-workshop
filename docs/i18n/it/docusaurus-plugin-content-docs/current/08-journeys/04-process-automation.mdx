@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Automazione di processo
-translation_source_commit: 03cb09ed6bd595e0c9998d09d89c5079f65304ff
+translation_source_commit: b3e09cd819be48c1c1e2884e690dbf2c46c653f8
 ---
 
 # Automazione di processo
@@ -14,7 +14,7 @@ Un XR — chiamiamolo `SecurityReview` — che rappresenta un'applicazione che a
 
 ## Passi suggeriti
 
-1. Definisci l'XRD `SecurityReview`. Un input nello spec (application ID), un campo di status per check, una phase complessiva. Il pattern da [Define an Application](../crossplane-101/define-application) si traduce direttamente — stessa forma di XRD, kind composti diversi.
+1. Definisci l'XRD `SecurityReview`. Un input nello spec (application ID), un campo di status per check, una phase complessiva. Il pattern da [Definisci un'Application](../crossplane-101/define-application) si traduce direttamente — stessa forma di XRD, kind composti diversi.
 2. Installa [provider-http](https://github.com/crossplane-contrib/provider-http). Il check di ogni dipartimento diventa una MR `DisposableRequest`: GET sull'endpoint, parsa la risposta, riesce quando la condizione corrisponde.
 3. Componi le `DisposableRequest` dietro l'XR `SecurityReview`. Ogni request legge la sua URL target dallo spec dell'XR; l'esito di ogni request atterra su un campo di status dedicato.
 4. Esponi lo status multi-step con [`function-status-transformer`](https://github.com/crossplane-contrib/function-status-transformer). Mappa la condition di ogni request composta su una condition significativa sull'XR (`SecurityCheckPassed`, `LegalCheckPassed`, ecc.) così `kubectl describe securityreview` si legge come una checklist.
@@ -29,7 +29,7 @@ Un XR — chiamiamolo `SecurityReview` — che rappresenta un'applicazione che a
 
 ## Riferimenti
 
-- [Define an Application](../crossplane-101/define-application)
+- [Definisci un'Application](../crossplane-101/define-application)
 - [Crossplane Operations](../crossplane-2xx/operations)
 - [CLI Crossplane](../crossplane-2xx/crossplane-cli)
 - [provider-github](../crossplane-3xx/provider-github)
