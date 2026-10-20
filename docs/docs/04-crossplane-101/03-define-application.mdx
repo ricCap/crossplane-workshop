@@ -7,12 +7,12 @@ import PairId from '@site/src/components/PairId';
 import ThemedImage from '@theme/ThemedImage';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-# Define an Application ⏱️ 15m
+# Define an Application ⏱️ 17m
 
 <PairId />
 
 :::note Running solo locally?
-Same commands, nothing cluster-specific in this module. See [Solo local setup (k3d)](../solo-local-setup).
+Same commands. The only cluster-specific step is the optional RBAC check in §3.2, which is read-only. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
 ## 3.1 Before you start ⏱️ 3m
@@ -34,7 +34,7 @@ A Composition runs a **pipeline** of functions. You will use `function-patch-and
 
 You're about to generate the Composition, add the function it needs, and fill in the six resources an `Application` becomes.
 
-## 3.2 Write the recipe ⏱️ 12m
+## 3.2 Write the recipe ⏱️ 14m
 
 ### 1. Generate the Composition
 
@@ -466,6 +466,29 @@ Three things worth looking at before moving on:
 - **The Services are named `frontend` and `backend`, on ports 80 and 5678.** Your workshop cluster routes `/team/<your pair ID>/` to the first and `/team/<your pair ID>/api/` to the second, by those exact names and ports. Rename them and your tile stops working.
 - **`fromFieldPath: spec.message`** is how a value on the `Application` reaches the HTML the frontend serves. That one line is the whole point of the API: the developer sets `message`, and the platform decides what that means.
 - **`readinessChecks: - type: None`** tells `function-auto-ready` not to wait on resources that have no meaningful ready condition.
+
+### A note on RBAC ⏱️ 2m
+
+One Kubernetes truth worth surfacing before you move on, because it decides what you're allowed to compose.
+
+Crossplane core is what applies the resources your Composition emits. Like every controller, it can only create kinds it holds RBAC for. UXP's bundled `crossplane` ClusterRole already grants the verbs you need on the three kinds in this recipe, so the flow works without you touching RBAC at all. If your cluster is reachable, confirm it:
+
+```bash
+kubectl auth can-i create configmaps \
+  --as=system:serviceaccount:crossplane-system:crossplane \
+  -n default
+```
+
+```
+yes
+```
+
+Two reasons it matters anyway:
+
+- **Compose a different kind and you have to extend the grant.** The pattern is an *aggregated* `ClusterRole` carrying the label `rbac.crossplane.io/aggregate-to-crossplane: "true"` — Kubernetes' RBAC aggregator merges its rules into the existing `crossplane` ClusterRole at runtime, so you never edit the chart's role. This recipe stays inside ConfigMap, Service and Deployment, so you don't need one. A Composition that produced a `Job` would.
+- **Production RBAC is narrower than this.** A broad wildcard grant is fine on a workshop cluster. In production you'd scope it down to explicit verbs on the kinds your platform actually composes, and review it the way you'd review any other privileged ServiceAccount.
+
+This is a trade-off Crossplane v2 makes visible. The resources here are applied by Crossplane core itself, so the grant is Crossplane's. Compose through a provider instead — `provider-kubernetes`, say — and the equivalent grant moves to *that provider's* ServiceAccount via its `ProviderConfig`: the same question, one layer further away.
 
 ## 3.3 What just happened
 

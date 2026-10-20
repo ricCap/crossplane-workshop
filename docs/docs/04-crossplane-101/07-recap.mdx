@@ -11,12 +11,12 @@ Nicely done. In about an hour you went from an empty folder to a platform API th
 
 | Module | What you have now |
 |---|---|
-| Set up the CLI | The Crossplane CLI pinned to a known version, Docker ready to run functions, and `kubectl` pointed at your workshop cluster |
+| Set up the CLI | The Crossplane CLI pinned to a known version, Docker ready to run functions, `kubectl` pointed at your workshop cluster, and Crossplane confirmed running in it |
 | Create your project | A project folder, an example `Application`, and an XRD the CLI derived from it — your API, defined by showing one example of it |
-| Compose | A Composition that turns one `Application` into six objects: a frontend and a backend, each with a Deployment, a Service and a ConfigMap |
-| Iterate locally | The render-and-validate loop — your whole platform exercised on your laptop, with no cluster involved |
-| Package and ship | A Configuration package in a registry, installed into your cluster by name, and your tile live on the wall |
-| Change and rebuild | A new version of the package that reshaped a running application nobody re-applied |
+| Define an Application | A Composition that turns one `Application` into six objects: a frontend and a backend, each with a Deployment, a Service and a ConfigMap |
+| Try it before you ship | The render-and-validate loop — your whole platform exercised on your laptop, with no cluster involved |
+| Publish your platform | A Configuration package in a registry, installed into your cluster by name, and your tile live on the wall |
+| Modify your Application | A new version of the package that reshaped a running application nobody re-applied |
 
 ## What you now know
 
@@ -29,6 +29,8 @@ Three things are worth carrying out of the room:
 - **A version is the unit of change.** You edited one recipe, pushed `v0.2.0`, and an `Application` somebody had already created followed it. Nobody edited a live object, and nothing drifted between what the cluster ran and what the recipe said.
 
 That last property — change the recipe, every existing instance reconciles — is the primitive every Crossplane platform is built on.
+
+One thing you met in passing is worth keeping: **what you can compose is bounded by RBAC.** Crossplane core applies the resources your recipe emits, so it needs permission on every kind you reach for. The three kinds here were already covered; the day you compose a fourth, the answer is an aggregated `ClusterRole`, not an edit to the chart.
 
 ## What you have not seen yet
 
