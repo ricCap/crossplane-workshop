@@ -6,7 +6,7 @@ title: Modify your Application
 import PairId from '@site/src/components/PairId';
 import ValidateCheck from '@site/src/components/ValidateCheck';
 
-# Modify your Application ⏱️ 7m
+# Modify your Application ⏱️ 9m
 
 <PairId />
 
@@ -24,17 +24,17 @@ Nobody re-applies anything. The consumers' files do not change at all.
 
 You're about to change the recipe, publish a new version, and watch a resource you already created follow it.
 
-## 6.2 Ship a change ⏱️ 5m
+## 6.2 Ship a change ⏱️ 7m
 
 ### 1. Change the recipe
 
-In `apis/applications/composition.yaml`, find the frontend ConfigMap's `index.html` and add a line under the title:
+In `apis/applications/composition.yaml`, find the backend ConfigMap's `CombineFromComposite` patch and add a marker to the message template:
 
 ```yaml
-                  <div id="title">Loading...</div><p>rebuilt in module 6</p>
+                    fmt: '{"message":"%v ✨","theme":"%v","replicas":%v}'
 ```
 
-This is a platform-side change. No `Application` anywhere knows about it.
+This is a platform-side change. No `Application` anywhere knows about it — you edited the recipe, not anybody's resource.
 
 ### 2. Build and push a new version
 
@@ -66,24 +66,36 @@ local-my-platform   True        True      .../my-platform:v0.2.0
 You have not touched the `Application`. Crossplane reconciles it against the new recipe on its own:
 
 ```bash
-kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | grep rebuilt
+kubectl get configmap backend -n default -o jsonpath='{.data.message}'
 ```
 
 ```
-<div id="title">Loading...</div><p>rebuilt in module 6</p>
+{"message":"Hello from our platform ✨","theme":"ocean","replicas":1}
 ```
 
-Reload `/team/<your pair ID>/` and your tile shows the new line.
+Your tile on the workshop wall picks the change up on its own within a few seconds, and pulses to say so. Nobody reloaded anything.
 
 Give it a few seconds. The ConfigMap updates almost immediately, but the copy projected
 into the running Pod only refreshes on the kubelet's sync — usually seconds, occasionally
 up to a minute. If you would rather not wait:
 
 ```bash
-kubectl rollout restart deployment frontend
+kubectl rollout restart deployment backend
 ```
 
 The ConfigMap was updated in place, not replaced — which is what the resource names in your recipe buy you. Crossplane matched each composed resource to the one already there and patched the difference.
+
+### 5. The other kind of change
+
+Everything above was your change, as the platform team. This one belongs to the consumer:
+
+```bash
+kubectl patch application hello -n default --type=merge -p '{"spec":{"replicas":3}}'
+```
+
+Watch the replica dots on your tile fill in as the pods come up. The recipe did not change at all this time — the same Composition produced a different result, because the `Application` asked for something different.
+
+Two changes, two owners, one API. That is the split from [Create your project](./create-your-project) made concrete: the XRD and the Composition are the platform's, the XR is the user's, and neither side has to coordinate with the other to move.
 
 <ValidateCheck check="application-ready" />
 
@@ -92,6 +104,8 @@ The ConfigMap was updated in place, not replaced — which is what the resource 
 You changed one file, published it as a version, and an application somebody had already created moved to the new shape without being touched. That is the difference between a platform API and a pile of YAML: the recipe is versioned, and every consumer follows it.
 
 Notice what you did *not* have to do. No editing live objects, no telling anyone to re-apply, no drift between what the cluster runs and what the recipe says.
+
+Then you changed the same application from the other side, as its owner, and got a different result out of the same recipe. Both changes reconciled the same way, which is the point: Crossplane does not care whether the new desired state came from the platform or from the user.
 
 ### Go deeper
 

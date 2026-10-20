@@ -7,7 +7,7 @@ import PairId from '@site/src/components/PairId';
 import ThemedImage from '@theme/ThemedImage';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-# Define an Application ⏱️ 17m
+# Define an Application ⏱️ 18m
 
 <PairId />
 
@@ -22,7 +22,7 @@ Your `Application` API exists but produces nothing. A **Composition** is the rec
 A Composition runs a **pipeline** of functions. You will use `function-patch-and-transform`, which takes a list of resources to create and lets you patch values from the XR into them.
 
 <ThemedImage
-  alt="One Application XR, carrying spec.message and spec.color, fans out into six composed resources: a ConfigMap, Deployment and Service for both frontend and backend."
+  alt="One Application XR, carrying spec.message, spec.theme and spec.replicas, fans out into six composed resources: a ConfigMap, Deployment and Service for both frontend and backend."
   sources={{
     light: useBaseUrl('/diagrams/define-application-fanout-light.svg'),
     dark: useBaseUrl('/diagrams/define-application-fanout-dark.svg'),
@@ -34,7 +34,7 @@ A Composition runs a **pipeline** of functions. You will use `function-patch-and
 
 You're about to generate the Composition, add the function it needs, and fill in the six resources an `Application` becomes.
 
-## 3.2 Write the recipe ⏱️ 14m
+## 3.2 Write the recipe ⏱️ 15m
 
 ### 1. Generate the Composition
 
@@ -95,18 +95,26 @@ spec:
                   <style>
                     body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
                     #title { font-size: 2rem; font-weight: 700; }
+                    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 3px; }
                   </style>
                   </head><body>
                   <div id="title">Loading...</div>
+                  <div id="dots"></div>
                   <script>
+                    const THEMES = { ocean: '#0ea5e9', sunset: '#f97316', forest: '#16a34a', ember: '#dc2626', violet: '#7c3aed' };
                     fetch('./api/message')
                       .then(r => r.text())
                       .then(txt => {
                         try {
                           const d = JSON.parse(txt);
+                          const accent = THEMES[d.theme] || '#64748b';
                           const el = document.getElementById('title');
                           el.innerText = d.message || '(no message)';
-                          if (d.color) el.style.color = d.color;
+                          el.style.color = accent;
+                          document.getElementById('dots').innerHTML = Array.from(
+                            { length: Number(d.replicas) || 1 },
+                            () => '<span class="dot" style="background:' + accent + '"></span>'
+                          ).join('');
                         } catch (e) {
                           document.getElementById('title').innerText = 'Bad response: ' + txt;
                         }
@@ -150,6 +158,10 @@ spec:
                 matchCondition:
                   type: Available
                   status: "True"
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.replicas
+                toFieldPath: spec.replicas
           - name: frontend-service
             base:
               apiVersion: v1
@@ -172,7 +184,7 @@ spec:
                 name: backend
                 namespace: default
               data:
-                message: '{"message":"placeholder","color":"#2563eb"}'
+                message: '{"message":"placeholder","theme":"ocean","replicas":1}'
             readinessChecks:
               - type: None
             patches:
@@ -180,10 +192,11 @@ spec:
                 combine:
                   variables:
                     - fromFieldPath: spec.message
-                    - fromFieldPath: spec.color
+                    - fromFieldPath: spec.theme
+                    - fromFieldPath: spec.replicas
                   strategy: string
                   string:
-                    fmt: '{"message":"%s","color":"%s"}'
+                    fmt: '{"message":"%v","theme":"%v","replicas":%v}'
                 toFieldPath: data.message
           - name: backend-deployment
             base:
@@ -280,18 +293,26 @@ spec:
         <style>
           body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
           #title { font-size: 2rem; font-weight: 700; }
+          .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 3px; }
         </style>
         </head><body>
         <div id="title">Loading...</div>
+        <div id="dots"></div>
         <script>
+          const THEMES = { ocean: '#0ea5e9', sunset: '#f97316', forest: '#16a34a', ember: '#dc2626', violet: '#7c3aed' };
           fetch('./api/message')
             .then(r => r.text())
             .then(txt => {
               try {
                 const d = JSON.parse(txt);
+                const accent = THEMES[d.theme] || '#64748b';
                 const el = document.getElementById('title');
                 el.innerText = d.message || '(no message)';
-                if (d.color) el.style.color = d.color;
+                el.style.color = accent;
+                document.getElementById('dots').innerHTML = Array.from(
+                  { length: Number(d.replicas) || 1 },
+                  () => '<span class="dot" style="background:' + accent + '"></span>'
+                ).join('');
               } catch (e) {
                 document.getElementById('title').innerText = 'Bad response: ' + txt;
               }
@@ -305,7 +326,9 @@ spec:
     - type: None
 ```
 
-The page's `<script>` fetches `./api/message`, parses the JSON, and writes the `message` into the tile in the requested `color`. Every `Application` ships the same HTML — no patch needed.
+The page's `<script>` fetches `./api/message`, parses the JSON, writes the `message` into the tile, colours it from the `theme` name, and draws one dot per replica. Every `Application` ships the same HTML — no patch needed, because the values it renders arrive over HTTP from the backend rather than being baked in here.
+
+Note that the palette lives in this page, not in the API. `theme` carries a *name*; what `ocean` looks like is a rendering decision. That is why the XRD could close the set with an `enum` without ever committing your API to a hex code.
 
 `readinessChecks: type: None` is the right choice for ConfigMaps because they expose no Ready condition. Crossplane treats them as Ready as soon as it observes them.
 
@@ -344,9 +367,15 @@ The page's `<script>` fetches `./api/message`, parses the JSON, and writes the `
       matchCondition:
         type: Available
         status: "True"
+  patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.replicas
+      toFieldPath: spec.replicas
 ```
 
-One pod running `nginx:alpine` with the ConfigMap above mounted at `/usr/share/nginx/html`. `type: MatchCondition` waits for `Available=True` on the Deployment — Crossplane only marks the XR Ready once both Deployments report this.
+One pod running `nginx:alpine` with the ConfigMap above mounted at `/usr/share/nginx/html` — or more than one, because `spec.replicas` from the XR is patched straight onto the Deployment's own `spec.replicas`. Both fields have the same name and the same meaning, so this is the simplest patch in the file: `FromCompositeFieldPath` copies one value to one path, no formatting involved.
+
+`type: MatchCondition` waits for `Available=True` on the Deployment — Crossplane only marks the XR Ready once both Deployments report this.
 
 #### `frontend-service` — the in-cluster endpoint
 
@@ -380,7 +409,7 @@ Cluster-internal Service on port 80, selected by `app: frontend`. The workshop's
       name: backend
       namespace: default
     data:
-      message: '{"message":"placeholder","color":"#2563eb"}'
+      message: '{"message":"placeholder","theme":"ocean","replicas":1}'
   readinessChecks:
     - type: None
   patches:
@@ -388,14 +417,17 @@ Cluster-internal Service on port 80, selected by `app: frontend`. The workshop's
       combine:
         variables:
           - fromFieldPath: spec.message
-          - fromFieldPath: spec.color
+          - fromFieldPath: spec.theme
+          - fromFieldPath: spec.replicas
         strategy: string
         string:
-          fmt: '{"message":"%s","color":"%s"}'
+          fmt: '{"message":"%v","theme":"%v","replicas":%v}'
       toFieldPath: data.message
 ```
 
-This is the interesting one. The patch's `CombineFromComposite` reads `spec.message` and `spec.color` from the XR, fills them into the `printf`-style template, and writes the result into `data.message` — so the ConfigMap that started as a hard-coded `"placeholder"` ends up holding the JSON the XR asked for.
+This is the interesting one. The patch's `CombineFromComposite` reads `spec.message`, `spec.theme` and `spec.replicas` from the XR, fills them into the `printf`-style template, and writes the result into `data.message` — so the ConfigMap that started as a hard-coded `"placeholder"` ends up holding the JSON the XR asked for.
+
+**The verb is `%v`, not `%s`.** `replicas` is a number, and `%s` on a number does not fail — it quietly produces the literal text `%!s(float64=3)`, which makes the whole file invalid JSON and leaves your tile showing `Bad response:`. `%v` formats whatever it is given, so one verb covers both the strings and the number. Note too that `replicas` is the one value *not* wrapped in quotes in the template, because it should land in the JSON as a number.
 
 `toFieldPath` is a path inside the naked `ConfigMap` body. Compare to module 4's `Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.data.message`; here the composed resource *is* the ConfigMap, so there is no MR envelope to step through.
 
@@ -465,6 +497,7 @@ Three things worth looking at before moving on:
 
 - **The Services are named `frontend` and `backend`, on ports 80 and 5678.** Your workshop cluster routes `/team/<your pair ID>/` to the first and `/team/<your pair ID>/api/` to the second, by those exact names and ports. Rename them and your tile stops working.
 - **`fromFieldPath: spec.message`** is how a value on the `Application` reaches the HTML the frontend serves. That one line is the whole point of the API: the developer sets `message`, and the platform decides what that means.
+- **The three XR fields take two different routes.** `message` and `theme` are combined into the backend's JSON, which the page fetches at runtime. `replicas` goes somewhere else entirely — onto the frontend Deployment — because it is not something to display, it is something to *run*. One API, two kinds of consequence.
 - **`readinessChecks: - type: None`** tells `function-auto-ready` not to wait on resources that have no meaningful ready condition.
 
 ### A note on RBAC ⏱️ 2m

@@ -12,11 +12,11 @@ Nicely done. In about an hour you went from an empty folder to a platform API th
 | Module | What you have now |
 |---|---|
 | Set up the CLI | The Crossplane CLI pinned to a known version, Docker ready to run functions, `kubectl` pointed at your workshop cluster, and Crossplane confirmed running in it |
-| Create your project | A project folder, an example `Application`, and an XRD the CLI derived from it — your API, defined by showing one example of it |
+| Create your project | A project folder, an example `Application`, and an XRD the CLI derived from it and you then constrained — your API, defined by showing one example and tightened by hand |
 | Define an Application | A Composition that turns one `Application` into six objects: a frontend and a backend, each with a Deployment, a Service and a ConfigMap |
 | Try it before you ship | The render-and-validate loop — your whole platform exercised on your laptop, with no cluster involved |
 | Publish your platform | A Configuration package in a registry, installed into your cluster by name, and your tile live on the wall |
-| Modify your Application | A new version of the package that reshaped a running application nobody re-applied |
+| Modify your Application | A new version of the package that reshaped a running application nobody re-applied, and then the same application rescaled by its own owner |
 
 ## What you now know
 
@@ -24,7 +24,7 @@ You published a Kubernetes API. `Application` is a kind your cluster understands
 
 Three things are worth carrying out of the room:
 
-- **The CLI writes the boilerplate.** You did not hand-author an XRD or wire a function pipeline from scratch. You showed the CLI an example and it derived the API; you added a function as a dependency and filled in the resources.
+- **The CLI writes the boilerplate, you write the intent.** You did not hand-author an XRD or wire a function pipeline from scratch — you showed the CLI an example and it derived the API. What it could not derive was judgement: the required field, the closed `enum`, the bounded `replicas`. That part is the design work, and it is the part that decides what another team can do to your cluster.
 - **The loop is local.** `composition render` and `resource validate` run the real pipeline against the real schemas on your laptop. Most of a Composition's life is spent in that loop, not in a cluster.
 - **A version is the unit of change.** You edited one recipe, pushed `v0.2.0`, and an `Application` somebody had already created followed it. Nobody edited a live object, and nothing drifted between what the cluster ran and what the recipe said.
 
