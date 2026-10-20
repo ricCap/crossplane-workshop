@@ -20,7 +20,33 @@ four):
 - xpkg.crossplane.io/crossplane-contrib/  (function-patch-and-transform, provider-upjet-github)
 - xpkg.upbound.io/upbound/  (provider-aws-*, provider-gcp-*, provider-azure-* — module 06)
 - ghcr.io/riccap/  (provider-arubacloud)
+
+Plus, when `.Values.registry.host` is set, the pair's own prefix
+`<host>/<pairId>/`. Crossplane 101 has each pair `crossplane project
+push` a Configuration and install it; without this the install is
+denied at admission and the module cannot complete.
+
+Deliberately scoped to the pair's own path rather than the registry
+as a whole: reads are anonymous, but a pair installing another
+pair's package would still be running someone else's code with
+provider-class RBAC, which is the thing this policy exists to stop.
+With `registry.host` empty the alternation is unchanged, so this is
+a no-op until the registry is built.
 */}}
+{{/* Four backslashes, not two: Go's string literal collapses them to
+     two, and the double-quoted YAML scalar below collapses those to
+     the single backslash the regex needs. */}}
+{{- $prefixes := list
+      "xpkg\\\\.upbound\\\\.io/crossplane-contrib/"
+      "xpkg\\\\.crossplane\\\\.io/crossplane-contrib/"
+      "xpkg\\\\.upbound\\\\.io/upbound/"
+      "ghcr\\\\.io/riccap/" -}}
+{{- $allowedList := "xpkg.upbound.io/crossplane-contrib/, xpkg.crossplane.io/crossplane-contrib/, xpkg.upbound.io/upbound/, ghcr.io/riccap/" -}}
+{{- if and .Values.registry.host .Values.pairId -}}
+{{- $ownPrefix := printf "%s/%s/" .Values.registry.host .Values.pairId -}}
+{{- $prefixes = append $prefixes (printf "%s/%s/" (.Values.registry.host | replace "." "\\\\.") .Values.pairId) -}}
+{{- $allowedList = printf "%s, %s (your own packages)" $allowedList $ownPrefix -}}
+{{- end -}}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -51,12 +77,10 @@ spec:
       validate:
         message: >-
           Crossplane package source not in the workshop allowlist.
-          Allowed prefixes: xpkg.upbound.io/crossplane-contrib/,
-          xpkg.crossplane.io/crossplane-contrib/,
-          xpkg.upbound.io/upbound/, ghcr.io/riccap/.
+          Allowed prefixes: {{ $allowedList }}.
         deny:
           conditions:
             all:
-              - key: "{{`{{ regex_match('^(xpkg\\.upbound\\.io/crossplane-contrib/|xpkg\\.crossplane\\.io/crossplane-contrib/|xpkg\\.upbound\\.io/upbound/|ghcr\\.io/riccap/).+', request.object.spec.package) }}`}}"
+              - key: "{{`{{ regex_match('^(`}}{{ join "|" $prefixes }}{{`).+', request.object.spec.package) }}`}}"
                 operator: Equals
                 value: false

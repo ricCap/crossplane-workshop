@@ -1,0 +1,102 @@
+---
+sidebar_position: 6
+title: Modify your Application
+---
+
+import PairId from '@site/src/components/PairId';
+import ValidateCheck from '@site/src/components/ValidateCheck';
+
+# Modify your Application ⏱️ 7m
+
+<PairId />
+
+:::note Running solo locally?
+Same commands, same cluster. Your tile is at `/team/local/`. See [Solo local setup (k3d)](../solo-local-setup).
+:::
+
+## 6.1 Before you start ⏱️ 2m
+
+A platform API is only useful if you can change it after people depend on it. You publish a new version of the package, and every `Application` already running picks the change up.
+
+Nobody re-applies anything. The consumers' files do not change at all.
+
+**Prerequisites.** You need the installed package from [Publish your platform](./package-and-ship), with your tile live.
+
+You're about to change the recipe, publish a new version, and watch a resource you already created follow it.
+
+## 6.2 Ship a change ⏱️ 5m
+
+### 1. Change the recipe
+
+In `apis/applications/composition.yaml`, find the frontend ConfigMap's `index.html` and add a line under the title:
+
+```yaml
+                  <div id="title">Loading...</div><p>rebuilt in module 6</p>
+```
+
+This is a platform-side change. No `Application` anywhere knows about it.
+
+### 2. Build and push a new version
+
+```bash
+crossplane project build
+crossplane project push -t v0.2.0
+```
+
+Use a new tag. Pushing changed content over an existing tag leaves the cluster with no reason to pull it again.
+
+### 3. Point the cluster at the new version
+
+```bash
+kubectl patch configuration.pkg local-my-platform --type=merge \
+  -p '{"spec":{"package":"<your registry>/<your pair ID>/my-platform:v0.2.0"}}'
+```
+
+```bash
+kubectl get configuration.pkg
+```
+
+```
+NAME                INSTALLED   HEALTHY   PACKAGE
+local-my-platform   True        True      .../my-platform:v0.2.0
+```
+
+### 4. Watch the change land
+
+You have not touched the `Application`. Crossplane reconciles it against the new recipe on its own:
+
+```bash
+kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | grep rebuilt
+```
+
+```
+<div id="title">Loading...</div><p>rebuilt in module 6</p>
+```
+
+Reload `/team/<your pair ID>/` and your tile shows the new line.
+
+Give it a few seconds. The ConfigMap updates almost immediately, but the copy projected
+into the running Pod only refreshes on the kubelet's sync — usually seconds, occasionally
+up to a minute. If you would rather not wait:
+
+```bash
+kubectl rollout restart deployment frontend
+```
+
+The ConfigMap was updated in place, not replaced — which is what the resource names in your recipe buy you. Crossplane matched each composed resource to the one already there and patched the difference.
+
+<ValidateCheck check="application-ready" />
+
+## 6.3 What just happened
+
+You changed one file, published it as a version, and an application somebody had already created moved to the new shape without being touched. That is the difference between a platform API and a pile of YAML: the recipe is versioned, and every consumer follows it.
+
+Notice what you did *not* have to do. No editing live objects, no telling anyone to re-apply, no drift between what the cluster runs and what the recipe says.
+
+### Go deeper
+
+- **Stretch: add a field.** Add `subtitle` to the XRD (with a default), patch it through the
+  Composition into a new ConfigMap key, and apply a fresh `Application` that sets it. Good
+  sandbox if your pair finishes early.
+- [Composition revisions](https://docs.crossplane.io/latest/concepts/composition-revisions/) — how Crossplane keeps old Compositions around so existing XRs stay stable while new ones pick up the new recipe.
+- [Composition functions catalogue](https://github.com/crossplane-contrib) — `function-kcl`, `function-go-templating`, `function-auto-ready`: patterns for moving beyond patch-and-transform once you need more logic.

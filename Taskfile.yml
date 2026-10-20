@@ -117,6 +117,28 @@ tasks:
       - task: solo:up
       - task: solo:platform
 
+  solo:docs-image:
+    desc: "Build this branch's docs image and serve it from the solo cluster."
+    # `solo:platform` deploys the published `:latest` image, so the solo
+    # stack shows whatever is on main — not the branch you are working on.
+    # This swaps in a local build, which is how you preview docs changes
+    # with the real routing: both locales, the wall, /team/<pair>/ and the
+    # validator sidecar behind /api, all on one origin.
+    #
+    # The tag is :dev and the pull policy IfNotPresent, so the kubelet uses
+    # the imported image instead of trying to fetch it from a registry.
+    # Re-run after every docs change; `k3d image import` replaces the tag
+    # in containerd and the rollout restart picks it up.
+    cmds:
+      - docker build -t crossplane-workshop-docs:dev docs/
+      - k3d image import crossplane-workshop-docs:dev -c {{.SOLO_CLUSTER_NAME}}
+      - |
+        kubectl -n {{.DOCS_NS}} patch deploy docs --type=strategic -p \
+          '{"spec":{"template":{"spec":{"containers":[{"name":"docs","image":"crossplane-workshop-docs:dev","imagePullPolicy":"IfNotPresent"}]}}}}'
+      - kubectl -n {{.DOCS_NS}} rollout restart deploy/docs
+      - kubectl -n {{.DOCS_NS}} rollout status deploy/docs --timeout=180s
+      - 'echo "  docs now served from this branch at http://localhost:8080/"'
+
   solo:verify:
     desc: "Smoke check the solo stack: Envoy Gateway ready, docs pod ready, / and /api/pairs respond."
     cmds:

@@ -8,5 +8,14 @@
 # When you create a new English page, either translate it in the same PR
 # or add the path here (a deliberate decision, visible in code review).
 #
-# The backlog is currently empty — every English doc has an Italian
-# translation. See AGENTS.md §Localization.
+# See AGENTS.md §Localization.
+
+# Crossplane 101 was rewritten as a CLI-first hour. The Italian mirrors
+# of the modules it replaced were deleted with their English originals;
+# these six are retranslated once the content settles after review (#224).
+04-crossplane-101/01-set-up-the-cli.mdx
+04-crossplane-101/02-create-your-project.mdx
+04-crossplane-101/03-define-application.mdx
+04-crossplane-101/04-iterate-locally.mdx
+04-crossplane-101/05-package-and-ship.mdx
+04-crossplane-101/06-modify-application.mdx

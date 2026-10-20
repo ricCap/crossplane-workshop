@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Connetti il tuo cluster
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: 36d2988a9b372e4f2a7b06f5f10d8b8931cb7248
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -17,7 +17,7 @@ Il tuo kubeconfig punta già al tuo cluster k3d e il tuo pair ID è `local`. Sal
 
 ## 2.1 Prima di iniziare ⏱️ 3m
 
-`kubectl` parla con *un* cluster — quello descritto dal **kubeconfig** a cui la tua shell punta in questo momento. Per i prossimi cinque moduli, ogni comando deve atterrare nel tuo cluster del workshop, non in qualche altro cluster che potresti aver configurato sulla tua macchina.
+`kubectl` parla con *un* cluster — quello descritto dal **kubeconfig** a cui la tua shell punta in questo momento. Per i resto del workshop, ogni comando deve atterrare nel tuo cluster del workshop, non in qualche altro cluster che potresti aver configurato sulla tua macchina.
 
 Un kubeconfig è semplicemente un file YAML con l'indirizzo del cluster, un certificato e le credenziali. Stai per scaricare il tuo, dire alla shell di usarlo, e dimostrare che funziona applicando un manifest Pod di una sola riga.
 
@@ -113,11 +113,11 @@ Non sono richiesti, ma renderanno il resto del workshop più rapido. Salta se se
 brew install kubectx k9s helm      # macOS / Linuxbrew
 ```
 
-I link di installazione per Windows / Linux puro sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+I link di installazione per Windows / Linux puro sono nel [Cheatsheet](./cheatsheet#12-tool-che-vale-la-pena-installare).
 
 ### 6. (Fortemente consigliato) Mostra il cluster nel prompt della shell
 
-Il modo più efficace per evitare di lanciare `kubectl apply` o `helm install` sul cluster sbagliato è rendere il context attivo visibile nel prompt della shell. Installa [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) oppure abilita il modulo [`kubernetes`](https://starship.rs/config/#kubernetes) di [Starship](https://starship.rs) — entrambi mostrano il context corrente accanto a ogni prompt. Quando vedi `(workshop-<pair-id>)` sei al sicuro; quando vedi `(docker-desktop)` sai di sistemare la cosa prima di digitare. Le indicazioni di installazione sono nel [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+Il modo più efficace per evitare di lanciare `kubectl apply` o `helm install` sul cluster sbagliato è rendere il context attivo visibile nel prompt della shell. Installa [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) oppure abilita il modulo [`kubernetes`](https://starship.rs/config/#kubernetes) di [Starship](https://starship.rs) — entrambi mostrano il context corrente accanto a ogni prompt. Quando vedi `(workshop-<pair-id>)` sei al sicuro; quando vedi `(docker-desktop)` sai di sistemare la cosa prima di digitare. Le indicazioni di installazione sono nel [Cheatsheet](./cheatsheet#12-tool-che-vale-la-pena-installare).
 
 ## 2.3 Smoke test — applica un pod `hello` ⏱️ 5m {#23-smoke-test-apply-a-hello-pod}
 

@@ -9,27 +9,31 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Welcome to the Crossplane workshop ⏱️ 8m
 
-Over the next three hours you will install [Crossplane](https://crossplane.io), use it to compose your own Kubernetes API, and add a Provider that can manage software outside Kubernetes' own kinds. You'll walk away with a working mental model of Crossplane's core objects — XRD, Composition, XR, and Provider — and a cluster you can keep experimenting in afterwards.
+In about an hour you will build your own Kubernetes API with [Crossplane](https://crossplane.io), package it, and publish it from your laptop into your workshop cluster — the way you would in a real project. You'll walk away with a working mental model of Crossplane's core objects — XRD, Composition, XR, Function and Package — and a cluster you can keep experimenting in afterwards.
 
 **The problem Crossplane solves**, in two sentences: `kubectl apply` is great for one team's manifests, but every real platform fans out into dozens of low-level objects (Deployments, Services, cloud resources, Helm releases) that someone has to coordinate for "an app" or "a database". Crossplane lets you publish your team's own API — a single `Application` kind — that quietly creates all those low-level pieces, so other teams consume your platform with one YAML file instead of dozens. The [Cheatsheet's big picture](./cheatsheet#the-big-picture) goes a layer deeper.
 
 ## How the workshop is structured
 
-The sidebar on the left lists the modules in reading order. The **Crossplane 101** group is the guided spine — every pair walks through it. The 2XX / 3XX / 4XX groups and the **Choose your own adventure** group are optional tracks for after 101 and aren't covered in the live workshop.
+The sidebar on the left lists the modules in reading order. **Crossplane 101** is the guided spine and is self-contained: finish it and you have built, published and updated a working platform API. The 2XX / 3XX / 4XX groups and the **Choose your own adventure** group are optional tracks for afterwards.
 
 | Section | Module | Kind | ⏱️ |
 |---|---|---|---|
 | | Introduction | content | 8m |
 | | Cheatsheet | reference | — |
 | | Connect to your cluster | task | 18m |
-| Crossplane 101 | Install Crossplane | task | 20m |
-| Crossplane 101 | Your first Composition | task | 22m |
-| Crossplane 101 | Define an Application | task | 35m |
-| Crossplane 101 | Modify your Application | task | 22m |
-| Crossplane 101 | Add a Provider | task | 25m |
+| Crossplane 101 | Set up the CLI | task | 5m |
+| Crossplane 101 | Create your project | task | 10m |
+| Crossplane 101 | Compose | task | 15m |
+| Crossplane 101 | Iterate locally | task | 8m |
+| Crossplane 101 | Package and ship | task | 12m |
+| Crossplane 101 | Change and rebuild | task | 7m |
+| Crossplane 101 | Recap | content | — |
 | | Wrap-up | content | 7m |
 
-The **task modules** (Connect to your cluster, plus everything in Crossplane 101) follow the same rhythm: a short framing, then hands-on steps, then a validation check. The Introduction, Cheatsheet, and Wrap-up are **content modules**: read and move on.
+Crossplane itself comes pre-installed in your workshop cluster, so there is no install step — you start building immediately.
+
+The **task modules** (Connect to your cluster, plus everything in Crossplane 101) follow the same rhythm: a short framing, then hands-on steps, then a validation check. Three of them — Create your project, Compose and Iterate locally — happen entirely on your laptop, so they have no check button; the validator only sees your cluster. The Introduction, Cheatsheet, and Wrap-up are **content modules**: read and move on.
 
 The **Cheatsheet** is a reference page. Keep it open in a second tab — it's the fastest way to look up what an XRD or a Composition is without leaving your current module. It also has a short [§1.1 "Controllers and the operator pattern" subsection](./cheatsheet#controllers-and-the-operator-pattern) worth reading once before module 3, especially if "controller" and "reconciliation loop" are new vocabulary.
 

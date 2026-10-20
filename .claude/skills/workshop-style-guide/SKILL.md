@@ -20,13 +20,15 @@ The workshop sidebar groups core 101 content and the choose-your-own-adventure t
 | `00-intro.mdx` | content | 5m | Welcome, workshop structure, how validation works, interactive pair-id entry + "prove your cluster is reachable" check |
 | `01-cheatsheet.mdx` | reference | — | Kubernetes cheat sheet, tools, Crossplane terminology, v1 vs v2, Crossplane vs UXP |
 | `02-connect-to-cluster.mdx` | task | 10m | Download kubeconfig, set `KUBECONFIG`, optional tools, `hello-pod` smoke test |
-| `04-crossplane-101/` | category | — | The guided core path — every pair completes this before branching |
-| &nbsp;&nbsp;`01-install-crossplane.mdx` | task | 15m | UXP v2 via Helm; optional 3.3 post-task: port-forward the Web UI |
-| &nbsp;&nbsp;`02-first-composition.mdx` | task | 12m | Install `function-patch-and-transform`, define a tiny `Hello` XRD + Composition emitting a naked ConfigMap (no provider), apply one XR |
-| &nbsp;&nbsp;`03-define-application.mdx` | task | 30m | Namespaced XRD + Composition emitting naked frontend/backend Deployments + Services + ConfigMap, apply a first XR |
-| &nbsp;&nbsp;`04-modify-application.mdx` | task | 20m | Change the Composition; observe the downstream change |
-| &nbsp;&nbsp;`05-add-a-provider.mdx` | task | 17m | Install `provider-helm`, apply a `ClusterProviderConfig` and a namespaced `ProviderConfig`, install the `podinfo` Helm chart through a `Release` MR. Components-table refresher. |
-| `05-crossplane-2xx/` | category | — | Choose-your-own-adventure: extra providers, contrib functions, OCI publishing — mix of guided and open-ended |
+| `04-crossplane-101/` | category | — | The guided core path, self-contained in about an hour — every pair completes this before branching |
+| &nbsp;&nbsp;`01-set-up-the-cli.mdx` | task | 5m | Check Docker, install the CLI pinned to a version, log in to the workshop registry |
+| &nbsp;&nbsp;`02-create-your-project.mdx` | task | 10m | `project init`, write an example `Application`, `xrd generate --from xr` to derive the API |
+| &nbsp;&nbsp;`03-define-application.mdx` | task | 15m | `composition generate`, add `function-patch-and-transform` as a dependency, fill in the six composed resources |
+| &nbsp;&nbsp;`04-iterate-locally.mdx` | task | 8m | `composition render` and `resource validate` — the whole platform exercised without a cluster |
+| &nbsp;&nbsp;`05-package-and-ship.mdx` | task | 12m | `project build/push`, `xpkg install`, apply the XR, tile goes live on the wall |
+| &nbsp;&nbsp;`06-modify-application.mdx` | task | 7m | Edit the recipe, publish a new version, watch a running Application follow it |
+| &nbsp;&nbsp;`07-recap.mdx` | content | — | What you built, what you have not seen yet, where to go next |
+| `05-crossplane-2xx/` | category | — | Choose-your-own-adventure: Add a Provider (moved out of 101), extra providers, contrib functions, OCI publishing — mix of guided and open-ended |
 | `06-crossplane-3xx/` | category | — | Medium-difficulty pointer-driven tasks: cloud providers, secrets stack, status functions |
 | `07-crossplane-4xx/` | category | — | Advanced threads: Upjet provider generation, v1→v2 upgrades — mostly upstream-doc pointers |
 | `08-journeys/` | category | — | Cross-cutting suggestion threads (microservice templates, infra mgmt, process automation) — not tasks themselves |
@@ -150,7 +152,7 @@ Never include `vcluster` / `k3s` / any substrate detail in paired-path modules. 
 - **"Your workshop cluster"** in all paired-path content. Never `vcluster`, `vCluster`, `participant-<pair-id>` namespace, `vcluster connect`, or `vCluster Platform`.
 - **"The link your instructor has given you"** for the kubeconfig — no vendor name, no portal URL baked in.
 - **"The workshop"** for what they're doing today. Not "the course", not "the lab".
-- **"Crossplane"** on first mention always; "UXP" is introduced once in the cheatsheet and in module 03 (where the Helm chart comes from UXP's repo), with a one-line "UXP is Upbound's distribution of Crossplane".
+- **"Crossplane"** on first mention always. "UXP" now appears only in the cheatsheet: Crossplane comes pre-installed in the pair cluster, so no participant-facing module runs the Helm chart any more. If a module ever reintroduces it, carry the one-line "UXP is Upbound's distribution of Crossplane" with it.
 
 ## Validator checks (hard rule)
 
@@ -243,6 +245,12 @@ Every "What just happened" post-task section opens with a plain-English recap ai
 ### Modules that depend on a sibling module declare it with `**Prerequisites.**` (2026-05-17)
 
 When a module assumes the participant has finished a specific sibling module (and has its on-disk artefacts or installed tooling on hand), the §x.1 "Before you start" section carries a one-line `**Prerequisites.**` paragraph pointing at the dependency, placed just before the closing "You're about to:" sentence. *Because:* the 2xx category is choose-your-own-adventure (per [`docs/docs/05-crossplane-2xx/01-overview.mdx`](../../../docs/docs/05-crossplane-2xx/01-overview.mdx)), so a participant can land on any module cold; without an explicit pointer, a dependent module's first task block silently assumes files (`xr.yaml`, `composition.yaml`, …) or binaries (`crossplane`) the participant doesn't have. *Decided while authoring `05-testing-compositions.mdx`.*
+
+### Laptop-only task modules carry no validator check (2026-10-18)
+
+A task section ends with exactly one `<ValidateCheck />` **when the validator can see what the participant did**. The validator only ever reads cluster state, so a module whose entire output is files on the participant's laptop — a scaffolded project, an edited template, a local render — has nothing for it to assert and ships without a check. *Because:* the alternative is worse in both directions. Inventing a check that cannot really pass gives a red button for correct work, and dropping the module to "content" misdescribes a section where the participant types commands for ten minutes.
+
+This came up across the CLI-first 90 minute track, where modules 03, 04 and 05 (`project init`, `composition generate`, `composition render`) produce no cluster state at all; the first checkable moment is module 06, once the package is installed. When this applies, say so in the module rather than leaving the omission to be read as an oversight. *Decided while wiring the 90m checks.*
 
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 

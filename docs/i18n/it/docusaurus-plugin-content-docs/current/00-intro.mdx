@@ -2,7 +2,7 @@
 sidebar_position: 1
 slug: /
 title: Introduzione
-translation_source_commit: b9740d8f59a6d14db97207972119970ee1df640e
+translation_source_commit: 35e86a2a69d7e2d37b8de8f35405e83b9ab052f7
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -10,27 +10,31 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Benvenuti al workshop di Crossplane ⏱️ 8m
 
-Nelle prossime tre ore installerai [Crossplane](https://crossplane.io), lo userai per comporre la tua API Kubernetes e aggiungerai un Provider che può gestire software esterno ai kind nativi di Kubernetes. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR e Provider — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
+In circa un'ora costruirai la tua API Kubernetes con [Crossplane](https://crossplane.io), la impacchetterai e la pubblicherai dal tuo laptop nel cluster del workshop — come faresti in un progetto reale. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR, Function e Package — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
 
 **Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `Application` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
 
 ## Com'è strutturato il workshop
 
-La sidebar a sinistra elenca i moduli in ordine di lettura. Il gruppo **Crossplane 101** è la spina dorsale guidata — ogni coppia lo attraversa. I gruppi 2XX / 3XX / 4XX e il gruppo **Choose your own adventure** sono percorsi opzionali per dopo il 101 e non sono coperti durante il workshop dal vivo.
+La sidebar a sinistra elenca i moduli in ordine di lettura. **Crossplane 101** è la spina dorsale guidata ed è autosufficiente: quando lo finisci hai costruito, pubblicato e aggiornato una piattaforma API funzionante. I gruppi 2XX / 3XX / 4XX e il gruppo **Choose your own adventure** sono percorsi opzionali per dopo.
 
 | Sezione | Modulo | Tipo | ⏱️ |
 |---|---|---|---|
 | | Introduzione | contenuto | 8m |
 | | Cheatsheet | riferimento | — |
 | | Connetti il tuo cluster | task | 18m |
-| Crossplane 101 | Installa Crossplane | task | 20m |
-| Crossplane 101 | La tua prima Composition | task | 22m |
-| Crossplane 101 | Definisci un'Application | task | 35m |
-| Crossplane 101 | Modifica la tua Application | task | 22m |
-| Crossplane 101 | Aggiungi un Provider | task | 25m |
+| Crossplane 101 | Configura la CLI | task | 5m |
+| Crossplane 101 | Crea il tuo progetto | task | 10m |
+| Crossplane 101 | Definisci un'Application | task | 15m |
+| Crossplane 101 | Provala prima di pubblicare | task | 8m |
+| Crossplane 101 | Pubblica la tua piattaforma | task | 12m |
+| Crossplane 101 | Modifica la tua Application | task | 7m |
+| Crossplane 101 | Riepilogo | contenuto | — |
 | | Conclusioni | contenuto | 7m |
 
-I **moduli task** (Connetti il tuo cluster, più tutto Crossplane 101) seguono lo stesso ritmo: una breve introduzione, poi i passi pratici, poi un controllo di validazione. L'Introduzione, il Cheatsheet e le Conclusioni sono **moduli di contenuto**: si leggono e si va avanti.
+Crossplane è già preinstallato nel cluster del workshop, quindi non c'è alcun passo di installazione — inizi subito a costruire.
+
+I **moduli task** (Connetti il tuo cluster, più tutto Crossplane 101) seguono lo stesso ritmo: una breve introduzione, poi i passi pratici, poi un controllo di validazione. Tre di essi — Crea il tuo progetto, Definisci un'Application e Provala prima di pubblicare — avvengono interamente sul tuo laptop, quindi non hanno un pulsante di verifica: il validator vede solo il tuo cluster. L'Introduzione, il Cheatsheet e le Conclusioni sono **moduli di contenuto**: si leggono e si va avanti.
 
 Il **Cheatsheet** è una pagina di riferimento. Tienilo aperto in una seconda scheda — è il modo più veloce per controllare cos'è un XRD o una Composition senza uscire dal modulo corrente. Contiene anche una breve [§1.1 sottosezione "Controller e l'operator pattern"](./cheatsheet#controllers-and-the-operator-pattern) che vale la pena leggere una volta prima del modulo 3, soprattutto se "controller" e "loop di riconciliazione" sono termini nuovi per te.
 

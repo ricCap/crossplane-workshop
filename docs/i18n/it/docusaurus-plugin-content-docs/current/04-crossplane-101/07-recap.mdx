@@ -1,0 +1,53 @@
+---
+sidebar_position: 7
+title: Riepilogo
+translation_source_commit: ec096082dd06bc32f57ed746568e2c2677280945
+---
+
+# Crossplane 101 — Riepilogo
+
+Ottimo lavoro. In circa un'ora sei passato da una cartella vuota a un'API di piattaforma che altri team potrebbero installare, e hai pubblicato una modifica mentre era in esecuzione.
+
+## Cosa hai costruito
+
+| Modulo | Cosa hai adesso |
+|---|---|
+| Configura la CLI | La CLI di Crossplane fissata a una versione nota, Docker pronto a eseguire le function, `kubectl` puntato al cluster del workshop e Crossplane verificato in esecuzione al suo interno |
+| Crea il tuo progetto | Una cartella di progetto, un `Application` di esempio e un XRD che la CLI ha derivato da esso — la tua API, definita mostrandone un esempio |
+| Definisci un'Application | Una Composition che trasforma un solo `Application` in sei oggetti: un frontend e un backend, ciascuno con Deployment, Service e ConfigMap |
+| Provala prima di pubblicare | Il ciclo render-e-valida — tutta la tua piattaforma esercitata sul laptop, senza coinvolgere un cluster |
+| Pubblica la tua piattaforma | Un package Configuration in una registry, installato nel cluster per nome, e il tuo tile vivo sul wall |
+| Modifica la tua Application | Una nuova versione del package che ha rimodellato un'applicazione in esecuzione che nessuno ha ri-applicato |
+
+## Cosa sai adesso
+
+Hai pubblicato un'API Kubernetes. `Application` è un kind che il tuo cluster comprende, con uno schema che hai progettato, sostenuto da una ricetta che hai scritto — e uno sviluppatore che la consuma scrive sei righe di YAML e non vede mai un Deployment.
+
+Tre cose valgono la pena di essere portate fuori dalla stanza:
+
+- **La CLI scrive il boilerplate.** Non hai scritto a mano un XRD né cablato una pipeline di function da zero. Hai mostrato un esempio alla CLI e lei ha derivato l'API; hai aggiunto una function come dipendenza e riempito le risorse.
+- **Il ciclo è locale.** `composition render` e `resource validate` eseguono la pipeline reale contro gli schemi reali sul tuo laptop. Gran parte della vita di una Composition si svolge in quel ciclo, non in un cluster.
+- **La versione è l'unità di cambiamento.** Hai modificato una ricetta, pubblicato `v0.2.0`, e un `Application` che qualcuno aveva già creato l'ha seguita. Nessuno ha modificato un oggetto vivo, e nulla è andato alla deriva tra ciò che il cluster esegue e ciò che la ricetta dice.
+
+Quest'ultima proprietà — cambia la ricetta, ogni istanza esistente riconcilia — è il primitivo su cui è costruita ogni piattaforma Crossplane.
+
+Una cosa che hai incontrato di passaggio vale la pena di essere trattenuta: **ciò che puoi comporre è delimitato dall'RBAC.** È Crossplane core ad applicare le risorse che la tua ricetta emette, quindi gli servono i permessi su ogni kind a cui ricorri. I tre kind usati qui erano già coperti; il giorno in cui ne comporrai un quarto, la risposta è un `ClusterRole` aggregato, non una modifica al chart.
+
+## Cosa non hai ancora visto
+
+Tutto ciò che hai composto era un oggetto Kubernetes nativo. L'altra metà di Crossplane è il **Provider**: un package che gli insegna a gestire cose fuori dal cluster — release Helm, database cloud, repository, altri cluster. È la prima tappa del 2XX.
+
+## Dove andare adesso
+
+Il resto del workshop è choose-your-own-adventure. Scegli quello che si adatta a dove la tua coppia vuole spingersi:
+
+| Sezione | Forma | Scegli questa se vuoi… |
+|---|---|---|
+| [Crossplane 2XX](../crossplane-2xx/overview) | Mix di walkthrough guidati e puntatori aperti | Aggiungere un Provider e gestire qualcosa fuori da Kubernetes, eseguire pipeline imperative `Operation`, o testare le Composition come si deve |
+| [Crossplane 3XX](../crossplane-3xx/overview) | Task a media difficoltà guidati da puntatori | Provisionare risorse reali — un repo su GitHub, un bucket su AWS / GCP / Azure, o un database MySQL nel progetto Aruba della tua piattaforma |
+| [Crossplane 4XX](../crossplane-4xx/overview) | Tracce da documentazione upstream | Generare un Provider da Terraform con Upjet, o fare un vero upgrade v1→v2 |
+| [Journey](../journeys/overview) | Scenari trasversali | Unire i task standalone in una storia del mondo reale — una piattaforma sviluppo interna, una landing zone cloud, o un processo automatizzato a lunga durata |
+
+Se non sai dove andare, apri la [panoramica 2XX](../crossplane-2xx/overview) e parti da [Aggiungi un Provider](../crossplane-2xx/add-a-provider) — è il passo naturale dopo quello che hai appena costruito, e porta la stessa forma passo-passo dei moduli che hai seguito finora.
+
+In ogni caso, il [Cheatsheet](../cheatsheet) e la pagina [Troubleshooting](../troubleshooting) sono le due tab da tenere aperte mentre esplori.

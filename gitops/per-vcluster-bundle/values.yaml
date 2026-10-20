@@ -14,6 +14,21 @@
 #  * naming any pair-scoped resource the bundle creates.
 pairId: ""
 
+# Workshop OCI registry. Crossplane 101 has each pair build their own
+# Configuration package and `crossplane xpkg install` it, which the
+# block-rogue-providers policy would otherwise deny — a pair's package
+# lives at `<host>/<pairId>/...`, which matches none of the upstream
+# prefixes that policy allows.
+#
+# Setting `host` adds exactly one more allowed prefix,
+# `<host>/<pairId>/`, so a pair may install their own package and
+# nobody else's. Leave it empty until the registry exists: an empty
+# host adds no entry and the policy behaves exactly as before.
+#
+# Include the port if the registry is served on one (`reg.example.com:5000`).
+registry:
+  host: ""
+
 # provider-arubacloud OCI image. The workshop's release pinning
 # story (Track 0.4 / `task release`) bumps this when the upstream
 # provider ships a new tag.

@@ -32,7 +32,6 @@ var checks = map[string]Check{
 	"cluster-reachable":             checkClusterReachable,
 	"hello-pod":                     checkHelloPod,
 	"crossplane-installed":          checkCrossplaneInstalled,
-	"hello-xr-ready":                checkHelloXRReady,
 	"application-ready":             checkApplicationReady,
 	"helm-release-ready":            checkHelmReleaseReady,
 	"first-mr-ready":                checkFirstMRReady,
@@ -45,6 +44,10 @@ var checks = map[string]Check{
 	"provider-arubacloud-installed": checkArubaProviderInstalled,
 	"aruba-policies-present":        checkArubaPoliciesPresent,
 	"aruba-mr-ready":                checkArubaMRReady,
+
+	// Crossplane 101 publishes a Configuration package; this is the
+	// check that it installed and went Healthy.
+	"configuration-installed": checkConfigurationInstalled,
 }
 
 // orderedCheckIDs lists the checks in the order participants are expected
@@ -58,7 +61,7 @@ var orderedCheckIDs = []string{
 	"cluster-reachable",
 	"hello-pod",
 	"crossplane-installed",
-	"hello-xr-ready",
+	"configuration-installed",
 	"application-ready",
 	"helm-release-ready",
 	"provider-helm-installed",
@@ -79,7 +82,6 @@ var checkLabels = map[string]string{
 	"cluster-reachable":             "Cluster reachable",
 	"hello-pod":                     "Hello pod Running",
 	"crossplane-installed":          "Crossplane installed",
-	"hello-xr-ready":                "First Composition (Hello XR)",
 	"application-ready":             "Application Ready",
 	"helm-release-ready":            "Helm Release Ready",
 	"provider-helm-installed":       "provider-helm Healthy",
@@ -92,6 +94,8 @@ var checkLabels = map[string]string{
 	"provider-arubacloud-installed": "provider-arubacloud Healthy",
 	"aruba-policies-present":        "Aruba Kyverno policies present",
 	"aruba-mr-ready":                "Aruba MR Ready",
+
+	"configuration-installed": "Configuration installed",
 }
 
 // checkCrossplaneInstalled asserts that the `crossplane` Deployment in the
@@ -329,47 +333,6 @@ func checkProviderHealthy(ctx context.Context, client dynamic.Interface, name st
 	}
 
 	return false, fmt.Sprintf("%s exists but no Healthy condition found in status.conditions", name), nil
-}
-
-// checkHelloXRReady looks for at least one Hello XR
-// (workshop.example.io/v1alpha1) with condition type=Ready, status=True
-// anywhere in the vcluster. This is the validator gate for the new
-// "first Composition" module: a participant who has applied an XRD,
-// a Composition, and a Hello XR — and granted Crossplane core RBAC to
-// compose ConfigMaps — should see this go Ready within seconds.
-func checkHelloXRReady(ctx context.Context, client dynamic.Interface) (bool, string, error) {
-	hellosGVR := schema.GroupVersionResource{
-		Group:    "workshop.example.io",
-		Version:  "v1alpha1",
-		Resource: "hellos",
-	}
-
-	list, err := client.Resource(hellosGVR).Namespace("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return false, fmt.Sprintf("could not list Hello XRs: %v", err), nil
-	}
-	if len(list.Items) == 0 {
-		return false, "no Hello XRs found in the cluster", nil
-	}
-
-	for _, item := range list.Items {
-		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
-		if !ok {
-			continue
-		}
-		for _, raw := range conditions {
-			cond, ok := raw.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return true, fmt.Sprintf("Hello %s/%s is Ready", item.GetNamespace(), item.GetName()), nil
-			}
-		}
-	}
-
-	first := list.Items[0]
-	return false, fmt.Sprintf("Hello %s/%s exists but is not yet Ready", first.GetNamespace(), first.GetName()), nil
 }
 
 // checkHelmReleaseReady looks for at least one Release.helm.m.crossplane.io/v1beta1
@@ -656,4 +619,70 @@ func unstructuredNestedSlice(obj map[string]interface{}, fields ...string) ([]in
 		cur = next
 	}
 	return nil, false, nil
+}
+
+// ---------------------------------------------------------------------
+// Packaging
+//
+// Crossplane 101 has each pair build a Configuration package, push it to
+// the workshop registry and install it. This is the check that the round
+// trip worked — including the registry being reachable from inside the
+// cluster, which is the step most likely to fail.
+//
+// The XR the package installs is still `workshop.example.io Application`,
+// so `application-ready` covers it and no new XR check is needed.
+// ---------------------------------------------------------------------
+
+var configurationsGVR = schema.GroupVersionResource{
+	Group:    "pkg.crossplane.io",
+	Version:  "v1",
+	Resource: "configurations",
+}
+
+// checkConfigurationInstalled asserts that at least one Crossplane
+// Configuration package is installed and reports Healthy=True. This is
+// the signal that `crossplane project push` plus `crossplane xpkg
+// install configuration` worked end to end — including the registry
+// being reachable from inside the cluster, which is the step most
+// likely to fail.
+//
+// It does not pin the package name: that is derived from the
+// participant's own registry path (`local-my-platform` and such), so
+// any Healthy Configuration counts.
+func checkConfigurationInstalled(ctx context.Context, client dynamic.Interface) (bool, string, error) {
+	list, err := client.Resource(configurationsGVR).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Sprintf("could not list Configurations: %v", err), nil
+	}
+	if len(list.Items) == 0 {
+		return false, "no Configuration packages installed yet", nil
+	}
+
+	var unhealthy string
+	for _, item := range list.Items {
+		conditions, ok, _ := unstructuredNestedSlice(item.Object, "status", "conditions")
+		if !ok {
+			unhealthy = fmt.Sprintf("Configuration %s has no status.conditions yet", item.GetName())
+			continue
+		}
+		for _, raw := range conditions {
+			cond, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if cond["type"] != "Healthy" {
+				continue
+			}
+			if cond["status"] == "True" {
+				return true, fmt.Sprintf("Configuration %s is Healthy", item.GetName()), nil
+			}
+			msg, _ := cond["message"].(string)
+			unhealthy = fmt.Sprintf("Configuration %s is not Healthy yet: %s", item.GetName(), msg)
+		}
+	}
+
+	if unhealthy == "" {
+		unhealthy = fmt.Sprintf("found %d Configuration(s) but none reported Healthy", len(list.Items))
+	}
+	return false, unhealthy, nil
 }
