@@ -233,6 +233,234 @@ spec:
               - type: None
 ```
 
+<details>
+<summary>Walk through the recipe, resource by resource</summary>
+
+The Composition is one Kubernetes resource with a long body. Each block below is one piece of the file you just pasted, with what it does and why it looks like that.
+
+#### The wrapper
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: applications.workshop.example.io
+spec:
+  compositeTypeRef:
+    apiVersion: workshop.example.io/v1alpha1
+    kind: Application
+  mode: Pipeline
+  pipeline:
+    - step: crossplane-contrib-function-patch-and-transform
+      functionRef:
+        name: crossplane-contrib-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          # one entry per composed resource — see below
+```
+
+`compositeTypeRef` binds this Composition to the `Application` XRD the CLI generated for you — when an `Application` XR is created, Crossplane finds this Composition by matching that ref. `mode: Pipeline` tells Crossplane to call functions in order; this Composition's pipeline has one step that hands the `resources` list below to the patch-and-transform function you added as a dependency.
+
+#### `frontend-configmap` — the static HTML
+
+```yaml
+- name: frontend-configmap
+  base:
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: frontend
+      namespace: default
+    data:
+      index.html: |
+        <!DOCTYPE html>
+        <html><head><meta charset="utf-8"><title>Tile</title>
+        <style>
+          body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
+          #title { font-size: 2rem; font-weight: 700; }
+        </style>
+        </head><body>
+        <div id="title">Loading...</div>
+        <script>
+          fetch('./api/message')
+            .then(r => r.text())
+            .then(txt => {
+              try {
+                const d = JSON.parse(txt);
+                const el = document.getElementById('title');
+                el.innerText = d.message || '(no message)';
+                if (d.color) el.style.color = d.color;
+              } catch (e) {
+                document.getElementById('title').innerText = 'Bad response: ' + txt;
+              }
+            })
+            .catch(e => {
+              document.getElementById('title').innerText = 'Error: ' + e.message;
+            });
+        </script>
+        </body></html>
+  readinessChecks:
+    - type: None
+```
+
+The page's `<script>` fetches `./api/message`, parses the JSON, and writes the `message` into the tile in the requested `color`. Every `Application` ships the same HTML — no patch needed.
+
+`readinessChecks: type: None` is the right choice for ConfigMaps because they expose no Ready condition. Crossplane treats them as Ready as soon as it observes them.
+
+#### `frontend-deployment` — the nginx that serves it
+
+```yaml
+- name: frontend-deployment
+  base:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: frontend
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: { app: frontend }
+      template:
+        metadata:
+          labels: { app: frontend }
+        spec:
+          containers:
+            - name: nginx
+              image: public.ecr.aws/docker/library/nginx:alpine
+              ports:
+                - containerPort: 80
+              volumeMounts:
+                - name: html
+                  mountPath: /usr/share/nginx/html
+          volumes:
+            - name: html
+              configMap:
+                name: frontend
+  readinessChecks:
+    - type: MatchCondition
+      matchCondition:
+        type: Available
+        status: "True"
+```
+
+One pod running `nginx:alpine` with the ConfigMap above mounted at `/usr/share/nginx/html`. `type: MatchCondition` waits for `Available=True` on the Deployment — Crossplane only marks the XR Ready once both Deployments report this.
+
+#### `frontend-service` — the in-cluster endpoint
+
+```yaml
+- name: frontend-service
+  base:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: frontend
+      namespace: default
+    spec:
+      selector: { app: frontend }
+      ports:
+        - port: 80
+          targetPort: 80
+  readinessChecks:
+    - type: None
+```
+
+Cluster-internal Service on port 80, selected by `app: frontend`. The workshop's HTTPRoute resolves `/team/<pair>/` to this Service.
+
+#### `backend-configmap` — the only resource that reads the XR
+
+```yaml
+- name: backend-configmap
+  base:
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: backend
+      namespace: default
+    data:
+      message: '{"message":"placeholder","color":"#2563eb"}'
+  readinessChecks:
+    - type: None
+  patches:
+    - type: CombineFromComposite
+      combine:
+        variables:
+          - fromFieldPath: spec.message
+          - fromFieldPath: spec.color
+        strategy: string
+        string:
+          fmt: '{"message":"%s","color":"%s"}'
+      toFieldPath: data.message
+```
+
+This is the interesting one. The patch's `CombineFromComposite` reads `spec.message` and `spec.color` from the XR, fills them into the `printf`-style template, and writes the result into `data.message` — so the ConfigMap that started as a hard-coded `"placeholder"` ends up holding the JSON the XR asked for.
+
+`toFieldPath` is a path inside the naked `ConfigMap` body. Compare to module 4's `Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.data.message`; here the composed resource *is* the ConfigMap, so there is no MR envelope to step through.
+
+#### `backend-deployment` — nginx as the API
+
+```yaml
+- name: backend-deployment
+  base:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: backend
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: { app: backend }
+      template:
+        metadata:
+          labels: { app: backend }
+        spec:
+          containers:
+            - name: nginx
+              image: public.ecr.aws/docker/library/nginx:alpine
+              ports:
+                - containerPort: 80
+              volumeMounts:
+                - name: api
+                  mountPath: /usr/share/nginx/html/api
+          volumes:
+            - name: api
+              configMap:
+                name: backend
+  readinessChecks:
+    - type: MatchCondition
+      matchCondition:
+        type: Available
+        status: "True"
+```
+
+Same shape as `frontend-deployment`, but the volume mounts at `/usr/share/nginx/html/api/`. There is no application server in this stack — the file at `/api/message` *is* the ConfigMap's `data.message`, served verbatim.
+
+#### `backend-service` — the API endpoint
+
+```yaml
+- name: backend-service
+  base:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: backend
+      namespace: default
+    spec:
+      selector: { app: backend }
+      ports:
+        - port: 5678
+          targetPort: 80
+  readinessChecks:
+    - type: None
+```
+
+Port 5678 forwards to nginx on `targetPort: 80`. The HTTPRoute resolves `/team/<pair>/api/` to this Service.
+
+</details>
+
 Three things worth looking at before moving on:
 
 - **The Services are named `frontend` and `backend`, on ports 80 and 5678.** Your workshop cluster routes `/team/<your pair ID>/` to the first and `/team/<your pair ID>/api/` to the second, by those exact names and ports. Rename them and your tile stops working.
@@ -244,3 +472,10 @@ Three things worth looking at before moving on:
 You wrote the recipe that turns one short `Application` file into six Kubernetes objects, and the API you designed in the last module is now backed by something real.
 
 The recipe is still only a file on your laptop. The next module runs it without a cluster.
+
+### Go deeper
+
+- [CompositeResourceDefinitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions/) — every field an XRD can take.
+- [Compositions](https://docs.crossplane.io/latest/concepts/compositions/) — pipeline mode, function authoring.
+- [function-patch-and-transform README](https://github.com/crossplane-contrib/function-patch-and-transform) — patch types, transforms, when to use what.
+- [Namespaced XRs in v2](https://docs.crossplane.io/latest/whats-new/) — why the v1 claim layer is gone.

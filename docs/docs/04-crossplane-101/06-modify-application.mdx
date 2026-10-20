@@ -71,6 +71,14 @@ kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | gr
 
 Reload `/team/<your pair ID>/` and your tile shows the new line.
 
+Give it a few seconds. The ConfigMap updates almost immediately, but the copy projected
+into the running Pod only refreshes on the kubelet's sync — usually seconds, occasionally
+up to a minute. If you would rather not wait:
+
+```bash
+kubectl rollout restart deployment frontend
+```
+
 The ConfigMap was updated in place, not replaced — which is what the resource names in your recipe buy you. Crossplane matched each composed resource to the one already there and patched the difference.
 
 <ValidateCheck check="application-ready" />
@@ -81,4 +89,10 @@ You changed one file, published it as a version, and an application somebody had
 
 Notice what you did *not* have to do. No editing live objects, no telling anyone to re-apply, no drift between what the cluster runs and what the recipe says.
 
-- [Composition revisions](https://docs.crossplane.io/latest/concepts/compositions/)
+### Go deeper
+
+- **Stretch: add a field.** Add `subtitle` to the XRD (with a default), patch it through the
+  Composition into a new ConfigMap key, and apply a fresh `Application` that sets it. Good
+  sandbox if your pair finishes early.
+- [Composition revisions](https://docs.crossplane.io/latest/concepts/composition-revisions/) — how Crossplane keeps old Compositions around so existing XRs stay stable while new ones pick up the new recipe.
+- [Composition functions catalogue](https://github.com/crossplane-contrib) — `function-kcl`, `function-go-templating`, `function-auto-ready`: patterns for moving beyond patch-and-transform once you need more logic.
