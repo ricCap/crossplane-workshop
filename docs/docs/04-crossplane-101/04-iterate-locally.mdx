@@ -66,9 +66,11 @@ On a real cluster the API server defaults the field before Crossplane ever sees 
 Rendering proves your recipe produces YAML. It does not prove the YAML is valid Kubernetes.
 
 ```bash
-crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml > rendered.yaml
+crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml -x > rendered.yaml
 crossplane resource validate apis/ rendered.yaml
 ```
+
+Note the `-x`. By default `render` prints only the XR's `status` and name, not its `spec` — fine for reading, but `validate` then sees an `Application` with no `message` and rejects it against your own XRD, which marks `message` required. `-x` includes the full spec, so the XR is checked as it actually is.
 
 ```
 [✓] v1, Kind=ConfigMap, frontend validated successfully
