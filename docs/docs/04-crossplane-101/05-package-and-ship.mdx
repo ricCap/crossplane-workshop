@@ -124,6 +124,13 @@ Your API is now part of the cluster:
 kubectl get xrd
 ```
 
+```
+NAME                               ESTABLISHED   OFFERED   AGE
+applications.workshop.example.io   True                    42s
+```
+
+`ESTABLISHED` is the signal: the API is registered and the cluster will accept `Application` resources.
+
 ### 4. Use your own API
 
 ```bash

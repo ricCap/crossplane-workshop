@@ -69,6 +69,10 @@ You have not touched the `Application`. Crossplane reconciles it against the new
 kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | grep rebuilt
 ```
 
+```
+<div id="title">Loading...</div><p>rebuilt in module 6</p>
+```
+
 Reload `/team/<your pair ID>/` and your tile shows the new line.
 
 Give it a few seconds. The ConfigMap updates almost immediately, but the copy projected
