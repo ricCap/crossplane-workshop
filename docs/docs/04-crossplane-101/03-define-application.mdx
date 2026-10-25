@@ -22,7 +22,7 @@ Your `Application` API exists but produces nothing. A **Composition** is the rec
 A Composition runs a **pipeline** of functions. You will use `function-patch-and-transform`, which takes a list of resources to create and lets you patch values from the XR into them.
 
 <ThemedImage
-  alt="One Application XR, carrying spec.message and spec.theme, fans out into six composed resources: a ConfigMap, Deployment and Service for both frontend and backend."
+  alt="One Application XR, carrying spec.message and spec.backgroundColor, fans out into six composed resources: a ConfigMap, Deployment and Service for both frontend and backend."
   sources={{
     light: useBaseUrl('/diagrams/define-application-fanout-light.svg'),
     dark: useBaseUrl('/diagrams/define-application-fanout-dark.svg'),
@@ -93,22 +93,27 @@ spec:
                   <!DOCTYPE html>
                   <html><head><meta charset="utf-8"><title>Tile</title>
                   <style>
-                    body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
-                    #title { font-size: 2rem; font-weight: 700; }
+                    html, body { height: 100%; }
+                    body { font-family: sans-serif; margin: 0; padding: 5%; box-sizing: border-box;
+                           display: flex; align-items: center; justify-content: center; text-align: center; }
+                    #title { font-size: clamp(1rem, min(10vw, 22vh), 6rem); font-weight: 700; line-height: 1.1; }
                   </style>
                   </head><body>
                   <div id="title">Loading...</div>
                   <script>
-                    const THEMES = { ocean: '#0ea5e9', sunset: '#f97316', forest: '#16a34a', ember: '#dc2626', violet: '#7c3aed' };
                     fetch('./api/message')
                       .then(r => r.text())
                       .then(txt => {
                         try {
                           const d = JSON.parse(txt);
-                          const accent = THEMES[d.theme] || '#64748b';
                           const el = document.getElementById('title');
                           el.innerText = d.message || '(no message)';
-                          el.style.color = accent;
+                          if (d.backgroundColor) {
+                            document.body.style.background = d.backgroundColor;
+                            const n = parseInt(d.backgroundColor.slice(1), 16);
+                            const bright = ((n >> 16 & 255) * 299 + (n >> 8 & 255) * 587 + (n & 255) * 114) / 255000;
+                            el.style.color = bright > 0.6 ? '#1e293b' : '#ffffff';
+                          }
                         } catch (e) {
                           document.getElementById('title').innerText = 'Bad response: ' + txt;
                         }
@@ -174,7 +179,7 @@ spec:
                 name: backend
                 namespace: default
               data:
-                message: '{"message":"placeholder","theme":"ocean"}'
+                message: '{"message":"placeholder","backgroundColor":"#2563eb"}'
             readinessChecks:
               - type: None
             patches:
@@ -182,10 +187,10 @@ spec:
                 combine:
                   variables:
                     - fromFieldPath: spec.message
-                    - fromFieldPath: spec.theme
+                    - fromFieldPath: spec.backgroundColor
                   strategy: string
                   string:
-                    fmt: '{"message":"%s","theme":"%s"}'
+                    fmt: '{"message":"%s","backgroundColor":"%s"}'
                 toFieldPath: data.message
           - name: backend-deployment
             base:
@@ -280,22 +285,27 @@ spec:
         <!DOCTYPE html>
         <html><head><meta charset="utf-8"><title>Tile</title>
         <style>
-          body { font-family: sans-serif; margin: 0; padding: 20px; text-align: center; }
-          #title { font-size: 2rem; font-weight: 700; }
+          html, body { height: 100%; }
+          body { font-family: sans-serif; margin: 0; padding: 5%; box-sizing: border-box;
+                 display: flex; align-items: center; justify-content: center; text-align: center; }
+          #title { font-size: clamp(1rem, min(10vw, 22vh), 6rem); font-weight: 700; line-height: 1.1; }
         </style>
         </head><body>
         <div id="title">Loading...</div>
         <script>
-          const THEMES = { ocean: '#0ea5e9', sunset: '#f97316', forest: '#16a34a', ember: '#dc2626', violet: '#7c3aed' };
           fetch('./api/message')
             .then(r => r.text())
             .then(txt => {
               try {
                 const d = JSON.parse(txt);
-                const accent = THEMES[d.theme] || '#64748b';
                 const el = document.getElementById('title');
                 el.innerText = d.message || '(no message)';
-                el.style.color = accent;
+                if (d.backgroundColor) {
+                  document.body.style.background = d.backgroundColor;
+                  const n = parseInt(d.backgroundColor.slice(1), 16);
+                  const bright = ((n >> 16 & 255) * 299 + (n >> 8 & 255) * 587 + (n & 255) * 114) / 255000;
+                  el.style.color = bright > 0.6 ? '#1e293b' : '#ffffff';
+                }
               } catch (e) {
                 document.getElementById('title').innerText = 'Bad response: ' + txt;
               }
@@ -309,9 +319,9 @@ spec:
     - type: None
 ```
 
-The page's `<script>` fetches `./api/message`, parses the JSON, writes the `message` into the tile and colours it from the `theme` name. Every `Application` ships the same HTML — no patch needed, because the values it renders arrive over HTTP from the backend rather than being baked in here.
+The page's `<script>` fetches `./api/message`, parses the JSON, writes the `message` into the tile and paints the page in the requested `backgroundColor`, picking dark or light type so the text stays readable against it. Every `Application` ships the same HTML — no patch needed.
 
-Note that the palette lives in this page, not in the API. `theme` carries a *name*; what `ocean` looks like is a rendering decision. That is why the XRD could close the set with an `enum` without ever committing your API to a hex code.
+The sizes are relative on purpose. This page is viewed at two very different scales — full-window at `/team/<your pair ID>/`, and shrunk into a tile on the workshop wall — and fixed pixel sizes look like two different designs at those two sizes. Centring with flexbox and sizing the text in `vw`/`vh` makes it fill whatever box it is given, so both views match.
 
 `readinessChecks: type: None` is the right choice for ConfigMaps because they expose no Ready condition. Crossplane treats them as Ready as soon as it observes them.
 
@@ -386,7 +396,7 @@ Cluster-internal Service on port 80, selected by `app: frontend`. The workshop's
       name: backend
       namespace: default
     data:
-      message: '{"message":"placeholder","theme":"ocean"}'
+      message: '{"message":"placeholder","backgroundColor":"#2563eb"}'
   readinessChecks:
     - type: None
   patches:
@@ -394,16 +404,14 @@ Cluster-internal Service on port 80, selected by `app: frontend`. The workshop's
       combine:
         variables:
           - fromFieldPath: spec.message
-          - fromFieldPath: spec.theme
+          - fromFieldPath: spec.backgroundColor
         strategy: string
         string:
-          fmt: '{"message":"%s","theme":"%s"}'
+          fmt: '{"message":"%s","backgroundColor":"%s"}'
       toFieldPath: data.message
 ```
 
-This is the interesting one. The patch's `CombineFromComposite` reads `spec.message` and `spec.theme` from the XR, fills them into the `printf`-style template, and writes the result into `data.message` — so the ConfigMap that started as a hard-coded `"placeholder"` ends up holding the JSON the XR asked for.
-
-Both values are strings, so `%s` is the right verb. If you ever combine a *numeric* field this way, reach for `%v` instead: `%s` on a number does not fail, it quietly emits the literal text `%!s(float64=3)`, which makes the file invalid JSON and leaves your tile showing `Bad response:`.
+This is the interesting one. The patch's `CombineFromComposite` reads `spec.message` and `spec.backgroundColor` from the XR, fills them into the `printf`-style template, and writes the result into `data.message` — so the ConfigMap that started as a hard-coded `"placeholder"` ends up holding the JSON the XR asked for.
 
 `toFieldPath` is a path inside the naked `ConfigMap` body. Compare to module 4's `Object`-MR shape, which would have prefixed it with `spec.forProvider.manifest.data.message`; here the composed resource *is* the ConfigMap, so there is no MR envelope to step through.
 

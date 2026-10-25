@@ -28,13 +28,13 @@ You're about to change the recipe, publish a new version, and watch a resource y
 
 ### 1. Change the recipe
 
-In `apis/applications/composition.yaml`, find the backend ConfigMap's `CombineFromComposite` patch and add a marker to the message template:
+In `apis/applications/composition.yaml`, find the frontend ConfigMap's `index.html` and add a line under the title:
 
 ```yaml
-                    fmt: '{"message":"%s ✨","theme":"%s"}'
+                  <div id="title">Loading...</div><p>rebuilt in module 6</p>
 ```
 
-This is a platform-side change. No `Application` anywhere knows about it — you edited the recipe, not anybody's resource.
+This is a platform-side change. No `Application` anywhere knows about it.
 
 ### 2. Build and push a new version
 
@@ -66,21 +66,21 @@ local-my-platform   True        True      .../my-platform:v0.2.0
 You have not touched the `Application`. Crossplane reconciles it against the new recipe on its own:
 
 ```bash
-kubectl get configmap backend -n default -o jsonpath='{.data.message}'
+kubectl get configmap frontend -n default -o jsonpath='{.data.index\.html}' | grep rebuilt
 ```
 
 ```
-{"message":"Hello from our platform ✨","theme":"ocean"}
+<div id="title">Loading...</div><p>rebuilt in module 6</p>
 ```
 
-Your tile on the workshop wall picks the change up on its own within a few seconds, and pulses to say so. Nobody reloaded anything.
+Reload `/team/<your pair ID>/` and your tile shows the new line.
 
 Give it a few seconds. The ConfigMap updates almost immediately, but the copy projected
 into the running Pod only refreshes on the kubelet's sync — usually seconds, occasionally
 up to a minute. If you would rather not wait:
 
 ```bash
-kubectl rollout restart deployment backend
+kubectl rollout restart deployment frontend
 ```
 
 The ConfigMap was updated in place, not replaced — which is what the resource names in your recipe buy you. Crossplane matched each composed resource to the one already there and patched the difference.
@@ -92,7 +92,6 @@ The ConfigMap was updated in place, not replaced — which is what the resource 
 You changed one file, published it as a version, and an application somebody had already created moved to the new shape without being touched. That is the difference between a platform API and a pile of YAML: the recipe is versioned, and every consumer follows it.
 
 Notice what you did *not* have to do. No editing live objects, no telling anyone to re-apply, no drift between what the cluster runs and what the recipe says.
-
 
 ### Go deeper
 

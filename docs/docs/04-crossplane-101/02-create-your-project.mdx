@@ -5,7 +5,7 @@ title: Create your project
 
 import PairId from '@site/src/components/PairId';
 
-# Create your project ⏱️ 13m
+# Create your project ⏱️ 12m
 
 <PairId />
 
@@ -35,7 +35,7 @@ Five terms turn up across the next four modules. Treat this as the glossary; the
 
 The split that matters: **XRD and Composition are yours**, the platform team's, applied once. **The XR is what a user applies**, once per request. In this hour you wear both hats; on a real platform they are different teams.
 
-## 2.2 Scaffold the project ⏱️ 8m
+## 2.2 Scaffold the project ⏱️ 7m
 
 ### 1. Initialize the project
 
@@ -76,11 +76,9 @@ metadata:
   namespace: default
 spec:
   message: "Hello from our platform"
-  theme: ocean
+  backgroundColor: "#2563eb"
 EOF
 ```
-
-Two fields, and both are choices *you* are making on behalf of every team that will use this API: what they can say, and how it looks.
 
 ### 3. Generate the API from the example
 
@@ -97,40 +95,15 @@ That path is relative to `apis/`, so the file is at `apis/applications/definitio
 ```yaml
 message:
   type: string
-theme:
+backgroundColor:
   type: string
 ```
 
-The CLI reads shapes, not intent. It saw two strings and wrote two strings — it has no way to know that `message` is mandatory, or that `theme` is a short list rather than any text at all. Those are decisions you add by hand once the shape is right, and `apis/applications/definition.yaml` is now yours to edit.
-
-### 4. Add the intent the CLI could not infer ⏱️ 1m
-
-In `apis/applications/definition.yaml`, replace the `spec:` block with this one:
-
-```yaml
-          spec:
-            description: ApplicationSpec defines the desired state of Application.
-            properties:
-              message:
-                type: string
-              theme:
-                type: string
-                enum: [ocean, sunset, forest, ember, violet]
-                default: ocean
-            required:
-              - message
-            type: object
-```
-
-Three additions, each one a decision about what your API will and will not accept:
-
-- **`message` is required.** There is no sensible default for what somebody else's application should say.
-- **`theme` is an `enum` with a `default`.** The workshop wall maps each name to a palette, so the set is closed. Make it a free string and a typo produces an unstyled tile that looks like a bug in your platform; make it an enum and the API server rejects the typo at `kubectl apply`, with the valid options in the error.
-This is the line between a schema that *describes* a field and one that *constrains* it. Everything above is enforced by the Kubernetes API server before your Composition ever runs.
+The CLI reads shapes, not intent. It saw two strings and wrote two strings — it has no way to know that `message` should be required or that `backgroundColor` should carry a default. Those are decisions you add by hand once the shape is right, and `apis/applications/definition.yaml` is now yours to edit.
 
 ## 2.3 What just happened
 
-You defined an API by showing one example of it, then tightened it into something you would be willing to put in front of another team. `Application` is now a kind your cluster could offer, with a schema derived from a file a developer could have written and constraints you chose deliberately.
+You defined an API by showing one example of it. `Application` is now a kind your cluster could offer, with a schema derived from a file a developer could have written.
 
 Nothing yet says what an `Application` *becomes*. That's the next module.
 

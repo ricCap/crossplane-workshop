@@ -43,32 +43,18 @@ kind: Deployment       name: frontend
 kind: Service          name: frontend    port: 80
 ```
 
-Check the **backend** ConfigMap — that is where your fields land:
-
-```
-message: '{"message":"Hello from our platform","theme":"ocean"}'
-```
-
-Both values from your example `Application` are in there. That is the patch doing its job — fields on your API reaching a file inside a container. The frontend ConfigMap holds only static HTML; it fetches that JSON at runtime, which is why your message is not in it.
+Check the **backend** ConfigMap: the `message` from your example `Application` should appear in its JSON. That is the patch doing its job — a field on your API reaching a file inside a container. The frontend ConfigMap holds only static HTML; it fetches that JSON at runtime, which is why your message is not in it.
 
 Change `message` in `examples/applications/hello.yaml`, render again, and watch the output follow. That round trip is a couple of seconds, against the minutes a cluster round trip costs.
-
-:::warning Render does not apply your defaults
-`composition render` runs the function pipeline, not the Kubernetes API server — so the `default` values you put in the XRD are **not** filled in here. Leave `theme` out of your example and `CombineFromComposite` is skipped in silence, taking `message` with it: the backend ConfigMap keeps its hard-coded `placeholder`. A combine patch needs every variable it names.
-
-On a real cluster the API server defaults the field before Crossplane ever sees the XR, so this only bites while rendering locally. If a render shows `placeholder` where you expected your message, a missing field is the first thing to check.
-:::
 
 ### 2. Validate what you rendered
 
 Rendering proves your recipe produces YAML. It does not prove the YAML is valid Kubernetes.
 
 ```bash
-crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml -x > rendered.yaml
+crossplane composition render examples/applications/hello.yaml apis/applications/composition.yaml > rendered.yaml
 crossplane resource validate apis/ rendered.yaml
 ```
-
-Note the `-x`. By default `render` prints only the XR's `status` and name, not its `spec` — fine for reading, but `validate` then sees an `Application` with no `message` and rejects it against your own XRD, which marks `message` required. `-x` includes the full spec, so the XR is checked as it actually is.
 
 ```
 [✓] v1, Kind=ConfigMap, frontend validated successfully

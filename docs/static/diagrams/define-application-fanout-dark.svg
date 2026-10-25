@@ -30,7 +30,7 @@
              C 350 190, 346 182, 348 174 Z" />
     <text class="label" text-anchor="middle" x="493" y="110">Application XR</text>
     <text class="muted" text-anchor="middle" x="493" y="140">spec.message</text>
-    <text class="muted" text-anchor="middle" x="493" y="160">spec.theme</text>
+    <text class="muted" text-anchor="middle" x="493" y="160">spec.backgroundColor</text>
   </g>
 
   <path class="arrow" d="M 493 196 C 491 220, 495 240, 493 258" />

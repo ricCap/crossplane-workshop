@@ -15,24 +15,23 @@ import { useLocation } from '@docusaurus/router';
  * `/team/<pair>/` to the frontend and `/team/<pair>/api/` to the
  * backend.
  *
- * The wall renders tiles **natively** rather than through an iframe:
- * `/wall`, `/team/<pair>/` and `/team/<pair>/api/message` all hang off
- * the same Gateway listener, so they are same-origin and this page can
- * fetch the pair's JSON directly. The browser still hits the pair's own
- * backend Service, so their infrastructure is genuinely in the path —
- * but the wall owns layout and animation, which an iframe cannot give
- * us. `/team/<pair>/` stays a real page served by the pair's own nginx;
- * each tile links to it.
+ * Each tile embeds the pair's own page. That page is served by their
+ * frontend nginx and fetches its content from their backend, so the
+ * frontend/backend split the Composition builds is literally what you
+ * are looking at — which rendering the JSON ourselves would bypass.
+ *
+ * The iframe src MUST include the trailing slash. Without it,
+ * `./api/message` inside the iframe resolves to `/team/api/message`
+ * and 404s.
  *
  * Three fetches per cycle:
- *   - `/api/tiles`     — the roster, plus live / desired / ready
- *                        replicas and first-live timestamps. Ready
- *                        replica counts cannot come from the pair's
- *                        backend (static nginx), only from something
- *                        holding a cluster client.
+ *   - `/api/tiles`     — the roster, whether each pair is serving yet,
+ *                        and first-live timestamps.
  *   - `/api/dashboard` — the check matrix, polled more slowly, used to
  *                        label pairs who have not shipped yet.
- *   - `/team/<p>/api/message` per pair — the pair-authored payload.
+ *   - `/team/<p>/api/message` per pair — fetched only to notice when it
+ *                        changes. We do not render it; see the pulse
+ *                        below.
  *
  * Arrivals and changes are animated, because the payoff of the whole
  * hour used to require someone pressing Refresh.
@@ -64,119 +63,6 @@ const ARRIVAL_TOAST_MS = 6000;
 // Spotlight dwell time in presentation mode.
 const SPOTLIGHT_MS = 8000;
 
-/**
- * Named themes, resolved here rather than in the cluster.
- *
- * The pair's `Application` carries a theme *name*; the palette lives in
- * the renderer. That keeps the XRD to an enum plus a default — which is
- * a Crossplane lesson worth teaching — and lets the wall use gradients
- * a single hex field could not express.
- *
- * `color` in the payload is still honoured as a fallback so a tile
- * built before the enum landed keeps rendering.
- */
-const THEMES = {
-  ocean: { fg: '#f0f9ff', accent: '#7dd3fc', bg: 'linear-gradient(150deg, #0369a1, #0ea5e9)' },
-  sunset: { fg: '#fff7ed', accent: '#fdba74', bg: 'linear-gradient(150deg, #c2410c, #f97316)' },
-  forest: { fg: '#f0fdf4', accent: '#86efac', bg: 'linear-gradient(150deg, #15803d, #22c55e)' },
-  ember: { fg: '#fef2f2', accent: '#fca5a5', bg: 'linear-gradient(150deg, #b91c1c, #ef4444)' },
-  violet: { fg: '#f5f3ff', accent: '#c4b5fd', bg: 'linear-gradient(150deg, #6d28d9, #8b5cf6)' },
-};
-const FALLBACK_THEME = { fg: '#f8fafc', accent: '#cbd5e1', bg: 'linear-gradient(150deg, #475569, #64748b)' };
-
-function themeFor(payload) {
-  if (!payload) return FALLBACK_THEME;
-  if (payload.theme && THEMES[payload.theme]) return THEMES[payload.theme];
-  // Pre-enum payloads carry a raw hex in `color`. Paint the tile with it
-  // and force light type, rather than tinting text on a pale card — the
-  // whole point of the saturated palettes is carrying across a room.
-  if (payload.color) {
-    return { fg: '#ffffff', accent: '#ffffff', bg: `linear-gradient(150deg, ${payload.color}, ${payload.color})` };
-  }
-  return FALLBACK_THEME;
-}
-
-// Bounds for the fitted message size, in px.
-const MSG_MIN_PX = 12;
-const MSG_MAX_PX = 160;
-
-/**
- * The message, sized to actually fill its box.
- *
- * A fixed font size wastes a tile: "LGTM" floats in an empty field while
- * a long sentence crams into the middle. A formula over message length
- * does better but lands lumpily, because what decides the size is where
- * the text happens to wrap — measured on one tile, 24px filled 35% of
- * the height and 28px filled 61%, with nothing in between.
- *
- * So measure instead of predict: binary-search the largest size whose
- * rendered text still fits, and let the browser's own line breaking be
- * the judge. Eight iterations covers the whole range to the pixel.
- *
- * The size is written straight to the node rather than held in state —
- * re-rendering to apply a size that is computed from the render would
- * be a loop waiting to happen.
- */
-function FitText({ text, style, className }) {
-  const areaRef = useRef(null);
-  const textRef = useRef(null);
-
-  useEffect(() => {
-    const area = areaRef.current;
-    const el = textRef.current;
-    if (!area || !el) return undefined;
-
-    const fit = () => {
-      const availH = area.clientHeight;
-      const availW = area.clientWidth;
-      if (!availH || !availW) return;
-      let lo = MSG_MIN_PX;
-      let hi = MSG_MAX_PX;
-      let best = MSG_MIN_PX;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        el.style.fontSize = `${mid}px`;
-        if (el.scrollHeight <= availH && el.scrollWidth <= availW) {
-          best = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      el.style.fontSize = `${best}px`;
-    };
-
-    fit();
-    // Refit when the pair resizes the tile, and in presentation mode,
-    // where the grid decides the size and nothing else would tell us.
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(fit);
-    ro.observe(area);
-    return () => ro.disconnect();
-  }, [text]);
-
-  return (
-    <div ref={areaRef} className={className} style={style}>
-      <div
-        ref={textRef}
-        style={{
-          fontWeight: 800,
-          lineHeight: 1.1,
-          // `break-word`, not `anywhere`: `anywhere` lets min-content
-          // collapse to a single character, so the fitter happily grows
-          // the text until words are chopped mid-syllable
-          // ("Compositio / n at a time"). With `break-word` the longest
-          // word has to fit on one line, which is what caps the size.
-          overflowWrap: 'break-word',
-          textWrap: 'balance',
-        }}
-      >
-        {text}
-      </div>
-    </div>
-  );
-}
-
 // Animations live in a stylesheet rather than inline styles because
 // keyframes cannot be expressed inline, and because `prefers-reduced-
 // motion` is the right place to switch them off wholesale.
@@ -190,10 +76,6 @@ const CSS = `
   0%   { box-shadow: 0 0 0 0 var(--wall-pulse, rgba(37,99,235,0.55)); }
   100% { box-shadow: 0 0 0 18px rgba(0,0,0,0); }
 }
-@keyframes wallPodPending {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 1; }
-}
 @keyframes wallToast {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -201,9 +83,8 @@ const CSS = `
 .wall-arrive { animation: wallArrive 520ms cubic-bezier(0.22, 1, 0.36, 1); }
 .wall-pulse  { animation: wallPulse 900ms ease-out; }
 .wall-toast  { animation: wallToast 240ms ease-out; }
-.wall-pod-pending { animation: wallPodPending 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .wall-arrive, .wall-pulse, .wall-toast, .wall-pod-pending { animation: none; }
+  .wall-arrive, .wall-pulse, .wall-toast { animation: none; }
 }
 `;
 
@@ -292,68 +173,10 @@ function writeJSON(key, value) {
   }
 }
 
-/**
- * The strip along the bottom of a live tile: one dot per desired
- * replica, filled for each ready one, with the count spelled out.
- *
- * This is the tile showing infrastructure rather than text. Filled dots
- * are pods actually serving; hollow, pulsing ones are pods Kubernetes
- * has been asked for and has not produced yet. The written count is
- * there because a row of dots on its own is a riddle — at a glance you
- * should be able to read "2/3 ready" and know what you are looking at.
- */
-function PodBar({ desired, ready, theme, present }) {
-  if (!desired) return null;
-  const shown = Math.min(desired, 12);
-  const settled = ready >= desired;
-  const text = settled
-    ? `${desired} pod${desired === 1 ? '' : 's'}`
-    : `${ready}/${desired} ready`;
-  const dot = present ? 11 : 8;
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '0.55rem',
-        padding: present ? '10px 12px' : '7px 10px',
-        background: 'rgba(0, 0, 0, 0.2)',
-        color: theme.fg,
-        fontSize: present ? '0.95rem' : '0.72rem',
-        fontWeight: 700,
-        letterSpacing: '0.03em',
-        flex: '0 0 auto',
-      }}
-      title={`${ready} of ${desired} frontend replicas ready`}
-      aria-label={`${ready} of ${desired} frontend replicas ready`}
-    >
-      <span style={{ display: 'flex', gap: '4px' }}>
-        {Array.from({ length: shown }, (_, i) => (
-          <span
-            key={i}
-            className={i < ready ? undefined : 'wall-pod-pending'}
-            style={{
-              width: `${dot}px`,
-              height: `${dot}px`,
-              borderRadius: '50%',
-              border: `2px solid ${theme.accent}`,
-              background: i < ready ? theme.accent : 'transparent',
-            }}
-          />
-        ))}
-      </span>
-      <span style={{ opacity: 0.9 }}>{text}</span>
-    </div>
-  );
-}
-
 function Tile({
   pair,
   size,
   onResize,
-  payload,
   state,
   stageLabel,
   arrivalPosition,
@@ -392,7 +215,6 @@ function Tile({
   }, [pair, onResize, present]);
 
   const live = state?.live;
-  const theme = themeFor(payload);
 
   const frame = {
     boxSizing: 'border-box',
@@ -423,18 +245,16 @@ function Tile({
     flex: '0 0 auto',
   };
 
-  // The pulse target, and the themed surface. Padding sits on the inner
-  // areas instead so the pod bar can run edge to edge.
   const body = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     minHeight: 0,
-    background: live ? theme.bg : 'var(--ifm-color-emphasis-100)',
-    color: live ? theme.fg : 'var(--ifm-color-emphasis-700)',
+    background: live ? 'transparent' : 'var(--ifm-color-emphasis-100)',
+    color: 'var(--ifm-color-emphasis-700)',
   };
 
-  const msgArea = {
+  const placeholderArea = {
     flex: 1,
     display: 'flex',
     alignItems: 'center',
@@ -454,8 +274,6 @@ function Tile({
     color: 'var(--ifm-color-emphasis-700)',
     flex: '0 0 auto',
   };
-
-  const message = payload?.message || (payload ? '(no message)' : 'Loading…');
 
   return (
     <div
@@ -486,26 +304,25 @@ function Tile({
         ) : null}
       </div>
 
-      {/* Remounting on pulseKey is what replays the CSS animation when
-          the pair's payload changes — module 6's platform-side change
-          becomes visible without anyone pressing Refresh. */}
+      {/* Remounting on pulseKey does double duty: it replays the pulse
+          animation, and it reloads the iframe. The pair's page fetches
+          its content once on load, so without the remount a tile would
+          sit on stale content after module 6's change until somebody
+          refreshed the whole wall. */}
       <div
         key={pulseKey}
         className={pulseKey ? 'wall-pulse' : undefined}
-        style={{ ...body, '--wall-pulse': theme.accent }}
+        style={body}
       >
         {live ? (
-          <>
-            <FitText className="wall-msg-area" style={msgArea} text={message} />
-            <PodBar
-              desired={state?.desiredReplicas}
-              ready={state?.readyReplicas}
-              theme={theme}
-              present={present}
-            />
-          </>
+          <iframe
+            title={pair}
+            src={`/team/${pair}/`}
+            style={{ width: '100%', flex: 1, border: 'none', background: 'transparent' }}
+            loading="lazy"
+          />
         ) : (
-          <div style={{ ...msgArea, flexDirection: 'column', gap: '0.3rem' }}>
+          <div style={{ ...placeholderArea, flexDirection: 'column', gap: '0.3rem' }}>
             <div style={{ fontWeight: 700, fontSize: present ? '1.2rem' : '0.95rem' }}>Not live yet</div>
             <div style={{ fontSize: present ? '1rem' : '0.8rem', opacity: 0.8 }}>
               {stageLabel || state?.details || 'waiting for this pair'}
@@ -542,7 +359,6 @@ export default function Wall() {
   );
 
   const [tiles, setTiles] = useState(null);
-  const [payloads, setPayloads] = useState({});
   const [dashboard, setDashboard] = useState(null);
   const [err, setErr] = useState(null);
   const [paused, setPaused] = useState(false);
@@ -606,7 +422,6 @@ export default function Wall() {
 
       const next = {};
       for (const [id, payload] of results) if (payload) next[id] = payload;
-      setPayloads(next);
 
       // Pulse any tile whose payload actually changed since last poll.
       const changed = [];
@@ -814,7 +629,6 @@ export default function Wall() {
                 pair={row.id}
                 size={sizes[row.id] || defaultSize}
                 onResize={handleResize}
-                payload={payloads[row.id]}
                 state={row}
                 stageLabel={labels[row.id]}
                 arrivalPosition={positions[row.id]}

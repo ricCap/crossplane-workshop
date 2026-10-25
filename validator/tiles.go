@@ -14,17 +14,9 @@ import (
 )
 
 // The wall (docs/src/pages/wall.jsx) renders one tile per pair and wants
-// two things the browser cannot work out on its own:
-//
-//  1. Whether the pair's frontend is actually serving yet, so a pair who
-//     has not shipped renders as a dimmed placeholder instead of a dead
-//     iframe.
-//  2. How many frontend replicas are *ready* versus *desired*, which is
-//     what the tile's replica dots draw.
-//
-// Desired replicas also reach the browser through the pair's own backend
-// ConfigMap, but ready replicas cannot: the backend is nginx serving a
-// static file and has no idea how many of its own pods are up. Only
+// one thing the browser cannot work out on its own: whether the pair's
+// frontend is actually serving yet, so a pair who has not shipped
+// renders as a labelled placeholder instead of a dead iframe. Only
 // something holding a cluster client can answer that, hence this
 // endpoint.
 //
@@ -94,10 +86,8 @@ func lookupFirstSeen(pair string) (time.Time, bool) {
 }
 
 type tileRow struct {
-	ID              string `json:"id"`
-	Live            bool   `json:"live"`
-	DesiredReplicas int64  `json:"desiredReplicas"`
-	ReadyReplicas   int64  `json:"readyReplicas"`
+	ID   string `json:"id"`
+	Live bool   `json:"live"`
 	// FirstSeenAt is RFC3339, omitted until the pair has been live once.
 	FirstSeenAt string `json:"firstSeenAt,omitempty"`
 	// Details explains a not-live tile in the facilitator's words
@@ -223,12 +213,12 @@ func readPairTile(ctx context.Context, mgmtClient *kubernetes.Clientset, pair st
 	if !ok {
 		desired = 1
 	}
-	row.DesiredReplicas = desired
 
 	// status.readyReplicas is absent until at least one pod is ready,
-	// which is exactly the pre-arrival state the wall dims.
+	// which is exactly the pre-arrival state the wall labels. The counts
+	// are not serialised — nothing renders them — but they are what
+	// decides `live`, and they make the placeholder's reason readable.
 	ready, _ := unstructuredNestedInt64(dep.Object, "status", "readyReplicas")
-	row.ReadyReplicas = ready
 
 	row.Live = ready > 0
 	if !row.Live {

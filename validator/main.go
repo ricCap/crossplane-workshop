@@ -68,7 +68,7 @@ func main() {
 	mux.HandleFunc("GET /api/pairs", handlePairs)
 	// GET /api/dashboard — aggregated pair × check matrix for the facilitator
 	mux.HandleFunc("GET /api/dashboard", handleDashboard)
-	// GET /api/tiles — per-pair live/replica state for the wall page
+	// GET /api/tiles — per-pair live state for the wall page
 	mux.HandleFunc("GET /api/tiles", handleTiles)
 
 	if localMode() {
