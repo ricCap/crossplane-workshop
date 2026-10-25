@@ -26,19 +26,27 @@ spec:
           limits:
             cpu: 250m
             memory: 256Mi
-        # Bypass broken hairpin NAT on Aruba: when cert-manager runs the
-        # HTTP-01 self-check, the workshop hostnames must resolve to the
-        # Envoy proxy ClusterIP (in-cluster) instead of the external LB
-        # IP, otherwise the request loops out to the cloud LB and can't
-        # come back. The IP is the ClusterIP of the auto-generated
-        # Envoy proxy Service `envoy-envoy-gateway-system-workshop-*`
-        # in the envoy-gateway-system namespace. If the Gateway is ever
-        # deleted and recreated, this IP must be refreshed.
-        hostAliases:
-          - ip: "10.96.85.164"
-            hostnames:
-              - crossplane.workshop.riccardocapraro.com
-              - platform-crossplane.workshop.riccardocapraro.com
+        # No `hostAliases` here, deliberately — reverted to the
+        # pre-workshop state (c393e41 added it, this removes it).
+        #
+        # That workaround pinned the two workshop hostnames to the
+        # Envoy proxy ClusterIP because cert-manager's HTTP-01
+        # self-check was timing out, and it was diagnosed on workshop
+        # day as broken hairpin NAT on Aruba's load balancer. Hairpin
+        # is not broken: measured on the rebuilt cluster, a Pod
+        # co-located with an Envoy replica reaches
+        # https://platform-crossplane…/ through the external IP in 5ms.
+        #
+        # The real cause was the Envoy Service's default
+        # `externalTrafficPolicy: Local`, which only forwards external-IP
+        # traffic on nodes running an Envoy Pod. The first cluster was
+        # single-node, so every Pod qualified and the setting was
+        # invisible; the symptom looked exactly like hairpin failure.
+        # That is now fixed at the source by the EnvoyProxy in
+        # gitops/envoy-gateway/envoyproxy.yaml, so cert-manager needs
+        # no per-Pod override and no longer carries a hardcoded
+        # ClusterIP that goes stale whenever the Gateway is recreated —
+        # which it did, twice.
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

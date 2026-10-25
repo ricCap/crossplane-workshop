@@ -1,0 +1,48 @@
+# EnvoyProxy parameters for the workshop GatewayClass.
+#
+# Sole purpose: set the Envoy LoadBalancer Service's
+# `externalTrafficPolicy` to `Cluster`. Envoy Gateway defaults it to
+# `Local`, which silently breaks in-cluster callers the moment the
+# cluster has more than one node.
+#
+# Why this matters here. With `Local`, kube-proxy only forwards
+# traffic sent to the Service's external IP if the node handling it
+# runs an Envoy proxy Pod. There is one Envoy replica, so exactly one
+# node qualifies. A Pod on any other node that resolves a workshop
+# hostname via public DNS gets the external IP and its packets are
+# dropped — no RST, just a silent blackhole until timeout.
+#
+# Measured on the rebuilt Aruba cluster (2 nodes, Envoy on the first):
+#
+#   from the Envoy node   -> https://platform-crossplane…/  HTTP 200 in 5ms
+#   from the other node   -> https://platform-crossplane…/  timeout after 12s
+#   from either node, via the Envoy ClusterIP               HTTP 200 in ~1ms
+#
+# That is what put every pair's vcluster syncer into CrashLoopBackOff:
+# it must reach vCluster Platform to initialise its license, resolves
+# the public hostname, and lands on a node without Envoy.
+#
+# This was invisible for the whole first workshop because that cluster
+# was single-node — every Pod was co-located with Envoy, so `Local`
+# never bit. It is not hairpin NAT, which works fine here (proven by
+# the 5ms success above).
+#
+# `Cluster` lets kube-proxy forward to an Envoy Pod on any node. The
+# cost is client source-IP preservation: cross-node traffic is SNAT'd,
+# so Envoy may see a node IP rather than the real client. Nothing in
+# this workshop does source-IP-based policy or logging, so that is a
+# fair trade for routing that does not depend on Pod placement.
+#
+# The alternative — one Envoy replica per node — costs more resource
+# and still needs revisiting whenever the pool changes. Prefer this.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: workshop-proxy
+  namespace: envoy-gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        externalTrafficPolicy: Cluster
