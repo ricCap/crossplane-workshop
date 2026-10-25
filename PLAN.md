@@ -196,9 +196,35 @@ This unblocks the smoketest without touching [#222](https://github.com/ricCap/cr
 9. **Confirm at least one Kyverno denial fires**, not just that the allowed path works. #222 records that two days of green dry runs missed a policy bug precisely because the solo path installs no Kyverno — a smoketest that never triggers a deny would repeat that mistake.
 10. Record findings ([#93](https://github.com/ricCap/crossplane-workshop/issues/93)), tick #73, `task workshop:close-event`, delete `aruba-creds`, **rotate the Aruba API key** (account-admin scope, no scope-down path — #84/#102).
 
-### Known gap after this change
+### What the run actually found (2026-10-25)
 
-[`docs/docs/05-crossplane-2xx/02-operations.mdx`](docs/docs/05-crossplane-2xx/02-operations.mdx) is `ai_edit: locked` and still pins UXP `2.2.0-up.5`, so it now teaches a chart version no other page uses. Needs per-edit consent or an `ai_edit: ask` flip in its own reviewed commit — along with its Italian mirror, which is locked too.
+Steps 1–7 and 9 are **done**; 8 is partly done and 10 is pending. `task verify:all MODE=platform` reports `OK (2 pair(s))`, which had never passed on Aruba before and closes the three items #73 carried since PR #26.
+
+Every bump in #233 is now exercised live: UXP `2.4.3-up.1`, provider-kubernetes `v1.4.1`, the three functions, argo-cd `10.11.1`/`v3.5.6`, Envoy Gateway `v1.9.2`, Platform `4.12.4`, cert-manager `v1.21.3`, vcluster `0.37.4`, kyverno `3.9.2`, provider-arubacloud `v0.5.0-workshop`. Kyverno enforcement was proven with a **deliberate denial**, not just a green path — `docker.io/attacker/provider-evil:v1` blocked by `block-rogue-providers`, `xpkg.upbound.io/crossplane-contrib/provider-helm:v1.5.0` admitted.
+
+**The hairpin-NAT diagnosis from the first workshop was wrong.** The syncer could not reach Platform, with the same timeout signature that produced the cert-manager `hostAliases` workaround (c393e41) on workshop day. Measured here: a Pod co-located with Envoy reaches the public hostname in **5ms**; a Pod on any other node times out after 12s; both reach the Envoy ClusterIP in ~1ms. The cause was the Envoy Service's `externalTrafficPolicy: Local` plus a single replica — kube-proxy only forwards external-IP traffic on nodes running an Envoy Pod. **Invisible for the whole first workshop because that cluster was single-node**, so every Pod qualified. Fixed in #235 by running Envoy as a DaemonSet, which keeps `Local` and therefore client source IPs — `externalTrafficPolicy: Cluster` would have SNAT'd traffic and collapsed the Platform login rate limit's per-client buckets to per-node, 429ing a room at ~2–4 pairs per node. The `hostAliases` hack is gone.
+
+Four new issues, none previously tracked:
+
+- **[#236](https://github.com/ricCap/crossplane-workshop/issues/236)** — `02-shape-database.yaml` guards `engineId`/`flavor`/`location` on `Database`, which has none of those fields; they are on `DBaaS`, which no shape policy targets. The flavor, location and storage caps are therefore inert, so a pair can create 2 DBaaS instances of any size anywhere. Cost exposure, not unbounded abuse (the count cap holds).
+- **[#237](https://github.com/ricCap/crossplane-workshop/issues/237)** — `enable-aruba` needs Crossplane in the vcluster but neither checks nor says so, fails with an opaque API-discovery error, keeps failing after you fix it (ArgoCD caches per-cluster discovery; needs an application-controller restart), and reports `✗ sync Failed` for syncs that are still `Running`.
+- **[#238](https://github.com/ricCap/crossplane-workshop/issues/238)** — ArgoCD did not ingest a freshly-created per-pair Cluster Secret until it was touched again; the ApplicationSet generated parameters but could not resolve the destination cluster. Scales badly with pair count.
+- **[#239](https://github.com/ricCap/crossplane-workshop/issues/239)** — Aruba reported `ProvisioningSucceeded` for a volume its console still showed as `Creating`, binding a PV that could never attach and wedging a pair for 25 minutes; and the vcluster chart's `retentionPolicy: Retain` leaks a 5 GiB volume per pair per teardown.
+
+Smaller observations worth keeping:
+
+- **`crossplane-init` still needs the storeconfigs shim** on `2.4.3-up.1`. Templating both `2.2.0-up.5` and `2.4.3-up.1` shows the bundled `crossplane` ClusterRole still grants no verbs on `secrets.crossplane.io/storeconfigs`, so `gitops/crossplane-packages/rbac.yaml`'s aggregated shim stays. Whether init still *creates* a default StoreConfig can only be seen at runtime.
+- **provider-helm crashloops once or twice on a cold start.** v1.x sizes its client cache by listing its own `ProviderConfig`s at boot and loses a race with Crossplane's RBAC manager: `providerconfigs.helm.crossplane.io is forbidden`. Self-heals. `crossplane-apollo`'s syncer does the same, and did so before the upgrade too. Expected noise, not a fault.
+- **The cluster came up single-node and a second node joined mid-run**, which is what exposed the `externalTrafficPolicy` bug. Both nodes are `md-medium` at 4 vCPU / 7.66 GiB allocatable / 110 pods — *identical capacity to the old `md-standard`*, so §Cluster sizing's per-node maths carries over unchanged and still needs re-measuring (#93).
+- CIDRs held up: nodes `10.10.0.0/24`, pods `10.244.0.0/16` carved per node, services `10.96.0.0/12`, no overlap, and the pair egress NetworkPolicy's RFC1918 `except` list covers nodes and services as intended.
+
+### Known gaps after this run
+
+- **`task github:register` was never run**, so `github-app-credentials` is absent from both participant namespaces and **module 06 is entirely unexercised** on Aruba. This is the largest remaining hole in #73.
+- **`task bootstrap:aruba-shared-network` was never run** (deliberately deferred), so module 07 §7.3's `Database` MR against the shared VPC is unexercised.
+- **101 module 05 was not walked.** The GHCR path is sound in principle — `07-block-rogue-providers.yaml` already allowlists `ghcr.io/riccap/`, confirmed in the rendered policy — but no package was built, pushed or installed, so `configuration-installed` is unproven.
+- **The validator dashboard and ArgoCD per-pod cards were not checked.** The latter is the payoff from dropping the Pod exclusion in #233 and is worth one look.
+- [`docs/docs/05-crossplane-2xx/02-operations.mdx`](docs/docs/05-crossplane-2xx/02-operations.mdx) was `ai_edit: locked` and pinned UXP `2.2.0-up.5`; bumped with the author's explicit per-edit consent, lock left in place.
 
 ## Open items
 
