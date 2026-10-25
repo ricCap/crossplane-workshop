@@ -3,7 +3,7 @@
 # already installed in module 3) pulls the OCI image and registers
 # the Aruba MR CRDs.
 #
-# Image pinned to v0.4.0-workshop, which regenerates every MR API
+# Image pinned to v0.5.0-workshop, which regenerates every MR API
 # against upstream Arubacloud/terraform-provider-arubacloud v1.0.1
 # (ricCap/provider-arubacloud#12). Same Kind catalogue as
 # v0.3.0-workshop — no group or Kind added or removed — so the
