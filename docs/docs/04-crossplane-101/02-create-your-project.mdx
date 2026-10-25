@@ -76,7 +76,7 @@ metadata:
   namespace: default
 spec:
   message: "Hello from our platform"
-  color: "#2563eb"
+  backgroundColor: "#2563eb"
 EOF
 ```
 
@@ -95,11 +95,11 @@ That path is relative to `apis/`, so the file is at `apis/applications/definitio
 ```yaml
 message:
   type: string
-color:
+backgroundColor:
   type: string
 ```
 
-The CLI reads shapes, not intent. It saw two strings and wrote two strings — it has no way to know that `message` should be required or that `color` should carry a default. Those are decisions you add by hand once the shape is right, and `apis/applications/definition.yaml` is now yours to edit.
+The CLI reads shapes, not intent. It saw two strings and wrote two strings — it has no way to know that `message` should be required or that `backgroundColor` should carry a default. Those are decisions you add by hand once the shape is right, and `apis/applications/definition.yaml` is now yours to edit.
 
 ## 2.3 What just happened
 

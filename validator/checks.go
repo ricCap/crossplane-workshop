@@ -599,6 +599,35 @@ func unstructuredNestedString(obj map[string]interface{}, fields ...string) (str
 	return "", false, nil
 }
 
+// unstructuredNestedInt64 is a thin helper for reading an integer out of
+// a nested unstructured object (e.g. status.readyReplicas on a
+// Deployment). JSON-decoded unstructured content carries whole numbers
+// as int64, but a value that round-tripped through a float path arrives
+// as float64, so both are accepted. A missing field reports ok=false
+// rather than 0, because "no replicas yet" and "zero replicas" mean
+// different things to the wall.
+func unstructuredNestedInt64(obj map[string]interface{}, fields ...string) (int64, bool) {
+	cur := obj
+	for i, f := range fields {
+		if i == len(fields)-1 {
+			switch v := cur[f].(type) {
+			case int64:
+				return v, true
+			case float64:
+				return int64(v), true
+			default:
+				return 0, false
+			}
+		}
+		next, ok := cur[f].(map[string]interface{})
+		if !ok {
+			return 0, false
+		}
+		cur = next
+	}
+	return 0, false
+}
+
 // unstructuredNestedSlice is a thin helper to avoid importing k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
 // just for slice access.
 func unstructuredNestedSlice(obj map[string]interface{}, fields ...string) ([]interface{}, bool, error) {

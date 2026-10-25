@@ -139,6 +139,24 @@ tasks:
       - kubectl -n {{.DOCS_NS}} rollout status deploy/docs --timeout=180s
       - 'echo "  docs now served from this branch at http://localhost:8080/"'
 
+  solo:validator-image:
+    desc: "Build this branch's validator image and serve it from the solo cluster."
+    # The docs Pod runs the validator as a sidecar, and `solo:platform`
+    # deploys the published `:latest` — so a branch that changes the
+    # validator (a new check, a new /api endpoint) is invisible in solo
+    # until you swap the image in. Same :dev tag + IfNotPresent trick as
+    # solo:docs-image, patched into the `validator` container of the same
+    # Deployment.
+    cmds:
+      - docker build -t crossplane-workshop-validator:dev validator/
+      - k3d image import crossplane-workshop-validator:dev -c {{.SOLO_CLUSTER_NAME}}
+      - |
+        kubectl -n {{.DOCS_NS}} patch deploy docs --type=strategic -p \
+          '{"spec":{"template":{"spec":{"containers":[{"name":"validator","image":"crossplane-workshop-validator:dev","imagePullPolicy":"IfNotPresent"}]}}}}'
+      - kubectl -n {{.DOCS_NS}} rollout restart deploy/docs
+      - kubectl -n {{.DOCS_NS}} rollout status deploy/docs --timeout=180s
+      - 'echo "  validator now served from this branch at http://localhost:8080/api/"'
+
   solo:verify:
     desc: "Smoke check the solo stack: Envoy Gateway ready, docs pod ready, / and /api/pairs respond."
     cmds:

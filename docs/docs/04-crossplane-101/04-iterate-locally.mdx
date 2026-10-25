@@ -43,7 +43,7 @@ kind: Deployment       name: frontend
 kind: Service          name: frontend    port: 80
 ```
 
-Check the frontend ConfigMap: the `message` from your example `Application` should appear in the HTML. That is the patch doing its job — a field on your API reaching a file inside a container.
+Check the **backend** ConfigMap: the `message` from your example `Application` should appear in its JSON. That is the patch doing its job — a field on your API reaching a file inside a container. The frontend ConfigMap holds only static HTML; it fetches that JSON at runtime, which is why your message is not in it.
 
 Change `message` in `examples/applications/hello.yaml`, render again, and watch the output follow. That round trip is a couple of seconds, against the minutes a cluster round trip costs.
 
