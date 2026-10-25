@@ -204,7 +204,7 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 ## Required tools
 
-`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.31.0), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional. For per-pair kubeconfig distribution (`task pairs:distribute`) you also need `rclone` (with a configured remote — see below) and `qrencode`.
+`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.37.4, matching the chart the Composition pins), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional. For per-pair kubeconfig distribution (`task pairs:distribute`) you also need `rclone` (with a configured remote — see below) and `qrencode`.
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
