@@ -1,11 +1,5 @@
 # provider-helm on the management cluster — used by the DeveloperEnvironment
 # Composition to install the loft-sh/vcluster Helm chart per pair.
-#
-# Kept on the v1.x line so the management cluster isn't a major version
-# behind what module 05 has participants install in their own vclusters.
-# v1.x still serves the legacy cluster-scoped Release.helm.crossplane.io/
-# v1beta1 kind the Composition composes, alongside the v2 namespaced
-# helm.m.crossplane.io kinds — no manifest change needed here.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
