@@ -47,7 +47,7 @@ Expected output:
 
 ```
 Client Version: v2.2.1
-Server Version: v2.2.0-up.5
+Server Version: v2.4.3-up.1
 ```
 
 (Versions may differ — anything `v2.x` covers the subcommands below. `Server Version` is read from your current kube-context's Crossplane install.)
@@ -75,9 +75,9 @@ metadata:
   name: function-patch-and-transform
   annotations:
     render.crossplane.io/runtime: Docker
-    render.crossplane.io/runtime-docker-image: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+    render.crossplane.io/runtime-docker-image: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.11.1
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.11.1
 EOF
 ```
 

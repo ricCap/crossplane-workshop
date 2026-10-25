@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.jetstack.io
     chart: cert-manager
-    targetRevision: v1.17.2
+    targetRevision: v1.21.3
     helm:
       releaseName: cert-manager
       values: |
@@ -35,7 +35,7 @@ spec:
         # in the envoy-gateway-system namespace. If the Gateway is ever
         # deleted and recreated, this IP must be refreshed.
         hostAliases:
-          - ip: "10.96.220.209"
+          - ip: "10.96.85.164"
             hostnames:
               - crossplane.workshop.riccardocapraro.com
               - platform-crossplane.workshop.riccardocapraro.com

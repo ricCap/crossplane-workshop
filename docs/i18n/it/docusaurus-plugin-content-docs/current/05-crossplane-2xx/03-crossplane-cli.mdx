@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: (Guidato) Usa la CLI Crossplane
-translation_source_commit: 08f423c7233e286877bf502e5de79de3a57e42d7
+translation_source_commit: 6269cf1643a9bd44edbfb2a3f5140b8b08b574e2
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -48,7 +48,7 @@ Output atteso:
 
 ```
 Client Version: v2.2.1
-Server Version: v2.2.0-up.5
+Server Version: v2.4.3-up.1
 ```
 
 (Le versioni possono differire — qualunque `v2.x` copre i subcomandi qui sotto. `Server Version` viene letta dall'installazione Crossplane del tuo kube-context corrente.)
@@ -76,9 +76,9 @@ metadata:
   name: function-patch-and-transform
   annotations:
     render.crossplane.io/runtime: Docker
-    render.crossplane.io/runtime-docker-image: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+    render.crossplane.io/runtime-docker-image: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.11.1
 spec:
-  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.9.0
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.11.1
 EOF
 ```
 

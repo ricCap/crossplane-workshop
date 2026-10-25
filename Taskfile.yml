@@ -13,9 +13,9 @@ vars:
   # cluster on the same Docker daemon.
   SOLO_CLUSTER_NAME: crossplane-workshop-solo
   ARGOCD_NS: argocd
-  # argo/argo-cd — ArgoCD 3.3.6 app version. Bump deliberately.
-  # https://github.com/argoproj/argo-helm/releases/tag/argo-cd-9.5.0
-  ARGOCD_CHART_VERSION: 9.5.0
+  # argo/argo-cd — ArgoCD 3.5.6 app version. Bump deliberately.
+  # https://github.com/argoproj/argo-helm/releases/tag/argo-cd-10.11.1
+  ARGOCD_CHART_VERSION: 10.11.1
   ROOT_APP: bootstrap/root-app.yaml
   ARGOCD_VALUES: bootstrap/argocd-values.yaml
   # GitHub repo this cluster pulls from. Override these three to reuse the
@@ -28,12 +28,12 @@ vars:
   # Helm chart (not ArgoCD-managed — Docker Hub rate limits block
   # unauthenticated OCI pulls from cluster IPs).
   # https://gateway.envoyproxy.io/docs/install/install-helm/
-  ENVOY_GATEWAY_VERSION: v1.4.0
+  ENVOY_GATEWAY_VERSION: v1.9.2
   ENVOY_GATEWAY_NS: envoy-gateway-system
   # vCluster Platform — web UI for participant vcluster access.
   # Installed via `task bootstrap:vcluster-platform` (not ArgoCD)
   # to keep admin credentials out of git.
-  VCLUSTER_PLATFORM_VERSION: 4.8.0
+  VCLUSTER_PLATFORM_VERSION: 4.12.4
   VCLUSTER_PLATFORM_NS: vcluster-platform
   # GHCR pull secret for the private docs + validator images. The secret
   # is created in the `docs` namespace and referenced via imagePullSecrets
@@ -654,7 +654,7 @@ tasks:
         PLATFORM_INSECURE       false (set to true for self-signed
                                 Platform — e.g. local vind without LE)
 
-      Secret schema per loft-sh/vcluster v0.33.1
+      Secret schema per loft-sh/vcluster v0.37.4
       `pkg/platform/secret.go` :: `ApplyPlatformSecret` — required
       keys are `accessKey`, `host`, `project`, `insecure`, with the
       `vcluster.loft.sh/created-by-cli` marker label.

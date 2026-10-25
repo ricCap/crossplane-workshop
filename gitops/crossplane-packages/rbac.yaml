@@ -134,11 +134,12 @@ subjects:
     name: provider-kubernetes
     namespace: crossplane-system
 ---
-# Workaround for an UXP v2.2.0-up.5 chart bug: `crossplane-init`
-# reinstalls the (alpha) `storeconfigs.secrets.crossplane.io` CRD
-# during the CoreCRDs step and then tries to create a default
-# StoreConfig, but the bundled `crossplane` ClusterRole no longer
-# grants any verbs on storeconfigs. The pod fails to initialize with:
+# Workaround for a UXP chart bug first hit on v2.2.0-up.5, still in
+# place on v2.4.3-up.1: `crossplane-init` reinstalls the (alpha)
+# `storeconfigs.secrets.crossplane.io` CRD during the CoreCRDs step
+# and then tries to create a default StoreConfig, but the bundled
+# `crossplane` ClusterRole no longer grants any verbs on storeconfigs.
+# The pod fails to initialize with:
 #
 #   cannot initialize core: cannot create default store config:
 #   storeconfigs.secrets.crossplane.io is forbidden: User
@@ -150,6 +151,17 @@ subjects:
 # survives chart upgrades. Remove once the upstream chart ships the
 # rule itself (or once external secret stores are fully removed in
 # a future UXP release).
+#
+# Still required as of the 2.4.3-up.1 bump: templating both
+# 2.2.0-up.5 and 2.4.3-up.1 shows the `crossplane` ClusterRole still
+# grants no verbs on `secrets.crossplane.io/storeconfigs`. Whether
+# `crossplane-init` still *creates* a default StoreConfig can't be
+# read off the templates — it happens at runtime in the init
+# container — so this shim is kept as the safe default. It only
+# grants permissions, so carrying it when unneeded is harmless,
+# while dropping it while still needed breaks pod init outright.
+# Worth confirming on the rebuilt cluster: if init no longer creates
+# a StoreConfig, this whole object can go.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

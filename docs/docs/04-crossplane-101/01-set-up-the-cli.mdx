@@ -105,7 +105,7 @@ Install UXP into `crossplane-system`:
 
 ```bash
 helm install crossplane upbound-stable/crossplane \
-  --version 2.2.0-up.5 \
+  --version 2.4.3-up.1 \
   --namespace crossplane-system \
   --create-namespace \
   --devel \
@@ -115,7 +115,7 @@ helm install crossplane upbound-stable/crossplane \
 
 Four flags are doing real work:
 
-- `--version 2.2.0-up.5` pins the chart. Without it Helm takes the newest available, which has drifted past what these modules were written against.
+- `--version 2.4.3-up.1` pins the chart. Without it Helm takes the newest available, which has drifted past what these modules were written against.
 - `--devel` is required to install that version at all — the `-up.5` suffix is a SemVer pre-release tag, and Helm filters those out by default.
 - `--wait` blocks until the Crossplane Deployments report Available, so the command only returns once the cluster is actually ready. Expect 30–60 seconds on a workshop-sized cluster.
 - `--set webui.enabled=true` turns on the read-only Web UI.

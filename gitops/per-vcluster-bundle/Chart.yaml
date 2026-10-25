@@ -25,7 +25,7 @@ version: 0.1.0
 # `appVersion` tracks the provider-arubacloud OCI image tag we ship.
 # Keep in sync with the `image` value in values.yaml; bump together
 # when the upstream provider cuts a new release.
-appVersion: "v0.4.0-workshop"
+appVersion: "v0.5.0-workshop"
 
 # Kyverno is installed via dependency. ArgoCD pulls the chart at
 # sync time, renders it alongside our templates, applies everything
@@ -43,5 +43,5 @@ dependencies:
     # `ImagePullBackOff` on `policyReportsCleanup` /
     # `webhooksCleanup` / `post-delete-configmap` Jobs without
     # depending on the unguaranteed `bitnamilegacy` mirror.
-    version: "3.6.4"
+    version: "3.9.2"
     repository: "https://kyverno.github.io/kyverno/"

@@ -11,90 +11,30 @@ configs:
   params:
     # Phase 1 port-forward runs TLS-terminated on the server; keep defaults.
     server.insecure: false
-  cm:
-    # `resource.exclusions` — keys the cluster cache the
-    # application-controller maintains. The chart ships a default list
-    # (network/coordination/auth/cert/cilium/kyverno noise). Pod is
-    # appended here as a workaround for argoproj/argo-cd#26529:
-    # kubectl v0.34.0 (vendored by every released Argo CD v3.2–v3.4)
-    # panics with `assignment to entry in nil map` inside
-    # `populatePodInfo`, on a pod shape we could not narrow down by
-    # JSON inspection (relax-pair-quota in #139 was necessary but not
-    # sufficient). Excluding Pod from the controller's cluster cache
-    # skips the panicking code path entirely.
-    #
-    # Trade-off: Argo CD UI loses per-pod cards under Applications, and
-    # Application health rolls up from Deployment/StatefulSet/etc.
-    # status alone (no per-pod aggregation). Acceptable for this
-    # workshop — participants interact with their workloads via
-    # vCluster Platform, not Argo CD's UI.
-    #
-    # **Important: this is the full list, not an addition.** Helm
-    # string overrides replace, they don't merge. Mirror chart-default
-    # bumps here when bumping `argo-cd` chart version (currently
-    # 9.5.0). Remove the trailing Pod entry — and this comment — once
-    # Argo CD ships a release vendoring `k8s.io/kubectl` ≥ v0.36.0
-    # (kubernetes/kubernetes#136534).
-    resource.exclusions: |
-      ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
-      - apiGroups:
-        - ''
-        - discovery.k8s.io
-        kinds:
-        - Endpoints
-        - EndpointSlice
-      ### Internal Kubernetes resources excluded reduce the number of watched events
-      - apiGroups:
-        - coordination.k8s.io
-        kinds:
-        - Lease
-      ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
-      - apiGroups:
-        - authentication.k8s.io
-        - authorization.k8s.io
-        kinds:
-        - SelfSubjectReview
-        - TokenReview
-        - LocalSubjectAccessReview
-        - SelfSubjectAccessReview
-        - SelfSubjectRulesReview
-        - SubjectAccessReview
-      ### Intermediate Certificate Request excluded reduce the number of watched events
-      - apiGroups:
-        - certificates.k8s.io
-        kinds:
-        - CertificateSigningRequest
-      - apiGroups:
-        - cert-manager.io
-        kinds:
-        - CertificateRequest
-      ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
-      - apiGroups:
-        - cilium.io
-        kinds:
-        - CiliumIdentity
-        - CiliumEndpoint
-        - CiliumEndpointSlice
-      ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
-      - apiGroups:
-        - kyverno.io
-        - reports.kyverno.io
-        - wgpolicyk8s.io
-        kinds:
-        - PolicyReport
-        - ClusterPolicyReport
-        - EphemeralReport
-        - ClusterEphemeralReport
-        - AdmissionReport
-        - ClusterAdmissionReport
-        - BackgroundScanReport
-        - ClusterBackgroundScanReport
-        - UpdateRequest
-      ### Pod excluded as workaround for argoproj/argo-cd#26529 (kubectl v0.34.0 panic in populatePodInfo). Drop when Argo CD ships kubectl >= v0.36.0.
-      - apiGroups:
-        - ''
-        kinds:
-        - Pod
+  # No `cm.resource.exclusions` override here, deliberately.
+  #
+  # This file used to carry the chart's whole default exclusion list
+  # with `Pod` appended, as a workaround for argoproj/argo-cd#26529:
+  # kubectl v0.34.0 (vendored by every released Argo CD v3.2–v3.4)
+  # panicked with `assignment to entry in nil map` inside
+  # `populatePodInfo` — notably on clusters where a remote vcluster
+  # uses LimitRanges, i.e. exactly this workshop's shape. Excluding
+  # Pod from the application-controller's cluster cache skipped the
+  # panicking code path, at the cost of per-pod cards in the UI and
+  # per-pod aggregation in Application health.
+  #
+  # That issue closed 2026-10-08, and the chart version pinned in
+  # Taskfile.yml (10.11.1 -> app v3.5.6) vendors `k8s.io/kubectl`
+  # v0.37.0, past the v0.36.0 threshold the fix landed in
+  # (kubernetes/kubernetes#136534). So the workaround is gone.
+  #
+  # The override is dropped entirely rather than just losing its Pod
+  # entry: the remainder was byte-identical to the chart default (and
+  # that default is unchanged between 9.5.0 and 10.11.1), so keeping
+  # it would only reintroduce the maintenance trap the old comment
+  # warned about — Helm string overrides replace rather than merge, so
+  # a copied list has to be re-mirrored on every chart bump. Letting
+  # the chart's own default apply removes that obligation.
 
 server:
   extraArgs:
