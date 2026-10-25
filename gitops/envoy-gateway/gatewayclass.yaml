@@ -6,3 +6,13 @@ metadata:
   name: eg
 spec:
   controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  # Points at the EnvoyProxy in envoyproxy.yaml, which sets the Envoy
+  # LoadBalancer Service's externalTrafficPolicy to `Cluster`. Without
+  # it the default `Local` makes in-cluster access to the workshop
+  # hostnames depend on whether the calling Pod happens to share a
+  # node with an Envoy replica. See that file for the measurements.
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: workshop-proxy
+    namespace: envoy-gateway-system
