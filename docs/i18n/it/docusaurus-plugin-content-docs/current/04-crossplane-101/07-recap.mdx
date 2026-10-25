@@ -17,7 +17,7 @@ Ottimo lavoro. In circa un'ora sei passato da una cartella vuota a un'API di pia
 | Definisci un'Application | Una Composition che trasforma un solo `Application` in sei oggetti: un frontend e un backend, ciascuno con Deployment, Service e ConfigMap |
 | Provala prima di pubblicare | Il ciclo render-e-valida — tutta la tua piattaforma esercitata sul laptop, senza coinvolgere un cluster |
 | Pubblica la tua piattaforma | Un package Configuration in una registry, installato nel cluster per nome, e il tuo tile vivo sul wall |
-| Modifica la tua Application | Una nuova versione del package che ha rimodellato un'applicazione in esecuzione che nessuno ha ri-applicato, e poi la stessa applicazione riscalata dal suo stesso proprietario |
+| Modifica la tua Application | Una nuova versione del package che ha rimodellato un'applicazione in esecuzione che nessuno ha ri-applicato |
 
 ## Cosa sai adesso
 
@@ -25,7 +25,7 @@ Hai pubblicato un'API Kubernetes. `Application` è un kind che il tuo cluster co
 
 Tre cose valgono la pena di essere portate fuori dalla stanza:
 
-- **La CLI scrive il boilerplate, tu scrivi l'intento.** Non hai scritto a mano un XRD né cablato una pipeline di function da zero — hai mostrato un esempio alla CLI e lei ha derivato l'API. Quello che non poteva derivare era il giudizio: il campo obbligatorio, l'`enum` chiuso, il `replicas` limitato. Quella è la parte di progettazione, ed è la parte che decide cosa un altro team può fare al tuo cluster.
+- **La CLI scrive il boilerplate, tu scrivi l'intento.** Non hai scritto a mano un XRD né cablato una pipeline di function da zero — hai mostrato un esempio alla CLI e lei ha derivato l'API. Quello che non poteva derivare era il giudizio: il campo obbligatorio e l'`enum` chiuso che dice quali temi esistono. Quella è la parte di progettazione, ed è la parte che decide cosa un altro team può fare al tuo cluster.
 - **Il ciclo è locale.** `composition render` e `resource validate` eseguono la pipeline reale contro gli schemi reali sul tuo laptop. Gran parte della vita di una Composition si svolge in quel ciclo, non in un cluster.
 - **La versione è l'unità di cambiamento.** Hai modificato una ricetta, pubblicato `v0.2.0`, e un `Application` che qualcuno aveva già creato l'ha seguita. Nessuno ha modificato un oggetto vivo, e nulla è andato alla deriva tra ciò che il cluster esegue e ciò che la ricetta dice.
 
