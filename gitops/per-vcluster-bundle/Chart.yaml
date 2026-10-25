@@ -43,5 +43,5 @@ dependencies:
     # `ImagePullBackOff` on `policyReportsCleanup` /
     # `webhooksCleanup` / `post-delete-configmap` Jobs without
     # depending on the unguaranteed `bitnamilegacy` mirror.
-    version: "3.6.4"
+    version: "3.9.2"
     repository: "https://kyverno.github.io/kyverno/"
