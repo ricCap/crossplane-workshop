@@ -1,18 +1,17 @@
 # EnvoyProxy parameters for the workshop GatewayClass.
 #
-# Sole purpose: set the Envoy LoadBalancer Service's
-# `externalTrafficPolicy` to `Cluster`. Envoy Gateway defaults it to
-# `Local`, which silently breaks in-cluster callers the moment the
-# cluster has more than one node.
+# Runs the Envoy fleet as a DaemonSet instead of a single-replica
+# Deployment, so every node has a local Envoy Pod.
 #
-# Why this matters here. With `Local`, kube-proxy only forwards
-# traffic sent to the Service's external IP if the node handling it
-# runs an Envoy proxy Pod. There is one Envoy replica, so exactly one
-# node qualifies. A Pod on any other node that resolves a workshop
-# hostname via public DNS gets the external IP and its packets are
-# dropped — no RST, just a silent blackhole until timeout.
+# The problem this solves. Envoy Gateway's Service uses
+# `externalTrafficPolicy: Local`, which means kube-proxy only forwards
+# traffic addressed to the Service's external IP on nodes that run an
+# Envoy Pod. With one replica exactly one node qualifies, and a Pod on
+# any other node that resolves a workshop hostname via public DNS gets
+# the external IP and has its packets dropped — no RST, just a silent
+# blackhole until timeout.
 #
-# Measured on the rebuilt Aruba cluster (2 nodes, Envoy on the first):
+# Measured on the rebuilt Aruba cluster (2 nodes, one Envoy replica):
 #
 #   from the Envoy node   -> https://platform-crossplane…/  HTTP 200 in 5ms
 #   from the other node   -> https://platform-crossplane…/  timeout after 12s
@@ -22,19 +21,30 @@
 # it must reach vCluster Platform to initialise its license, resolves
 # the public hostname, and lands on a node without Envoy.
 #
-# This was invisible for the whole first workshop because that cluster
-# was single-node — every Pod was co-located with Envoy, so `Local`
-# never bit. It is not hairpin NAT, which works fine here (proven by
-# the 5ms success above).
+# Invisible for the whole first workshop because that cluster was
+# single-node — every Pod was co-located with Envoy, so `Local` never
+# bit. It is not hairpin NAT, which works fine here (the 5ms success
+# above goes out to the cloud LB and back in).
 #
-# `Cluster` lets kube-proxy forward to an Envoy Pod on any node. The
-# cost is client source-IP preservation: cross-node traffic is SNAT'd,
-# so Envoy may see a node IP rather than the real client. Nothing in
-# this workshop does source-IP-based policy or logging, so that is a
-# fair trade for routing that does not depend on Pod placement.
+# Why a DaemonSet and not `externalTrafficPolicy: Cluster`. `Cluster`
+# is the usual one-line answer and it does fix the routing, but it
+# makes kube-proxy SNAT cross-node traffic, so Envoy sees a node IP
+# instead of the real client. That silently breaks the per-source-IP
+# rate limit in gitops/vcluster-platform/backend-traffic-policy.yaml:
+# its `type: Distinct` buckets would collapse from per-client to
+# per-node. Since that route carries every participant's kubectl and
+# helm traffic through the Platform proxy, and a single `helm install`
+# can burst 50-100 req/s against a 200 req/s bucket, a room would
+# start seeing 429s at roughly 2-4 pairs per node.
 #
-# The alternative — one Envoy replica per node — costs more resource
-# and still needs revisiting whenever the pool changes. Prefer this.
+# A DaemonSet keeps `Local`, so client source IPs survive and the rate
+# limit keeps working as designed, while still giving every node a
+# local endpoint. It also needs no revisiting when the node pool
+# changes, which a fixed replica count would.
+#
+# Cost: one Envoy Pod per node rather than one per cluster. Envoy is
+# small next to the per-pair vcluster footprint, and this replaces the
+# single Envoy Pod rather than adding to it.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
@@ -44,5 +54,11 @@ spec:
   provider:
     type: Kubernetes
     kubernetes:
+      # Presence of this key switches the fleet from Deployment to
+      # DaemonSet; the empty object keeps every other default.
+      envoyDaemonSet: {}
       envoyService:
-        externalTrafficPolicy: Cluster
+        # Explicit rather than inherited: this is the whole point of
+        # the DaemonSet above. Source-IP preservation is load-bearing
+        # for the Platform login rate limit.
+        externalTrafficPolicy: Local

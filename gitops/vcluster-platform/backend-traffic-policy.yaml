@@ -3,13 +3,26 @@
 # attack surface on the Gateway. Uses Local rate limiting (no Redis needed —
 # single Envoy replica).
 #
-# Scoped to the platform HTTPRoute (not the whole Gateway) so it does NOT
-# apply to the per-participant vcluster-apiserver routes. Those routes can
-# burst ~50–100 req/s during a single `helm install` (parallel API discovery),
-# and an earlier Gateway-wide cap shared one bucket across all participants
-# on the same WiFi — which would 429 legitimate workshop traffic. Keeping
-# the cap on the login route alone preserves brute-force protection without
-# throttling kubectl/helm against participant vclusters.
+# Scoped to the platform HTTPRoute rather than the whole Gateway, so the
+# per-pair `/team/<pair>/` routes on the docs host are unaffected. An
+# earlier Gateway-wide cap shared one bucket across all participants on the
+# same WiFi, which 429'd legitimate workshop traffic.
+#
+# Correction (2026-10-25): this does NOT spare participant kubectl traffic.
+# An earlier version of this comment claimed the cap missed the
+# "vcluster-apiserver routes", but participants reach their vcluster API
+# through the Platform proxy on this same host, and the HTTPRoute matches
+# `PathPrefix: /` — so every kubectl and helm request is rate limited here
+# too. It works today only because `type: Distinct` gives each client IP
+# its own 200 req/s bucket, and a single `helm install` bursts ~50-100
+# req/s.
+#
+# That makes client source-IP preservation load-bearing, not incidental:
+# anything that SNATs traffic (notably `externalTrafficPolicy: Cluster` on
+# the Envoy Service) collapses these buckets from per-client to per-node
+# and would start 429ing at roughly 2-4 pairs per node. The Envoy fleet is
+# a DaemonSet with `Local` specifically to avoid that — see
+# gitops/envoy-gateway/envoyproxy.yaml.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata:
