@@ -21,7 +21,7 @@ GitOps scaffolding for a Crossplane workshop on ArubaCloud. Crossplane 101 is a 
 - `validator/` — the per-pair check service behind the `<ValidateCheck>` buttons and the wall.
 - `Taskfile.yml` — every command lives here.
 
-The **"gotcha moment"**: participant vclusters are provisioned by a Crossplane Composition on the management cluster. A `DeveloperEnvironment` composes a provider-helm `Release` for the vcluster plus provider-kubernetes `Object`s for the Namespace, HTTPRoute, ResourceQuota, LimitRange, NetworkPolicies, RBAC and the Loft `User` / `VirtualClusterInstance`. Routing uses Gateway API (Envoy Gateway) instead of Ingress.
+The **"gotcha moment"**: participant vclusters are provisioned by a Crossplane Composition on the management cluster. A `DeveloperEnvironment` composes a provider-helm `Release` for the vcluster, a second `Release` (with its own `ProviderConfig`) that pre-installs Crossplane inside it, plus provider-kubernetes `Object`s for the Namespace, HTTPRoute, ResourceQuota, LimitRange, NetworkPolicies, RBAC and the Loft `User` / `VirtualClusterInstance`. Routing uses Gateway API (Envoy Gateway) instead of Ingress.
 
 ## How to run anything
 

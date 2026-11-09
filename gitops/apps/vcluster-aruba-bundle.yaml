@@ -14,9 +14,10 @@
 #  * `automated` is unset — the workshop owner triggers the per-pair
 #    sync via `task workshop:enable-aruba PAIR=<id>` (which wraps
 #    `argocd app sync aruba-bundle-<pair> --prune`) once the pair
-#    has finished module 3 (Crossplane install) and signalled
-#    readiness. This is the deliberate pacing mechanism for the
-#    workshop.
+#    reaches the Aruba modules and signals readiness. Crossplane is
+#    pre-installed by the DeveloperEnvironment Composition (#229), so
+#    the bundle's Provider can install at any point. This is the
+#    deliberate pacing mechanism for the workshop.
 #  * `selfHeal` is also off — if a participant breaks something
 #    in their bundle post-sync, they ask the owner rather than have
 #    ArgoCD silently revert their tinkering.

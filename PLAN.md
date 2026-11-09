@@ -100,11 +100,17 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 
 ### Decision: pre-install Crossplane ([#229](https://github.com/ricCap/crossplane-workshop/issues/229))
 
-- **Pair clusters**: add Crossplane to the vCluster Release the Composition already creates, via vCluster's `experimental.deploy` Helm charts. _Unverified against the 0.37.4 chart_; fallback is a second provider-helm `Release` per pair. Mind the LimitRange interaction at `composition.yaml:409-428` — UXP's apollo sidecars and `initialize-crds` ship without full resource specs.
+- **Pair clusters**: a second provider-helm `Release` per pair (`crossplane-<pair>`), through a per-pair `ProviderConfig` (`vcluster-<pair>`) that reads the vcluster's own `vc-<pair>` kubeconfig Secret. Chosen over vCluster's `experimental.deploy`: a failed install shows on the XR, and the install is the same tool the rest of the Composition uses.
+  - Helm release is named `crossplane` in `crossplane-system` (external-name annotation) and its values are only `webui.enabled`, because the locked 2XX operations module has participants `helm upgrade --install crossplane` over it.
+  - `managementPolicies: [Observe, Create]`: never updates (doesn't undo that upgrade) and never deletes (no hung finalizer when the vcluster goes first). A version bump therefore only reaches new pairs.
+  - `wait: true`, so the XR is Ready only once Crossplane runs. `verify:pair` / `verify:pair:platform` also wait on the Release and on `deploy/crossplane` inside the vcluster.
 - **Unconditional**, replacing the earlier `preinstallCrossplane` XRD parameter. That parameter was for a world with two workshops; now 101 is the core of every delivery and assumes Crossplane is running.
-- Pre-pull `function-auto-ready` and `function-patch-and-transform` with it.
-- **Solo**: a `helm upgrade --install` step in the `solo:*` chain.
-- Then drop the install block from module 01 §1.2 step 5, keep the check, and keep `crossplane-installed` as the operator's pre-flight signal.
+- **Functions are not pre-installed.** Module 05 installs them as dependencies of the participant's package; pre-installed copies risk name/version clashes with the resolver. Re-measure cold pull time during the live walk instead.
+- **Solo**: `solo:platform` runs the same `helm upgrade --install`; the solo page documents it as step 4.
+- **One UXP version**, pinned in `gitops/apps/crossplane.yaml`, the Composition, `UXP_CHART_VERSION` in the Taskfile and the modules. `task check:uxp-pins` (CI: `uxp-pin-check.yml`) fails if they drift.
+- **Tested on k3d (2026-11-09)**: Crossplane Ready ~3 min after the pair vcluster, all five UXP pods admitted under the pair LimitRange/quota, XR deletion clean (no hung finalizer), `task solo:all` + `task solo:verify` green.
+- **Found while testing — 02-operations (locked) needs a fix**: UXP `2.4.3-up.1` already defaults `args` to `--enable-operations` and `--package-runtime=External`, so its `helm upgrade --set args='{"--enable-operations"}'` is unnecessary and drops `--package-runtime=External`. With a Helm 4 client it also fails with server-side-apply conflicts against the field manager `provider-helm` uses. Fix: replace the upgrade with "Operations are already on" — needs the author's per-edit consent.
+- **Then (separate PR)**: once `verify:all MODE=platform` passes on a fresh Aruba pair, drop the install block from module 01 §1.2 step 5, keep the check, and keep `crossplane-installed` as the operator's pre-flight signal.
 
 ### Open questions
 
@@ -120,7 +126,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 
 - **Runtime**: Kubernetes v1.33, containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
 - **Baseline** (ArgoCD, Crossplane + functions + providers, UXP webui, Platform, Envoy, cert-manager, docs, CSI, metrics-server): ~1.3 vCPU / 2.8 GiB requests.
-- **Per pair** in practice: ~400m / 600 MiB once warm (syncer, coredns, pre-installed Crossplane adds to this — re-measure after #229). Quota allows 2 vCPU / 4 GiB.
+- **Per pair** with Crossplane pre-installed (#229, measured on k3d 2026-11-09): **720m / 1.5 GiB requests** counted against the pair quota (syncer 250m/512Mi, the rest mostly LimitRange defaults on UXP's containers); actual use ~100m / 790 MiB idle. Requests are what bin-packing sees — re-check the rule of thumb below on the real pool. Quota allows 2 vCPU / 4 GiB.
 - **Rule of thumb**: ~5–6 pairs per node before bin-packing fails, plus one node's headroom. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.
 - **Envoy runs as a DaemonSet** (#235). Keep `externalTrafficPolicy: Local`: `Cluster` would SNAT traffic and collapse Platform's per-client login rate limit to per-node, 429ing a room at ~2–4 pairs per node.
 

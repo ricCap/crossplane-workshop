@@ -30,6 +30,12 @@ vars:
   # https://gateway.envoyproxy.io/docs/install/install-helm/
   ENVOY_GATEWAY_VERSION: v1.9.2
   ENVOY_GATEWAY_NS: envoy-gateway-system
+  # UXP (Upbound's Crossplane distribution), pre-installed in solo by
+  # `solo:platform`. Keep in step with gitops/apps/crossplane.yaml, the
+  # crossplane-release in gitops/crossplane-config/composition.yaml and
+  # docs/docs/05-crossplane-2xx/02-operations.mdx — `task
+  # check:uxp-pins` (run in CI) fails if they drift.
+  UXP_CHART_VERSION: 2.4.3-up.1
   # vCluster Platform — web UI for participant vcluster access.
   # Installed via `task bootstrap:vcluster-platform` (not ArgoCD)
   # to keep admin credentials out of git.
@@ -97,7 +103,7 @@ tasks:
       - k3d cluster delete {{.SOLO_CLUSTER_NAME}}
 
   solo:platform:
-    desc: "Install Envoy Gateway and apply gitops/solo against the current kube context."
+    desc: "Install Envoy Gateway, apply gitops/solo and install Crossplane (UXP) against the current kube context."
     cmds:
       - |
         helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm \
@@ -105,6 +111,16 @@ tasks:
           --namespace {{.ENVOY_GATEWAY_NS}} --create-namespace \
           --wait
       - kubectl apply -k gitops/solo
+      # Crossplane pre-installed (#229), as a real Helm release named
+      # `crossplane` so 02-operations' `helm upgrade --install` works.
+      # Values match what that command passes back (webui only).
+      - |
+        helm upgrade --install crossplane crossplane \
+          --repo https://charts.upbound.io/stable \
+          --version {{.UXP_CHART_VERSION}} --devel \
+          --namespace crossplane-system --create-namespace \
+          --set webui.enabled=true \
+          --wait --timeout 10m
 
   solo:render:
     desc: "Regenerate gitops/solo/all.yaml from the kustomize overlay."
@@ -112,7 +128,7 @@ tasks:
       - kubectl kustomize gitops/solo > gitops/solo/all.yaml
 
   solo:all:
-    desc: "Solo one-shot: create the k3d cluster and install Envoy Gateway + docs + gateway."
+    desc: "Solo one-shot: create the k3d cluster and install Envoy Gateway + docs + gateway + Crossplane."
     cmds:
       - task: solo:up
       - task: solo:platform
@@ -158,10 +174,11 @@ tasks:
       - 'echo "  validator now served from this branch at http://localhost:8080/api/"'
 
   solo:verify:
-    desc: "Smoke check the solo stack: Envoy Gateway ready, docs pod ready, / and /api/pairs respond."
+    desc: "Smoke check the solo stack: Envoy Gateway, docs and Crossplane ready, / and /api/pairs respond."
     cmds:
       - kubectl -n {{.ENVOY_GATEWAY_NS}} wait --for=condition=Available deploy -l app.kubernetes.io/name=gateway-helm --timeout=180s
       - kubectl -n {{.DOCS_NS}} wait --for=condition=Available deploy/docs --timeout=180s
+      - kubectl wait --for=condition=Available deploy/crossplane -n crossplane-system --timeout=180s
       - 'curl -sf http://localhost:8080/ -o /dev/null && echo "  / ok"'
       - 'curl -sf http://localhost:8080/api/pairs | grep -q ''"local"'' && echo "  /api/pairs returns [local]"'
 
@@ -200,6 +217,11 @@ tasks:
   # `.github/workflows/i18n-sync.yml` runs `docs:i18n:check` on every
   # PR. See AGENTS.md §Localization for the full workflow.
   # ------------------------------------------------------------------
+
+  check:uxp-pins:
+    desc: "Fail if the UXP (Crossplane) chart version differs between the management cluster, pair pre-install, solo and the docs."
+    cmds:
+      - scripts/check-uxp-pins.sh
 
   docs:test:
     desc: "Run the docs site's component unit tests (vitest + @testing-library/react)."
@@ -1488,6 +1510,9 @@ tasks:
       - kubectl get developerenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
+      # Pre-installed Crossplane (#229): the composed Release only goes
+      # Ready once `helm install --wait` succeeded inside the vcluster.
+      - kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
       # Operator-side inner-vcluster smoke test. Pull the kubeconfig
       # written by the vcluster Helm chart into Secret/vc-<pair>,
       # rewrite its in-cluster server URL to a local port-forward, and
@@ -1510,6 +1535,8 @@ tasks:
           sleep 0.5
         done
         kubectl --kubeconfig "${KCFG}" --insecure-skip-tls-verify get ns
+        kubectl wait --kubeconfig "${KCFG}" --insecure-skip-tls-verify \
+          --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
         # Aruba bundle smoke — skips if `task workshop:enable-aruba PAIR=...`
         # hasn't been run yet for this pair (provider CRD absent).
         KUBECONFIG="${KCFG}" INSECURE_SKIP_TLS_VERIFY=true \
@@ -1656,6 +1683,9 @@ tasks:
       - kubectl get developerenvironments.workshop.example.io {{.PAIR}}
       - kubectl get ns participant-{{.PAIR}}
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
+      # Pre-installed Crossplane (#229): the composed Release only goes
+      # Ready once `helm install --wait` succeeded inside the vcluster.
+      - kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
       # Same path participants take. `vcluster platform connect
       # vcluster` writes a kubeconfig pointing at the Platform proxy
       # URL (https://<platform-host>/kubernetes/project/<project>/virtualcluster/<pair>),
@@ -1671,6 +1701,8 @@ tasks:
           exit 1
         fi
         vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- kubectl get ns
+        vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- \
+          kubectl wait --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
         # Aruba bundle smoke. `vcluster platform connect ... -- KUBECONFIG=<path> ...`
         # is the trick: the connect command writes a fresh
         # platform-proxied kubeconfig and runs the trailing command

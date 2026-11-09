@@ -1,7 +1,9 @@
 # Composition that turns a DeveloperEnvironment XR (Crossplane v2,
 # cluster-scoped, no claim layer) into a complete participant
-# environment: namespace, vcluster Helm release, per-pair HTTPRoute
-# for /team/<pair>/ routing via Gateway API, and a ResourceQuota.
+# environment: namespace, vcluster Helm release, Crossplane (UXP)
+# pre-installed inside that vcluster, per-pair HTTPRoute for
+# /team/<pair>/ routing via Gateway API, quotas, NetworkPolicies and
+# the Platform registration.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -200,6 +202,129 @@ spec:
                   string:
                     fmt: "https://%s.participant-%s:443"
                 toFieldPath: spec.forProvider.values.exportKubeConfig.server
+
+          # --- 2a. provider-helm ProviderConfig for the pair vcluster ---
+          # Points provider-helm (on the management cluster) at the
+          # pair's own vcluster, using the admin kubeconfig the vcluster
+          # chart writes to Secret/vc-<pair>. Its server URL is the
+          # in-cluster `https://<pair>.participant-<pair>:443` set by
+          # `exportKubeConfig.server` above, and the syncer pod accepts
+          # ingress from anywhere (netpol-allow-syncer-ingress-all), so
+          # no extra RBAC or NetworkPolicy is needed.
+          #
+          # ProviderConfigs have no Ready condition; `type: None` lets
+          # the XR go Ready on the Release below instead of waiting
+          # forever on this one.
+          - name: vcluster-providerconfig
+            base:
+              apiVersion: helm.crossplane.io/v1beta1
+              kind: ProviderConfig
+              spec:
+                credentials:
+                  source: Secret
+                  secretRef:
+                    namespace: placeholder
+                    name: placeholder
+                    key: config
+            readinessChecks:
+              - type: None
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "vcluster-%s"
+                toFieldPath: metadata.name
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.credentials.secretRef.namespace
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "vc-%s"
+                toFieldPath: spec.credentials.secretRef.name
+
+          # --- 2b. Crossplane (UXP) pre-installed in the pair vcluster (#229) ---
+          # Crossplane 101 assumes the pair cluster already runs
+          # Crossplane. Installing it here makes a slow pull or a failed
+          # install an operator-visible provisioning failure (the XR is
+          # not Ready until `wait` succeeds) instead of a stuck pair in
+          # front of the room.
+          #
+          # UXP version pin: keep in step with gitops/apps/crossplane.yaml,
+          # UXP_CHART_VERSION in Taskfile.yml (solo) and
+          # docs/docs/05-crossplane-2xx/02-operations.mdx. `task
+          # check:uxp-pins` fails CI if they drift.
+          #
+          # Constraints from 02-operations.mdx, where participants run
+          # `helm upgrade --install crossplane … --set webui.enabled=true
+          # --set args='{"--enable-operations"}'` over this install:
+          #   * Helm release name must be `crossplane` in
+          #     `crossplane-system` — set via the external-name annotation
+          #     (the MR name itself must be unique on the management
+          #     cluster).
+          #   * Values are limited to what that command passes back.
+          #     Anything else would be silently reset by their upgrade.
+          #   * managementPolicies omit Update, so provider-helm never
+          #     reverts their upgrade. Consequence: bumping the version
+          #     here only reaches newly created pairs. Pairs are rebuilt
+          #     per event, so that's acceptable.
+          #   * managementPolicies omit Delete (orphan). When the XR is
+          #     deleted the vcluster goes with it; an uninstall against
+          #     an already-gone apiserver would hang the finalizer.
+          #
+          # Pods land in participant-<pair> on the host, so the
+          # LimitRange below fills in the resource fields UXP's charts
+          # leave out.
+          - name: crossplane-release
+            base:
+              apiVersion: helm.crossplane.io/v1beta1
+              kind: Release
+              metadata:
+                annotations:
+                  crossplane.io/external-name: crossplane
+              spec:
+                managementPolicies: ["Observe", "Create"]
+                providerConfigRef:
+                  name: placeholder
+                forProvider:
+                  chart:
+                    name: crossplane
+                    repository: https://charts.upbound.io/stable
+                    version: "2.4.3-up.1"
+                  namespace: crossplane-system
+                  wait: true
+                  waitTimeout: 10m
+                  values:
+                    webui:
+                      enabled: true
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "crossplane-%s"
+                toFieldPath: metadata.name
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "vcluster-%s"
+                toFieldPath: spec.providerConfigRef.name
 
           # --- 3. Per-pair HTTPRoute ---
           # Routes /team/<pair>/api/* to the backend synced Service and
@@ -416,8 +541,8 @@ spec:
           # upbound-controller-manager initialize-crds initContainer)
           # ship containers without complete resource specs and would
           # otherwise be rejected by the host syncer's admission, which
-          # makes module 3's `helm install crossplane … --wait` time
-          # out silently.
+          # makes the pre-installed Crossplane Release (2b above) time
+          # out on `wait` and leaves the XR not Ready.
           #
           # LimitRange admission runs before ResourceQuota, so missing
           # fields get defaulted in time for the quota gate. Defaults

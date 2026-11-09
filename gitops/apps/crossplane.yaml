@@ -8,6 +8,11 @@
 # - Bundled read-only Web UI for the workshop visualization step.
 # Chart name is `crossplane` (Upbound's chart, not upstream's). The repo
 # differs (charts.upbound.io vs charts.crossplane.io).
+#
+# Version pin: keep in step with the crossplane-release in
+# gitops/crossplane-config/composition.yaml (pre-install in every pair
+# vcluster), UXP_CHART_VERSION in Taskfile.yml (solo) and the version
+# the modules quote. `task check:uxp-pins` fails CI if they drift.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
