@@ -4,7 +4,7 @@ Operational guide for anyone (human or AI) working in this repo. For forward-loo
 
 ## Purpose
 
-GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central management cluster runs ArgoCD; ArgoCD reconciles one isolated vCluster per participant pair so people can break and rebuild their Crossplane setup without affecting each other.
+GitOps scaffolding for a Crossplane workshop on ArubaCloud. Crossplane 101 is a self-contained 90-minute session (the Cloud Native Denmark 2026 format); the 3-hour delivery adds the 2XX / 3XX / 4XX tracks on top, from the same `docs/docs/` tree. A central management cluster runs ArgoCD; ArgoCD reconciles one isolated vCluster per participant pair so people can break and rebuild their Crossplane setup without affecting each other.
 
 ## Layout
 
@@ -12,11 +12,16 @@ GitOps scaffolding for a 3-hour Crossplane workshop on ArubaCloud. A central man
 - `gitops/projects/` — ArgoCD `AppProject` definitions.
 - `gitops/apps/` — top-level ArgoCD Applications and ApplicationSets reconciled by the root app.
 - `gitops/participant-xrs/` — **one DeveloperEnvironment XR file per participant pair**. This is the scale lever. (Crossplane v2 XRs, no claim layer.)
+- `gitops/per-vcluster-bundle/` — Helm chart synced into each pair vcluster by `workshop:enable-aruba`: provider-arubacloud, its ProviderConfig and the Kyverno policies. 3-hour delivery only; the 90-minute Denmark run skips it.
+- `gitops/solo/` — the k3d single-laptop path, applied directly without ArgoCD.
+- `gitops/docs/`, `gitops/cert-manager/`, `gitops/envoy-gateway/`, `gitops/vcluster-platform/` — the docs site and substrate on the management cluster.
 - `gitops/crossplane-config/` — DeveloperEnvironment XRD + Composition, ProviderConfigs.
 - `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
+- `docs/` — the Docusaurus workshop site (English source under `docs/docs/`, Italian mirror under `docs/i18n/it/`).
+- `validator/` — the per-pair check service behind the `<ValidateCheck>` buttons and the wall.
 - `Taskfile.yml` — every command lives here.
 
-The **Phase 3 "gotcha moment"** is done: participant vclusters are provisioned by a Crossplane Composition on the management cluster (DeveloperEnvironment → provider-helm Release + provider-kubernetes Objects for HTTPRoute/ResourceQuota). Routing uses Gateway API (Envoy Gateway) instead of Ingress.
+The **"gotcha moment"**: participant vclusters are provisioned by a Crossplane Composition on the management cluster. A `DeveloperEnvironment` composes a provider-helm `Release` for the vcluster plus provider-kubernetes `Object`s for the Namespace, HTTPRoute, ResourceQuota, LimitRange, NetworkPolicies, RBAC and the Loft `User` / `VirtualClusterInstance`. Routing uses Gateway API (Envoy Gateway) instead of Ingress.
 
 ## How to run anything
 
@@ -33,7 +38,7 @@ task verify:pair PAIR=fancy-lemon        # LOCAL operator-side check (port-forwa
 task verify:pair:platform PAIR=fancy-lemon  # REMOTE participant-side check via vCluster Platform (Aruba)
 ```
 
-The **solo** path is for single-developer laptop runs of modules 02–06. It targets k3d,
+The **solo** path is for single-developer laptop runs of the workshop modules, and the participant fallback on event day. It targets k3d,
 applies `gitops/solo/` directly (no ArgoCD), exposes the docs site + wall on
 `http://localhost:8080/`, and reports a single synthetic pair called `local`. Pick it
 when you want to exercise the workshop content without the per-pair infrastructure;
@@ -42,7 +47,7 @@ DeveloperEnvironment Composition.
 
 ## Scaling to more pairs
 
-Drop a new file under `gitops/participant-xrs/` following the `fancy-lemon.yaml` shape (a DeveloperEnvironment XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each DeveloperEnvironment into a full participant environment (Namespace, vcluster, HTTPRoute, ResourceQuota) within ~2 min. No tasks involved.
+Drop a new file under `gitops/participant-xrs/` following the `bold-kiwi.yaml` shape (a DeveloperEnvironment XR with the pair ID), commit, and push. ArgoCD syncs the directory, Crossplane reconciles each DeveloperEnvironment into a full participant environment (Namespace, vcluster, HTTPRoute, quotas, NetworkPolicies, Platform registration) within ~2 min. No tasks involved.
 
 ## Verification: two paths, on purpose
 
@@ -107,7 +112,7 @@ Behaviour rules:
 
 ## Localization
 
-The workshop is delivered in Italian (Road to CND Italy 2026), but **English under `docs/docs/` is the source of truth**. Italian is a pure machine-translated mirror, regenerated whenever English changes. Don't edit Italian files standalone — they exist solely as translations of a specific English revision.
+The workshop was first delivered in Italian (Road to CND Italy 2026) and is now also delivered in English (Cloud Native Denmark 2026). **English under `docs/docs/` is the source of truth**. Italian is a pure machine-translated mirror, regenerated whenever English changes. Don't edit Italian files standalone — they exist solely as translations of a specific English revision.
 
 ### Layout
 
@@ -150,7 +155,7 @@ The English-side `ai_edit: locked` lock does **not** carry over to translations.
 
 ### The translation backlog
 
-[`docs/i18n/.translation-backlog`](docs/i18n/.translation-backlog) is a list of English paths (relative to `docs/docs/`) that the sync check skips. It exists because the i18n framework was bootstrapped with one translated module (`00-intro.mdx`) and the rest are translated incrementally — the backlog records what's still pending.
+[`docs/i18n/.translation-backlog`](docs/i18n/.translation-backlog) is a list of English paths (relative to `docs/docs/`) that the sync check skips. It records English pages whose Italian translation is deliberately pending — today, the six rewritten Crossplane 101 modules (#224).
 
 - When you add an Italian translation for a backlogged file, **remove its line from the backlog in the same commit**.
 - When you delete or rename an English file, also remove (or update) its line — the check fails on stale entries.
@@ -218,6 +223,14 @@ For local vind, this section does **not** apply: Platform isn't installed there,
 
 ## External credential bootstrap
 
+**Which pieces a delivery needs.** The 90-minute Crossplane 101 run
+(Cloud Native Denmark) needs `vcluster-platform-api-key`,
+`github-app-credentials` (provider-github is the stretch goal for pairs
+who finish early) and the per-pair kubeconfigs. It does **not** run
+`workshop:enable-aruba`, so `aruba-creds` and `workshop-aruba-shared`
+are skipped and no Aruba key reaches a participant cluster. The 3-hour
+delivery needs all five.
+
 Five pieces of operator-injected state live alongside the
 GitOps-managed cluster. Three are Secrets the Taskfile provisions on
 the management cluster (with various namespace targets) so the
@@ -236,7 +249,7 @@ shared link. Nothing is committed to git.
 ### `vcluster-platform-api-key` (Loft Platform syncer)
 
 The `DeveloperEnvironment` Composition writes Loft `User` /
-`VirtualClusterInstance` / password Secret resources per pair — that's
+`VirtualClusterInstance` resources per pair — that's
 the Platform-side registration. What it does *not* write is the
 `vcluster-platform-api-key` Secret each participant vcluster's syncer
 needs to phone home to Platform. Without it, the VCI stays
