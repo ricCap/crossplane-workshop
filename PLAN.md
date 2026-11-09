@@ -2,246 +2,142 @@
 
 Roadmap and decision log for the Crossplane workshop GitOps scaffolding. See [AGENTS.md](AGENTS.md) for day-to-day operational guidance — that is the source of truth for *how* to run the stack. This file is for *what's next* and *why we made the calls we did*.
 
+For what was done and when, use `git log`. This file does not keep a changelog.
+
 ## Context
 
-- **Event**: Crossplane workshop on the *Road to CND Italy 2026* track, May 2026.
-- **Sponsor**: ArubaCloud, €500 in credits.
-- **Format**: Crossplane 101 is a self-contained hour; the 3-hour delivery is 101 plus the optional 2XX / 3XX / 4XX tracks. Participants work in pairs on a single management cluster; each pair gets an isolated vCluster sandbox.
-- **Hard constraint**: participants install nothing on workshop day (venue network risk). Everything runs on the remote cluster; participants just connect.
-- **Pedagogical goal**: the "gotcha moment" — the vcluster participants have used the whole time is revealed to be produced by a Crossplane Composition. The `DeveloperEnvironment` XR + Composition under `gitops/crossplane-config/` is the reveal.
-- **Central UI**: vCluster Platform on the management cluster, exposed at `https://platform-crossplane.workshop.riccardocapraro.com`. Participants log in with the per-pair credentials the Composition generates.
-- **Second event**: Cloud Native Denmark 2026 — see [Crossplane 101 as a self-contained hour](#crossplane-101-as-a-self-contained-hour-cloud-native-denmark-2026). There is one workshop, not two: 101 is the hour, and the longer delivery is 101 plus the optional tracks. It deliberately reverses the "install nothing" constraint above — participants now need the CLI and Docker — so read that constraint as describing the May 2026 delivery only.
+- **Next event: Cloud Native Denmark 2026.** Not yet delivered. Date: _TBD — fill in_. A 90-minute session: 20m intro, 60m hands-on Crossplane 101, 10m outro with the gotcha reveal.
+- **Attendance: unconfirmed.** "Probably under 10 pairs" is a guess, not a planning input. Confirm it before sizing nodes, the registry, or Platform rate limits against it.
+- **Infra: Aruba primary, solo fallback.** Pairs work in per-pair vClusters on the Aruba management cluster; anyone who cannot reach it (network, laptop policy) falls back to `task solo:all` on k3d.
+- **Laptop prerequisites: Docker and the Crossplane CLI.** This reverses the "install nothing" rule of the first delivery (Road to CND Italy, May 2026). Crossplane 101 builds and pushes a package from the laptop, so there is no way around it.
+- **Sponsor**: ArubaCloud.
+- **Format**: one workshop, one `docs/docs/` tree. Crossplane 101 is the hour; longer deliveries add the 2XX / 3XX / 4XX tracks.
+- **Pedagogical goal**: the "gotcha moment" — the vCluster participants used all along was produced by a Crossplane Composition (`DeveloperEnvironment` under `gitops/crossplane-config/`). In the 90-minute format this is instructor slides in the outro.
+- **Access**: participants never log in to vCluster Platform. Each pair gets a kubeconfig with an embedded access key via `task pairs:distribute` (AGENTS.md §Per-pair kubeconfigs).
 
 ## Status
 
-The scaffolding has shipped: local vind path, Aruba bootstrap, the `DeveloperEnvironment` Composition that produces the per-pair Namespace + Helm Release + HTTPRoute + ResourceQuota + Loft User/VCI, the docs pod + validator, modules 00–07 + 99, and both verify paths (`verify:pair` operator-side, `verify:pair:platform` participant-side, plus `verify:all MODE=…`).
+Shipped and exercised live on Aruba (2-pair smoketest, 2026-10-25): bootstrap from fresh, the `DeveloperEnvironment` Composition, Platform access, `task verify:all MODE=platform`, every version pin from #233, and a deliberate Kyverno denial. The Envoy `externalTrafficPolicy` bug that looked like hairpin NAT is fixed (#235).
 
-For commit-level history of what was done and when, use `git log` — it's already authoritative and growing in this file was just creating a parallel changelog.
+Shipped but **never run live**: Crossplane 101 modules 01–06 on a pair cluster (dry-run only, on a local cluster, 2026-10-18), the `configuration-installed` validator check, the wall tile at the end of module 05, the validator dashboard, `pairs:distribute` against Platform `4.12.4`, and the 3XX provider-github / Aruba `Database` modules.
 
-## Crossplane 101 as a self-contained hour (Cloud Native Denmark 2026)
+## Denmark readiness
 
-A 90-minute session — 20 minutes intro, 60 hands-on, 10 outro — with the hands-on opening on the **Crossplane CLI** rather than `kubectl`. Agreed Oct 2026, implemented Oct 19. The CLI flow was dry-run end to end against a live cluster before the modules were written, so the commands and their output are observed rather than transcribed. What remains unverified is called out in place: the registry design below, and the wall tile at the end of module 05.
+Ordered by what stops the hour from running, not by effort.
 
-The live 3-hour spine is 157 minutes of timed modules, so the new hands-on has to hold roughly a third of it. The CLI is what buys the room: `project init` + `xrd generate` + `composition generate` replace the 57 minutes currently spent writing a first Composition and an Application by hand. "Connect to your cluster" (18m) shrinks to a 3m check, "Install Crossplane" (20m) collapses into a check plus a collapsed install block, and the gotcha reveal moves to the outro — still instructor slides only.
+### Blockers — the hour fails without these
 
-The existing CLI module in `05-crossplane-2xx` is out of date and cannot be reused as-is: it teaches `crossplane render` and `crossplane beta trace`, which are now `crossplane composition render` and `crossplane resource trace`, and it pins client v2.2.1.
+1. **A registry participants can push to.** Module 01 step 3 has every pair `docker login "$REGISTRY"` from a "credentials bundle"; module 05 pushes a Configuration and `xpkg install`s it. None of this exists for a room: GHCR worked for the 2-pair smoketest only because the instructor owned both pushes. See [§Decision: the registry](#decision-the-registry-223) — the design is ready to settle now that the hairpin premise is gone.
+2. **Registry credentials in the pair bundle.** `pairs:distribute` ships a kubeconfig only. It has to also ship the registry address and per-pair push credentials, because module 01 already tells participants to find them there.
+3. **Crossplane pre-installed in every pair cluster, and in solo ([#229](https://github.com/ricCap/crossplane-workshop/issues/229)).** Until then the collapsed `helm install` block in module 01 §1.2 step 5 is load-bearing, the hour is ~66m not ~61m, and the slowest image pull of the session happens in front of the room. See [§Decision: pre-install Crossplane](#decision-pre-install-crossplane-229).
+4. **One full live walk of 101 on Aruba**, modules 01–06, on a freshly provisioned pair, through the participant path (`pairs:distribute` kubeconfig, not the operator port-forward), with timings recorded. Nothing in 101 has touched a live pair cluster yet.
 
-The participant-facing content is [docs/docs/04-crossplane-101/](docs/docs/04-crossplane-101/): six task modules plus a recap. The `docs/docs/90m/` preview folder it grew out of is gone — it dissolved into 101 rather than shipping beside it.
+### Should have — the hour runs, but badly or riskily
 
-### Decision: pre-install Crossplane in every pair cluster
+5. **Pre-event attendee email + a self-check.** Docker running, CLI `v2.5.0` installed, base images pre-pulled (function runtime images, the `project build` base). Ideally one copy-paste script that prints green/red. Venue wifi is the single biggest risk in a laptop-side flow.
+6. **A no-Docker fallback.** Attendees without Docker cannot render or build at all. Options: a shared instructor machine (cheap, serialises people), or a `.devcontainer` with Docker-in-Docker and the pinned CLI so anyone can open a GitHub Codespace (more work, scales, also gives a "corporate laptop" escape). _Pick one._
+7. **Cold-laptop timings ([#226](https://github.com/ricCap/crossplane-workshop/issues/226)).** Fold into the live walk (item 4) — time a laptop with an empty Docker cache.
+8. **Solo fallback must actually be a fallback.** Today solo has no Crossplane (#229) and its registry is a `k3d`/`docker exec` recipe inside module 05 ([#227](https://github.com/ricCap/crossplane-workshop/issues/227)). Make `task solo:all` provision both, so the fallback is one command plus a link.
+9. **Aruba volume wedge and leak ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)).** A bad volume wedged a pair for 25 minutes. Mitigation for Denmark: provision pairs the day before, `verify:all MODE=platform` the morning of, keep one spare pair XR ready. Fix the `retentionPolicy: Retain` leak in `close-event` either way.
+10. **Workshop-day runbook.** [WORKSHOP-DAY-1-CHECKLIST.md](WORKSHOP-DAY-1-CHECKLIST.md) is two lines. Replace it with a T-7d / T-1d / T-0 / after list: node pool, pair XRs, EULA, credentials, `crossplane-installed` pre-flight per pair, `pairs:distribute`, QR codes on the board, release pin, teardown, key rotation.
+11. **Release.** Cut a `vX.Y.Z` and bump [gitops/docs/deployment.yaml](gitops/docs/deployment.yaml) once 101 content is final, after sweeping new MDX for `…/main/…` URLs. Watch the two image builds — the "docs image pipeline dry-run" open item rides along.
+12. **provider-github as the stretch goal ([#73](https://github.com/ricCap/crossplane-workshop/issues/73)).** Module 06 of 3XX was never run on Aruba because `task github:register` was skipped in the smoketest. Run it, walk the module on a live pair, and add a pointer to it from the 101 recap for pairs who finish early.
+13. **Intro and outro slides.** Not in this repo. _Confirm they exist and match the CLI-first 101 and the `DeveloperEnvironment` reveal._
 
-Each pair installs UXP by hand in module 03 today. That module is gone in the 90-minute run, so Crossplane has to be running before doors open.
+### Nice to have
 
-- **Chosen**: add the Upbound chart to the vCluster Helm values the `DeveloperEnvironment` Composition already sets, under the vCluster `experimental.deploy` key, so the pair cluster installs Crossplane at startup. Self-contained in the one Release, no registration step. **Unverified** — that key is recalled from vCluster's config reference, not confirmed against the 0.37.4 chart in [gitops/crossplane-config/composition.yaml](gitops/crossplane-config/composition.yaml).
-- **Fallbacks**, in order: a second ApplicationSet like [gitops/apps/vcluster-aruba-bundle.yaml](gitops/apps/vcluster-aruba-bundle.yaml) (proven here, but pairs are registered by a manual task today, so automating it means the Composition also writes the Cluster Secret); failing that, one more provider-helm `Release` per pair through a per-pair ProviderConfig — most moving parts, last resort.
-- Pre-install `function-auto-ready` and `function-patch-and-transform` as well — the two 101 actually uses. Crossplane resolves package dependencies itself, but pre-pulling saves image fetches on venue wifi.
-- The 3-hour workshop keeps installing by hand, so this needs a **`preinstallCrossplane` parameter on the XRD**, not an unconditional change.
-- Capacity is unchanged — every pair already runs these pods, they just start earlier. The existing `crossplane-installed` check becomes the pre-flight signal: run it for every pair before doors open and fix any pair that is not green.
+- **[#225](https://github.com/ricCap/crossplane-workshop/issues/225)** — relabel `first-composition-overview` for `Application` so module 02 gets a diagram.
+- **Wall tile and validator dashboard** — confirm both during the live walk; they are what the room sees on the projector.
+- **[#54](https://github.com/ricCap/crossplane-workshop/issues/54)** — the inline `⏱️ Nm` in headings.
 
-### Decision: an OCI registry on the management cluster
+### Not needed for Denmark
 
-Participants build a Configuration package on their laptop and need somewhere to push it that their pair cluster can pull from. **Chosen: run a small registry on the management cluster**, with per-pair push credentials generated by the `DeveloperEnvironment` Composition alongside the existing kubeconfig, and anonymous read so no pair cluster needs a pull secret.
+- [#224](https://github.com/ricCap/crossplane-workshop/issues/224) Italian translations (English event). Stays in the backlog.
+- [#228](https://github.com/ricCap/crossplane-workshop/issues/228) 2XX/3XX prose, [#64](https://github.com/ricCap/crossplane-workshop/issues/64) — 3-hour content.
+- The Aruba bundle and everything behind it — see [§Decided: no Aruba bundle](#decided-no-aruba-bundle-for-denmark).
+- Kyverno `ClusterPolicy v1` → CEL migration. Deprecated, still served.
+- [#15](https://github.com/ricCap/crossplane-workshop/issues/15), [#89](https://github.com/ricCap/crossplane-workshop/issues/89).
 
-Rejected:
+## Decisions to make for Denmark
 
-- **GHCR under the org** — push needs a *classic* PAT with `write:packages`, and selecting that scope also pre-ticks `repo`. New packages are private by default and can only be made public through the UI, so every pair would also need an image pull secret. Too many manual steps per attendee.
-- **Aruba Container Registry** — separate credentials and flow per attendee, plus pull secrets. The provider does have a `containerregistries` kind, so revisit if the on-cluster registry disappoints; credential handling unverified.
-- **ttl.sh** — no login, no secrets, expiring. Emergency fallback only, and anyone can read the images.
+### Decided: no Aruba bundle for Denmark
 
-Candidate software, none tested on the cluster yet:
+Crossplane 101 uses no cloud provider, so Denmark does not run `workshop:enable-aruba`. Pairs who finish early and want something beyond 101 use **provider-github** (3XX module 03) against the shared sandbox org, not `provider-arubacloud`.
 
-- **Zot** — htpasswd auth plus per-prefix access policies in one small binary. Covers per-pair push and anonymous read at the smallest footprint, which is why it was the first pick.
-- **CNCF Distribution behind a proxy** — the auth layer has to be hand-rolled in front of it.
-- **Harbor** — projects, robot accounts and per-project quotas natively, which is exactly the per-pair-push / anonymous-read shape instead of building it. The cost is a much larger footprint (core, portal, registry, registryctl, jobservice, plus Postgres and Redis as stateful dependencies); its documented minimum is roughly 2 CPU / 4 GiB, worth confirming against the real chart before committing.
+This takes off the Denmark list, in one move:
 
-Writes stay confined to each pair's own `<pair>/` prefix with reads open to everyone, and TLS comes from the existing cert-manager + Envoy Gateway so `project push` needs no insecure flag.
+- the account-admin Aruba key in participant clusters ([#84](https://github.com/ricCap/crossplane-workshop/issues/84), [#102](https://github.com/ricCap/crossplane-workshop/issues/102)) and the post-event rotation pressure;
+- [#222](https://github.com/ricCap/crossplane-workshop/issues/222) — Kyverno denying every pair's `xpkg install` until `registry.host` is set;
+- [#236](https://github.com/ricCap/crossplane-workshop/issues/236), [#237](https://github.com/ricCap/crossplane-workshop/issues/237), [#238](https://github.com/ricCap/crossplane-workshop/issues/238) as Denmark risks;
+- the `aruba-creds` and `aruba-shared-network` bootstrap steps.
 
-**Re-discuss this design before building it ([#223](https://github.com/ricCap/crossplane-workshop/issues/223)). The live cluster will have more than one node.** That invalidates the single-node assumptions this section and §Cluster sizing were written against, and it changes the registry design rather than just its sizing. Settle the following first:
+`github:register` **stays**: it is what makes the provider-github stretch goal work.
 
-- **Storage.** One replica on an RWO block volume pins the registry to a node and makes that node a single point of failure for every pair's push. Multi-node wants either RWX storage or an S3-backed registry — and Aruba object storage is already in the provider's surface (see AGENTS.md §External credential bootstrap), so an object-storage backend is probably the right answer and removes the "~78 GiB on one node" capacity worry entirely.
-- **Capacity.** With more nodes, Harbor stops being obviously too expensive. Re-run the choice between Zot and Harbor once the real node count and flavor are known, rather than inheriting the single-node decision.
-- **Pulls happen on every node.** Any containerd-level workaround (mirror entry, host alias) has to be applied to all of them, not just one.
+What is lost: the Kyverno policies that are not about Aruba (`06-no-provider-exec`, `12-restrict-priority-class`, `05-secret-no-pod-mount`). The host-side `ResourceQuota` and `LimitRange` still bound what a pair can do. The GitHub App's reach is unchanged: it can write any repo in `riccap-demo-org`, and the `pair-<id>-*` naming convention is the only per-pair fence (AGENTS.md §github-app-credentials). The 3-hour run keeps the bundle.
 
-**Biggest unknown: hairpin traffic**, and the 90m dry run on 2026-10-18 showed it matters more than "the pull might fail". `crossplane project push` bakes the repository from `crossplane-project.yaml` at **build** time — a `--repository` override at push fails with `failed to find configuration image`. So the hostname an attendee builds with must be the same one their pair cluster pulls from. One name has to work identically from laptops and from inside the cluster; there is no "push to A, pull from B" escape.
+### Decision: the registry ([#223](https://github.com/ricCap/crossplane-workshop/issues/223))
 
-Two further constraints, both verified locally rather than assumed:
+Participants build a Configuration on their laptop and push it somewhere their pair cluster can pull from.
 
-- **Crossplane rejects registry hosts that are not fully qualified.** A bare name like `my-registry:5000` is refused with "must be a fully qualified image name"; the host needs a dot. Fine for a real DNS name, but it rules out short in-cluster service names.
-- **There are two different pullers with different TLS tolerance.** Crossplane's package manager fetched the xpkg over plain HTTP happily, while containerd refused the *function runtime image* with `http: server gave HTTP response to HTTPS client` until given an explicit mirror entry. On the live cluster this means the certificate has to satisfy containerd on every node, not just the CLI.
+**Constraints that still hold**, verified locally:
 
-This repo already works around broken hairpin NAT for cert-manager with `hostAliases` (c393e41). First test is pulling a pushed package from inside a pair cluster; if that fails, the fix is a service alias or a containerd mirror for the hostname, applied across all nodes. Accepted consequence of anonymous read: anyone who knows the hostname can read attendees' demo packages.
+- `crossplane project push` bakes the repository at **build** time — a `--repository` override at push fails with `failed to find configuration image`. One hostname must work from laptops and from inside the cluster.
+- Crossplane rejects registry hosts without a dot, so short in-cluster Service names are out.
+- containerd refuses plain HTTP for the function runtime image, so the registry needs a real certificate on every node's pull path.
 
-### One tree, no versioning
+**What changed:** the old "biggest unknown: hairpin traffic" is resolved. The timeouts were Envoy's `externalTrafficPolicy: Local` with one replica on a multi-node cluster, not hairpin NAT (#235). Pods on every node now reach the public Envoy hostname, so a registry behind Envoy with a Let's Encrypt cert satisfies all three constraints with no containerd mirror or `hostAliases`. Confirm with one in-cluster pull from a non-Envoy node before building on it.
 
-**Superseded.** An earlier draft of this section proposed freezing the 3-hour workshop as a Docusaurus `180m` docs version and writing the 90-minute content as the current version. That is dropped: there are not two workshops.
+**Recommended for Denmark: Zot behind Envoy Gateway.** htpasswd with per-pair push confined to the `<pair>/` prefix, anonymous read so pair clusters need no pull secret, TLS from the existing cert-manager. The `DeveloperEnvironment` Composition generates each pair's htpasswd entry next to the kubeconfig material. Storage: a PVC is fine at single-digit pairs (one node pinned for a 90-minute event is acceptable); move to Aruba object storage as the backend if attendance is larger or the registry must survive a node loss. Accepted consequence of anonymous read: anyone with the hostname can read attendees' demo packages.
 
-Crossplane 101 *is* the hour. The longer delivery is 101 plus the 2XX / 3XX / 4XX tracks, out of one `docs/docs/` tree. This avoids everything the snapshot approach would have cost — shared pages duplicated into partials, the Italian mirror moving under `version-180m/`, `check-i18n-sync.js` learning about versions, and the `ai_edit` hook learning about `versioned_docs/`.
+Rejected, with reasons kept for the record:
 
-Implemented in a9e386a. 101 went from 124 minutes across five modules to 61 across six; Add a Provider moved to 2XX (4a079a6) and Install Crossplane left the core path, reduced to a check in module 01 with a collapsed install block behind it. The 61 assumes Crossplane is already running in the participant's cluster, which **no path does yet** — see #229 above. The restored concept glossary (module 02) and RBAC note (module 03) account for 4 of those minutes; they were cut with the modules that carried them and put back on review.
+- **GHCR** — per-attendee push needs a classic PAT with `write:packages` (which pre-ticks `repo`), and new packages are private, so every pair also needs a pull secret. Fine for the instructor-driven smoketest only.
+- **Aruba Container Registry** — per-attendee credentials and pull secrets; revisit only if Zot disappoints.
+- **Harbor** — the right shape (projects, robot accounts, quotas) but ~2 CPU / 4 GiB plus Postgres and Redis. Reconsider only for a much larger room.
+- **ttl.sh** — emergency fallback only; world-readable, no auth.
 
-### Validator changes
+When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) to the Zot hostname.
 
-Done in 11e4d04, and smaller than this section first predicted because keeping the XR as `workshop.example.io Application` meant `application-ready` carried over untouched.
+### Decision: pre-install Crossplane ([#229](https://github.com/ricCap/crossplane-workshop/issues/229))
 
-- Added `configuration-installed`: the package was pushed, installed and went Healthy. This is the one genuinely new thing 101 does.
-- Removed `hello-xr-ready` with the module that used it.
-- No kind parameter was needed, and no second ordered list. A `WORKSHOP_TRACK` switch was built for the two-track world and removed again when that world went away — see 11e4d04 for why that is a deletion rather than a regret.
-- `crossplane-installed` stays registered with no module embedding it: it is the operator's pre-flight signal that the pre-install landed in every pair cluster before doors open.
+- **Pair clusters**: add Crossplane to the vCluster Release the Composition already creates, via vCluster's `experimental.deploy` Helm charts. _Unverified against the 0.37.4 chart_; fallback is a second provider-helm `Release` per pair. Mind the LimitRange interaction at `composition.yaml:409-428` — UXP's apollo sidecars and `initialize-crds` ship without full resource specs.
+- **Unconditional**, replacing the earlier `preinstallCrossplane` XRD parameter. That parameter was for a world with two workshops; now 101 is the core of every delivery and assumes Crossplane is running.
+- Pre-pull `function-auto-ready` and `function-patch-and-transform` with it.
+- **Solo**: a `helm upgrade --install` step in the `solo:*` chain.
+- Then drop the install block from module 01 §1.2 step 5, keep the check, and keep `crossplane-installed` as the operator's pre-flight signal.
 
 ### Open questions
 
-- **Will the venue network and attendee laptops allow installing the CLI and pulling images?** This decides how much has to be pre-baked, and the whole format rests on it.
-- **Denmark's attendee count is still unknown, but the live cluster will have more than one node.** That settles the question §Cluster sizing left open — the single-node ceiling of 5–6 pairs no longer applies, and the registry design has to be revisited for it (see above).
-- The CLI flow is **no longer transcription**: modules 02–06 were dry-run end to end against a pinned v2.5.0 binary on 2026-10-18, through `project init`, `xrd generate`, `composition generate`, `function generate`, `dependency add`, `composition render`, `resource validate`, `project build`, `project push`, `xpkg install` and `resource trace`, ending in a Ready XR with a live Deployment and Service. Real timings on a cold laptop are still unmeasured ([#226](https://github.com/ricCap/crossplane-workshop/issues/226)). Note `xrd` and `resource` are beta groups too — six are marked beta, not the three listed earlier.
-- ~~60 minutes is tight for writing a go-templating function~~ — resolved by choosing `function-patch-and-transform`, which let 101 carry over the existing Composition body instead of rewriting it as Go templates. Module 03 supplies the whole recipe.
-- Attendees without Docker cannot render or build at all. Keep a shared instructor machine or a hosted fallback.
-- `crossplane project run` is deliberately **not** used: it creates its own KIND cluster and a local registry, and the slow first run on conference wifi is the single biggest risk in the flow.
+- Event date, and attendance — both unconfirmed.
+- Whether the smoketest cluster from 2026-10-25 is still running (it was never closed out with `workshop:close-event` and key rotation).
+- Will the venue network and attendee laptops allow pulling the CLI and images? Decides how much the pre-event email has to front-load.
+- No-Docker fallback: instructor machine or Codespaces?
+- `crossplane project run` stays out: it creates its own KIND cluster and registry, the riskiest possible thing on conference wifi.
 
-## Cluster sizing — what we actually have on Aruba
+## Cluster sizing
 
-**Superseded for the live event: it will run on more than one node.** Everything below is a true measurement of the single-node cluster as it stood in May 2026, and the per-pair budget maths still applies per node — but the headline conclusions (a 5–6 pair ceiling, single-node failure mode as the biggest unmitigated risk) no longer describe what will be delivered on. Re-measure once the real node pool exists.
+**Measured on the old single-node cluster (2026-05-10); per-node figures still hold.** The smoketest cluster's `md-medium` nodes have the same 4 vCPU / 7.66 GiB allocatable / 110 pods as the old `md-standard`. Re-measure on the real pool ([#93](https://github.com/ricCap/crossplane-workshop/issues/93)).
 
-Measured 2026-05-10 via `kubectl get nodes -o wide`, `kubectl describe
-node`, `kubectl get sc`, and `kubectl get pods -A`. This is the
-ground truth the per-pair quotas and the blast-radius hardening (#80,
-#81, #82) are sized against; revisit if Aruba scales the cluster.
+- **Runtime**: Kubernetes v1.33, containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
+- **Baseline** (ArgoCD, Crossplane + functions + providers, UXP webui, Platform, Envoy, cert-manager, docs, CSI, metrics-server): ~1.3 vCPU / 2.8 GiB requests.
+- **Per pair** in practice: ~400m / 600 MiB once warm (syncer, coredns, pre-installed Crossplane adds to this — re-measure after #229). Quota allows 2 vCPU / 4 GiB.
+- **Rule of thumb**: ~5–6 pairs per node before bin-packing fails, plus one node's headroom. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.
+- **Envoy runs as a DaemonSet** (#235). Keep `externalTrafficPolicy: Local`: `Cluster` would SNAT traffic and collapse Platform's per-client login rate limit to per-node, 429ing a room at ~2–4 pairs per node.
 
-- **Topology**: 1 worker node. Aruba "Managed Kubernetes" `md-standard`
-  flavor. Single-node = single failure domain — a node reboot (Aruba
-  maintenance, kernel update) takes the whole workshop down.
-- **K8s + runtime**: v1.33.2, containerd 1.7.20, Ubuntu 24.04.2 LTS,
-  kernel 6.8.0-63-generic.
-- **CNI**: **Calico v3.29.1** (operator-managed, in `calico-system`,
-  with `typha`). Fully supports `networking.k8s.io/v1` NetworkPolicy
-  and Calico's own `GlobalNetworkPolicy` — unblocks #86.
-- **Capacity**: 4 vCPU, 8131920 KiB (~7.75 GiB) memory, 82460596 KiB
-  (~78.6 GiB) ephemeral-storage, 110 pods/node max.
-- **Allocatable** (after kubelet system-reserve): 4 vCPU, 7.66 GiB
-  memory, 70.8 GiB ephemeral-storage.
-- **StorageClass**: `acloud` CSI (`csi.cloud.it`), default,
-  `WaitForFirstConsumer`, `Delete` reclaim, expansion allowed.
-  Volumes are network-attached — they don't count against node
-  ephemeral-storage. A second class `acloud-encrypted` exists for
-  opt-in.
-- **Eviction thresholds**: kubelet defaults — `nodefs.available<10%`
-  hard (~7.6 GiB free), `<15%` soft (~11.4 GiB free). At 10 pairs
-  hitting the per-pair `requests.ephemeral-storage: 5Gi` cap from #80
-  plus baseline image footprint, we'd land near the soft threshold.
-- **Aruba in-network registry**: Aruba operates a private mirror
-  reachable from inside the cluster (serves Calico images on the
-  node) — possible alternative to ECR Public for #83 follow-ups, but
-  #83 is shipped and stable.
+## Known behaviour worth remembering
 
-### Per-pair budget math
+From the 2026-10-25 smoketest; details in the linked issues and `git log`.
 
-Baseline workload (ArgoCD, Crossplane core + functions + providers,
-UXP Apollo + webui, Loft / vCluster Platform, Envoy Gateway, Calico,
-metrics-server, Aruba CSI controllers, docs pod, cert-manager) sits
-around **1.3 vCPU / 2.8 GiB requests** with one active pair on the
-node. The per-pair `ResourceQuota` from
-[gitops/crossplane-config/composition.yaml](gitops/crossplane-config/composition.yaml)
-allows up to **2 vCPU / 4 GiB requests** per pair.
-
-If every pair hit its quota:
-
-- CPU: `1.3 + 2N ≤ 4` → **N ≤ 1.35 pairs**.
-- Memory: `2.8 + 4N ≤ 7.66` → **N ≤ 1.21 pairs**.
-
-In practice pair workloads request far less than the quota allows
-(syncer + coredns + maybe-Apollo + small module workloads ≈ ~400m / 600
-MiB once warm), so the realistic ceiling is closer to **5–6 pairs**
-before the scheduler runs out of bin-pack space. **The current node
-cannot host a 10-pair workshop without running into either eviction
-or unschedulable pods.**
-
-### Implications
-
-- For workshops up to **~5 pairs**: current setup is fine.
-- For workshops **6–10 pairs**: scale the Aruba node pool up (more
-  nodes, or a larger flavor) before the event. Node count is the
-  cheapest knob — Calico + the existing per-pair Composition handle
-  multi-node trivially.
-- For workshops **>10 pairs**: also rethink the disk budget — even
-  with the #80 ephemeral-storage cap, 10 × 5 GiB requests + image
-  footprint approach the soft eviction threshold on a single
-  ~78 GiB node.
-- **Single-node failure mode** is the biggest unmitigated risk. Aruba
-  doesn't offer a control-plane SLA on single-node managed clusters.
-  Keep an eye on Aruba maintenance windows when scheduling a workshop.
-
-## 2-pair ArubaCloud smoketest (agreed 2026-10-25)
-
-The Aruba management cluster is **torn down** — `209.227.232.167:6443` no longer answers, and `gitops/participant-xrs/` is empty. The next delivery therefore starts from a fresh `task bootstrap:all`, which is why the version sweep in this change went wide in one pass: every pin below is an *install-time* pin, not an in-place upgrade, so the usual reason to stage bumps slowly does not apply.
-
-### What the sweep moved
-
-Management cluster: UXP chart `2.2.0-up.5` → `2.4.3-up.1`, provider-kubernetes `v1.2.1` → `v1.4.1`, the three functions to `v0.7.2` / `v0.13.1` / `v0.11.1` (provider-helm `v1.5.0` landed separately in #230, closing #68). Substrate: argo-cd `9.5.0` → `10.11.1`, envoy-gateway `v1.4.0` → `v1.9.2`, vcluster-platform `4.8.0` → `4.12.4`, cert-manager `v1.17.2` → `v1.21.3`, vcluster `0.33.1` → `0.37.4`, kyverno `3.6.4` → `3.9.2`. Per-vcluster: provider-arubacloud `v0.4.0-workshop` → `v0.5.0-workshop`. Docs pins realigned to match, except the locked page noted below.
-
-### Decision: GHCR for the smoketest registry, not a built registry
-
-Crossplane 101 module 05 needs somewhere to push a Configuration package, and [#223](https://github.com/ricCap/crossplane-workshop/issues/223) leaves the real registry design unsettled. For a 2-pair smoketest that is not a blocker: [`07-block-rogue-providers.yaml`](gitops/per-vcluster-bundle/templates/policies/07-block-rogue-providers.yaml) **already allowlists `ghcr.io/riccap/`**, so a package at `ghcr.io/riccap/<pairId>/my-platform:v0.1.0` passes admission with no `registry.host` change and nothing to build. Verified by rendering the bundle — the emitted regex carries that prefix. Cost: make the two packages public once in the GHCR UI, or add a pull secret.
-
-This unblocks the smoketest without touching [#222](https://github.com/ricCap/crossplane-workshop/issues/222) or #223, and is explicitly **not** the answer for a room of attendees — per-attendee GHCR push needs a classic PAT with `write:packages`, which is why §"Decision: an OCI registry" rejected it. #222 and #223 stay open.
-
-### Order of operations
-
-1. Land the version sweep first — bootstrap the fresh cluster from the new pins rather than bootstrapping old and upgrading.
-2. Provision Aruba managed Kubernetes, **multi-node** this time (see §Cluster sizing, marked superseded). Re-measure node count, flavor, capacity and StorageClass; budget ~5 GiB PVC per pair against the block-storage quota.
-3. Two XR files under `gitops/participant-xrs/` (`bold-kiwi`, `merry-cherry`), `pairId` only — the XRD's `default: {}` supplies the quota.
-4. `task bootstrap:all`, then the manual Platform EULA activation (Loft has no headless flag; it gates every `MODE=platform` verify), then `bootstrap:repo-credentials-aruba`, `bootstrap:aruba-cloud-credentials`, `bootstrap:aruba-shared-network`, `github:register`, `platform:register-vclusters`.
-5. `task workshop:enable-aruba` per pair — the first real exercise of the kyverno `3.9.2` bump.
-6. Install Crossplane into each pair vcluster by hand. [#229](https://github.com/ricCap/crossplane-workshop/issues/229) is not a blocker but costs ~5m/pair; the collapsed `helm install` block in module 01 §1.2 step 5 stays load-bearing. Mind the LimitRange interaction at `composition.yaml:409-428`.
-7. `task verify:all MODE=platform` — the participant path, not the operator port-forward.
-8. Then the parts only a live cluster can prove: 101 module 05 via GHCR; module 06 `provider-github` (finishes the unticked half of [#73](https://github.com/ricCap/crossplane-workshop/issues/73)); module 07 `provider-arubacloud`, which is the first live exercise of `v0.5.0-workshop` and its upstream terraform-provider `v1.1.1`; the validator dashboard; and ArgoCD per-pod cards, confirming the dropped Pod workaround held.
-9. **Confirm at least one Kyverno denial fires**, not just that the allowed path works. #222 records that two days of green dry runs missed a policy bug precisely because the solo path installs no Kyverno — a smoketest that never triggers a deny would repeat that mistake.
-10. Record findings ([#93](https://github.com/ricCap/crossplane-workshop/issues/93)), tick #73, `task workshop:close-event`, delete `aruba-creds`, **rotate the Aruba API key** (account-admin scope, no scope-down path — #84/#102).
-
-### What the run actually found (2026-10-25)
-
-Steps 1–7 and 9 are **done**; 8 is partly done and 10 is pending. `task verify:all MODE=platform` reports `OK (2 pair(s))`, which had never passed on Aruba before and closes the three items #73 carried since PR #26.
-
-Every bump in #233 is now exercised live: UXP `2.4.3-up.1`, provider-kubernetes `v1.4.1`, the three functions, argo-cd `10.11.1`/`v3.5.6`, Envoy Gateway `v1.9.2`, Platform `4.12.4`, cert-manager `v1.21.3`, vcluster `0.37.4`, kyverno `3.9.2`, provider-arubacloud `v0.5.0-workshop`. Kyverno enforcement was proven with a **deliberate denial**, not just a green path — `docker.io/attacker/provider-evil:v1` blocked by `block-rogue-providers`, `xpkg.upbound.io/crossplane-contrib/provider-helm:v1.5.0` admitted.
-
-**The hairpin-NAT diagnosis from the first workshop was wrong.** The syncer could not reach Platform, with the same timeout signature that produced the cert-manager `hostAliases` workaround (c393e41) on workshop day. Measured here: a Pod co-located with Envoy reaches the public hostname in **5ms**; a Pod on any other node times out after 12s; both reach the Envoy ClusterIP in ~1ms. The cause was the Envoy Service's `externalTrafficPolicy: Local` plus a single replica — kube-proxy only forwards external-IP traffic on nodes running an Envoy Pod. **Invisible for the whole first workshop because that cluster was single-node**, so every Pod qualified. Fixed in #235 by running Envoy as a DaemonSet, which keeps `Local` and therefore client source IPs — `externalTrafficPolicy: Cluster` would have SNAT'd traffic and collapsed the Platform login rate limit's per-client buckets to per-node, 429ing a room at ~2–4 pairs per node. The `hostAliases` hack is gone.
-
-Four new issues, none previously tracked:
-
-- **[#236](https://github.com/ricCap/crossplane-workshop/issues/236)** — `02-shape-database.yaml` guards `engineId`/`flavor`/`location` on `Database`, which has none of those fields; they are on `DBaaS`, which no shape policy targets. The flavor, location and storage caps are therefore inert, so a pair can create 2 DBaaS instances of any size anywhere. Cost exposure, not unbounded abuse (the count cap holds).
-- **[#237](https://github.com/ricCap/crossplane-workshop/issues/237)** — `enable-aruba` needs Crossplane in the vcluster but neither checks nor says so, fails with an opaque API-discovery error, keeps failing after you fix it (ArgoCD caches per-cluster discovery; needs an application-controller restart), and reports `✗ sync Failed` for syncs that are still `Running`.
-- **[#238](https://github.com/ricCap/crossplane-workshop/issues/238)** — ArgoCD did not ingest a freshly-created per-pair Cluster Secret until it was touched again; the ApplicationSet generated parameters but could not resolve the destination cluster. Scales badly with pair count.
-- **[#239](https://github.com/ricCap/crossplane-workshop/issues/239)** — Aruba reported `ProvisioningSucceeded` for a volume its console still showed as `Creating`, binding a PV that could never attach and wedging a pair for 25 minutes; and the vcluster chart's `retentionPolicy: Retain` leaks a 5 GiB volume per pair per teardown.
-
-Smaller observations worth keeping:
-
-- **`crossplane-init` still needs the storeconfigs shim** on `2.4.3-up.1`. Templating both `2.2.0-up.5` and `2.4.3-up.1` shows the bundled `crossplane` ClusterRole still grants no verbs on `secrets.crossplane.io/storeconfigs`, so `gitops/crossplane-packages/rbac.yaml`'s aggregated shim stays. Whether init still *creates* a default StoreConfig can only be seen at runtime.
-- **provider-helm crashloops once or twice on a cold start.** v1.x sizes its client cache by listing its own `ProviderConfig`s at boot and loses a race with Crossplane's RBAC manager: `providerconfigs.helm.crossplane.io is forbidden`. Self-heals. `crossplane-apollo`'s syncer does the same, and did so before the upgrade too. Expected noise, not a fault.
-- **The cluster came up single-node and a second node joined mid-run**, which is what exposed the `externalTrafficPolicy` bug. Both nodes are `md-medium` at 4 vCPU / 7.66 GiB allocatable / 110 pods — *identical capacity to the old `md-standard`*, so §Cluster sizing's per-node maths carries over unchanged and still needs re-measuring (#93).
-- CIDRs held up: nodes `10.10.0.0/24`, pods `10.244.0.0/16` carved per node, services `10.96.0.0/12`, no overlap, and the pair egress NetworkPolicy's RFC1918 `except` list covers nodes and services as intended.
-
-### Known gaps after this run
-
-- **`task github:register` was never run**, so `github-app-credentials` is absent from both participant namespaces and **module 06 is entirely unexercised** on Aruba. This is the largest remaining hole in #73.
-- **`task bootstrap:aruba-shared-network` was never run** (deliberately deferred), so module 07 §7.3's `Database` MR against the shared VPC is unexercised.
-- **101 module 05 was not walked.** The GHCR path is sound in principle — `07-block-rogue-providers.yaml` already allowlists `ghcr.io/riccap/`, confirmed in the rendered policy — but no package was built, pushed or installed, so `configuration-installed` is unproven.
-- **The validator dashboard and ArgoCD per-pod cards were not checked.** The latter is the payoff from dropping the Pod exclusion in #233 and is worth one look.
-- [`docs/docs/05-crossplane-2xx/02-operations.mdx`](docs/docs/05-crossplane-2xx/02-operations.mdx) was `ai_edit: locked` and pinned UXP `2.2.0-up.5`; bumped with the author's explicit per-edit consent, lock left in place.
-
-## Open items
-
-- **[#229](https://github.com/ricCap/crossplane-workshop/issues/229) — Neither delivery path pre-installs Crossplane.** Crossplane 101 assumes the participant's cluster already runs it: module 01 checks, module 05 `xpkg install`s into it. It is true on neither path. [`gitops/crossplane-config/composition.yaml`](gitops/crossplane-config/composition.yaml) creates exactly one Helm `Release` (`vcluster` 0.37.4) and no Crossplane; [`gitops/apps/crossplane.yaml`](gitops/apps/crossplane.yaml) installs UXP to `kubernetes.default.svc`, the **management** cluster. `gitops/solo/` has none either. Participants used to install it themselves in the deleted `01-install-crossplane` module — the comment at `composition.yaml:419` still refers to it. Until #229 lands, module 01 §1.2 step 5 carries a collapsed `helm install` block that is load-bearing for both paths, and the hour costs ~66m rather than ~61m. **Do not remove that block before pre-install ships.**
-- **[#225](https://github.com/ricCap/crossplane-workshop/issues/225) — Module 02 has no diagram, and one orphaned asset explains why.** `03-define-application` and `05-package-and-ship` carry `define-application-fanout` and `configurations-packaging`. `02-create-your-project` has none: the obvious candidate, `first-composition-overview`, is labelled for the deleted Hello module (`XRD hellos.workshop`, `Hello XR hello-world`) and would mislead in a module that creates an `Application`. Its [Excalidraw source](docs/static/diagrams/first-composition-overview.excalidraw) is in the repo, so relabelling it for the XRD-from-example flow is the cheap fix. Note also that `configurations-packaging` was drawn for the 3XX module and names `xpkg.upbound.io` rather than the workshop registry — accurate as a concept, slightly off as a picture of what a pair does.
-- **[#222](https://github.com/ricCap/crossplane-workshop/issues/222) — Set `registry.host` on the per-vcluster bundle when the registry exists.** Crossplane 101 has every pair push a Configuration and `xpkg install` it, which [`07-block-rogue-providers.yaml`](gitops/per-vcluster-bundle/templates/policies/07-block-rogue-providers.yaml) denies at admission unless the pair's own registry prefix is allowlisted. 0b60fb4 added the value and leaves it empty, so the policy is unchanged until someone sets it — which means **module 05 fails for every pair on a live cluster until this is done**. It cannot be caught in solo: the solo path installs no Kyverno, which is why two days of dry runs missed it.
-- **[#227](https://github.com/ricCap/crossplane-workshop/issues/227) — Move the solo registry setup out of module 05.** [`docs/docs/04-crossplane-101/05-package-and-ship.mdx`](docs/docs/04-crossplane-101/05-package-and-ship.mdx) carries a collapsed "Solo: standing up a local registry" block with `k3d` and `k3s` commands in it. The style guide's hard rule is that substrate detail never appears in a paired-path module, with [`99-solo-local-setup.mdx`](docs/docs/99-solo-local-setup.mdx) as the single exception. **Correction (2026-10-25): that page is not locked.** It carries no `ai_edit` frontmatter at all, so the premise this item and #227 were both written on — that the content could not be moved without per-edit consent — is wrong, and #227's option (a) ("flip the lock") is a no-op. Moving the block is just an ordinary edit. The remaining choice is therefore: move it to `99-solo-local-setup.mdx` now, or teach `task solo:up` to provision the registry so the block reduces to a link. The second is still better — it also makes the solo path work without the participant running `docker exec` against a node.
-- ~~**Drop the Pod-exclusion workaround for [argoproj/argo-cd#26529](https://github.com/argoproj/argo-cd/issues/26529)**~~ — **done.** The issue closed 2026-10-08, and the `argo-cd` chart pinned in [Taskfile.yml](Taskfile.yml) (`10.11.1`, app `v3.5.6`) vendors `k8s.io/kubectl` `v0.37.0`, past the `v0.36.0` threshold the fix landed in ([kubernetes/kubernetes#136534](https://github.com/kubernetes/kubernetes/pull/136534)). The whole `configs.cm.resource.exclusions` override is gone from [bootstrap/argocd-values.yaml](bootstrap/argocd-values.yaml), not just its `Pod` entry — the remainder was byte-identical to the chart default, and that default is unchanged between `9.5.0` and `10.11.1`, so keeping a copy would only preserve the mirror-on-every-bump trap (Helm string overrides replace, they don't merge). Per-pod cards and pod-level Application health are back. Worth an explicit look on the rebuilt cluster: the issue's title names *remote vclusters using LimitRanges*, which is this workshop's exact shape.
-- **vcluster.cloud registration mechanics** — confirm the exact `vcluster platform login` / `vcluster platform connect cluster` incantation on first registration, and whether it silently installs an agent. If it does, that install stays a manual one-time prereq, **not** GitOps-managed.
-- **Kyverno `ClusterPolicy v1` is deprecated upstream.** The bundle now runs kyverno chart `3.9.2` (app `v1.19.2`), which marks `kyverno.io/v1 ClusterPolicy` deprecated in favour of the CEL-based `policies.kyverno.io` types (`ValidatingPolicy`, `MutatingPolicy`, …). Served, not removed, so all 14 policies under [gitops/per-vcluster-bundle/templates/policies/](gitops/per-vcluster-bundle/templates/policies/) keep working and keep enforcing — `spec.validationFailureAction` is byte-identical between `v1.16.4` and `v1.19.2`, already deprecated at the version used before this bump. Migration is a future task, not a blocker; expect deprecation warnings on apply.
-- **Docs pod image pipeline dry-run** — on the next release tag, watch the two `.github/workflows/*.yml` Actions runs and adjust Dockerfiles if image sizes or build times are unreasonable.
+- `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.1`.
+- provider-helm and `crossplane-apollo` crashloop once or twice on cold start (RBAC race). Self-heals; not a fault.
+- ArgoCD caches per-cluster API discovery; after installing CRDs into a pair, restart the application-controller (#237).
+- The UXP chart pin on [docs/docs/05-crossplane-2xx/02-operations.mdx](docs/docs/05-crossplane-2xx/02-operations.mdx) (locked) must be bumped with the author's per-edit consent whenever UXP moves.
 
 ## Deferred (not scheduled)
 
-- **Crossview as a multi-cluster operator dashboard** — [crossplane-contrib/crossview](https://github.com/crossplane-contrib/crossview) (React+Go, requires PostgreSQL, OIDC/SAML). Evaluated against the UXP v2 bundled Web UI in Apr 2026; UXP Web UI won (zero install, no Postgres, read-only is fine). Crossview remains a candidate **only** if we later want a single dashboard that views all participant vclusters at once from the management cluster.
-- **Apollo subchart cluster-admin binding** — enabling the UXP `webui` pulls in `apollo`, which hardcodes a `cluster-admin` ClusterRoleBinding for SA `apollo` in `crossplane-system`. The subchart exposes no RBAC knob. Verified Apr 2026 by inspecting `oci://xpkg.upbound.io/upbound/uxp-apollo:0.4.7` directly — `roleRef.name: cluster-admin` is a literal in `templates/clusterrolebinding.yaml`. Workarounds (override via separate ArgoCD app, multi-source Kustomize patch) all fight Helm/`selfHeal` and break on chart upgrade. Acceptable for the ephemeral workshop cluster; file an upstream issue for a future `webui.rbac.minimal` flag if we ever reuse the cluster for anything else.
-- ArubaCloud Crossplane provider generation via `upjet` + Aruba's Terraform provider.
+- **Crossview as a multi-cluster operator dashboard** — [crossplane-contrib/crossview](https://github.com/crossplane-contrib/crossview) needs Postgres and OIDC/SAML; the UXP Web UI won in Apr 2026. Revisit only for one dashboard across every pair cluster.
+- **Apollo subchart cluster-admin binding** — the UXP `webui` pulls in `apollo`, which hardcodes a `cluster-admin` ClusterRoleBinding with no RBAC knob (verified against `uxp-apollo:0.4.7`). Acceptable on an ephemeral cluster.
+- **Kyverno CEL migration** — `kyverno.io/v1 ClusterPolicy` is deprecated in chart `3.9.2` (app `v1.19.2`) in favour of `policies.kyverno.io`; all 14 policies still enforce.
+- ArubaCloud provider generation via `upjet` + Aruba's Terraform provider.
 - Ingress / TLS / DNS / SSO for ArgoCD.
-- Automated vcluster.cloud cluster registration (stays a one-time manual step).
-- Local fallback docs (`vcluster --driver docker`) for the participant contingency on workshop day.
+- Automated vCluster Platform cluster registration (stays a one-time manual step).
