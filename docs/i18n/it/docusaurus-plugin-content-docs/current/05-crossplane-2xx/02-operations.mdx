@@ -4,7 +4,7 @@ title: Crossplane Operations
 ai_edit: locked
 ai_edit_reviewed: 2026-04-28
 ai_edit_reviewer: ricCap
-translation_source_commit: bb345b59825bc89a0bbb9aafac4b473ca6823979
+translation_source_commit: e7cf4b160c704c15b1ee55c251473fe3dfc08017
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -34,19 +34,13 @@ Stai per esplorare cosa sblocca ognuno dei tre — niente sotto-passi guidati, s
 
 ## 2.3 Suggerimenti
 
-- Operations è una feature **alpha** in Crossplane v2. L'installazione di Crossplane sul tuo cluster del workshop **non** la abilita di default — il deployment di Crossplane deve girare con `--enable-operations`. Crossplane è preinstallato nel tuo cluster del workshop, quindi per abilitarla devi aggiornare tu quella release:
+- Operations è una feature **alpha** in Crossplane v2, attivata dal flag `--enable-operations`. UXP imposta quel flag di default, quindi il Crossplane del tuo cluster del workshop lo ha già. Controlla i flag con cui gira il Deployment di Crossplane:
 
   ```bash
-  helm upgrade --install crossplane upbound-stable/crossplane \
-    --version 2.4.3-up.1 \
-    --namespace crossplane-system --create-namespace \
-    --devel \
-    --set webui.enabled=true \
-    --set args='{"--enable-operations"}' \
-    --wait
+  kubectl get deploy crossplane -n crossplane-system -o jsonpath='{.spec.template.spec.containers[0].args}'
   ```
 
-  Finché quel flag non è attivo, le risorse `Operation` / `CronOperation` / `WatchOperation` resteranno non riconciliate.
+  Nella lista dovresti vedere `--enable-operations`. Senza, le risorse `Operation` / `CronOperation` / `WatchOperation` restano non riconciliate.
 - Leggi i tre reference delle risorse end-to-end prima di scrivere qualunque cosa: [`Operation`](https://docs.crossplane.io/latest/operations/operation/), [`CronOperation`](https://docs.crossplane.io/latest/operations/cron-operation/), [`WatchOperation`](https://docs.crossplane.io/latest/operations/watch-operation/). Ognuno spedisce un piccolo esempio elaborato.
 - Le Operations riusano le stesse composition function che hai incontrato nel modulo 3.4 — parti leggendo [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) e scegli la pipeline più semplice che produce l'effetto collaterale che vuoi.
 - Ispeziona cosa ha fatto una Operation con `kubectl get operations` e `kubectl describe operation <name>` — l'output della pipeline e le condizioni per step atterrano su `.status`.

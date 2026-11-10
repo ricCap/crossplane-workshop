@@ -33,19 +33,13 @@ You're about to explore what each kind unlocks — no guided substeps, only poin
 
 ## 2.3 Hints
 
-- Operations is an **alpha** feature in Crossplane v2. Your workshop cluster's Crossplane installation does **not** enable it by default — the Crossplane deployment must run with `--enable-operations`. Crossplane comes pre-installed in your workshop cluster, so turning this on means upgrading that release yourself:
+- Operations is an **alpha** feature in Crossplane v2, switched on by the `--enable-operations` flag. UXP sets that flag by default, so the Crossplane in your workshop cluster already has it. Check the flags the Crossplane Deployment runs with:
 
   ```bash
-  helm upgrade --install crossplane upbound-stable/crossplane \
-    --version 2.4.3-up.1 \
-    --namespace crossplane-system --create-namespace \
-    --devel \
-    --set webui.enabled=true \
-    --set args='{"--enable-operations"}' \
-    --wait
+  kubectl get deploy crossplane -n crossplane-system -o jsonpath='{.spec.template.spec.containers[0].args}'
   ```
 
-  Until that flag is on, `Operation` / `CronOperation` / `WatchOperation` resources will sit unreconciled.
+  You should see `--enable-operations` in the list. Without it, `Operation` / `CronOperation` / `WatchOperation` resources sit unreconciled.
 - Read the three resource references end to end before authoring anything: [`Operation`](https://docs.crossplane.io/latest/operations/operation/), [`CronOperation`](https://docs.crossplane.io/latest/operations/cron-operation/), [`WatchOperation`](https://docs.crossplane.io/latest/operations/watch-operation/). Each ships a small worked example.
 - Operations reuse the same composition functions you encountered in module 3.4 — start by reading [`function-go-templating`](https://github.com/crossplane-contrib/function-go-templating) and pick the simplest pipeline that produces the side effect you want.
 - Inspect what an Operation did with `kubectl get operations` and `kubectl describe operation <name>` — pipeline output and per-step conditions land on `.status`.
