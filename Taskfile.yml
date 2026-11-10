@@ -109,8 +109,8 @@ tasks:
           --wait
       - kubectl apply -k gitops/solo
       # Crossplane pre-installed (#229), as a real Helm release named
-      # `crossplane` so 02-operations' `helm upgrade --install` works.
-      # Values match what that command passes back (webui only).
+      # `crossplane` with the same values (webui only) as a pair
+      # cluster's pre-install.
       - |
         helm upgrade --install crossplane crossplane \
           --repo https://charts.upbound.io/stable \

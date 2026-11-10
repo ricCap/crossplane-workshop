@@ -101,7 +101,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 ### Decision: pre-install Crossplane ([#229](https://github.com/ricCap/crossplane-workshop/issues/229))
 
 - **Pair clusters**: a second provider-helm `Release` per pair (`crossplane-<pair>`), through a per-pair `ProviderConfig` (`vcluster-<pair>`) that reads the vcluster's own `vc-<pair>` kubeconfig Secret. Chosen over vCluster's `experimental.deploy`: a failed install shows on the XR, and the install is the same tool the rest of the Composition uses.
-  - Helm release is named `crossplane` in `crossplane-system` (external-name annotation) and its values are only `webui.enabled`, because the locked 2XX operations module has participants `helm upgrade --install crossplane` over it.
+  - Helm release is named `crossplane` in `crossplane-system` (external-name annotation) and its values are only `webui.enabled`, so a participant's own `helm upgrade --install crossplane` lines up with it.
   - `managementPolicies: [Observe, Create]`: never updates (doesn't undo that upgrade) and never deletes (no hung finalizer when the vcluster goes first). A version bump therefore only reaches new pairs.
   - `wait: true`, so the XR is Ready only once Crossplane runs. `verify:pair` / `verify:pair:platform` also wait on the Release and on `deploy/crossplane` inside the vcluster.
 - **A `preinstallCrossplane` XRD parameter, default `true`.** 101 is the core of every delivery and assumes Crossplane is running; set it to `false` for a pair whose participants install it themselves. The two resources live in their own go-templating step because patch-and-transform can't leave a resource out conditionally. `verify:pair` / `verify:pair:platform` skip the Crossplane checks for such pairs. Switching it off on a live pair leaves Crossplane installed (the Release orphans).
@@ -109,7 +109,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 - **Solo**: `solo:platform` runs the same `helm upgrade --install`; the solo page documents it as step 4.
 - **UXP version** is pinned in `gitops/apps/crossplane.yaml`, the Composition, `UXP_CHART_VERSION` in the Taskfile and the modules. Comments at each pin name the others; no automated check (judged not worth it).
 - **Tested on k3d (2026-11-09)**: Crossplane Ready ~3 min after the pair vcluster, all five UXP pods admitted under the pair LimitRange/quota, XR deletion clean (no hung finalizer), `task solo:all` + `task solo:verify` green.
-- **Found while testing — 02-operations (locked) needs a fix**: UXP `2.4.3-up.1` already defaults `args` to `--enable-operations` and `--package-runtime=External`, so its `helm upgrade --set args='{"--enable-operations"}'` is unnecessary and drops `--package-runtime=External`. With a Helm 4 client it also fails with server-side-apply conflicts against the field manager `provider-helm` uses. Fix: replace the upgrade with "Operations are already on" — needs the author's per-edit consent.
+- **Fixed while testing — 02-operations**: its `helm upgrade --set args='{"--enable-operations"}'` was unnecessary (UXP `2.4.3-up.1` already defaults `args` to `--enable-operations --package-runtime=External`) and dropped `--package-runtime=External`. Replaced with a `kubectl` check of the Deployment args; the page went from `ai_edit: locked` to `ask` with the author's consent. Still true for any participant who runs their own `helm upgrade` on the pre-installed release: a Helm 4 client fails with server-side-apply conflicts against `provider-helm`'s field manager.
 - **Then (separate PR)**: once `verify:all MODE=platform` passes on a fresh Aruba pair, drop the install block from module 01 §1.2 step 5, keep the check, and keep `crossplane-installed` as the operator's pre-flight signal.
 
 ### Open questions
@@ -137,7 +137,6 @@ From the 2026-10-25 smoketest; details in the linked issues and `git log`.
 - `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.1`.
 - provider-helm and `crossplane-apollo` crashloop once or twice on cold start (RBAC race). Self-heals; not a fault.
 - ArgoCD caches per-cluster API discovery; after installing CRDs into a pair, restart the application-controller (#237).
-- The UXP chart pin on [docs/docs/05-crossplane-2xx/02-operations.mdx](docs/docs/05-crossplane-2xx/02-operations.mdx) (locked) must be bumped with the author's per-edit consent whenever UXP moves.
 
 ## Deferred (not scheduled)
 
