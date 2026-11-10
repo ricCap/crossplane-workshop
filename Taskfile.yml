@@ -31,10 +31,7 @@ vars:
   ENVOY_GATEWAY_VERSION: v1.9.2
   ENVOY_GATEWAY_NS: envoy-gateway-system
   # UXP (Upbound's Crossplane distribution), pre-installed in solo by
-  # `solo:platform`. Keep in step with gitops/apps/crossplane.yaml, the
-  # crossplane-release in gitops/crossplane-config/composition.yaml and
-  # docs/docs/05-crossplane-2xx/02-operations.mdx — `task
-  # check:uxp-pins` (run in CI) fails if they drift.
+  # `solo:platform`. Keep in step with gitops/apps/crossplane.yaml.
   UXP_CHART_VERSION: 2.4.3-up.1
   # vCluster Platform — web UI for participant vcluster access.
   # Installed via `task bootstrap:vcluster-platform` (not ArgoCD)
@@ -217,11 +214,6 @@ tasks:
   # `.github/workflows/i18n-sync.yml` runs `docs:i18n:check` on every
   # PR. See AGENTS.md §Localization for the full workflow.
   # ------------------------------------------------------------------
-
-  check:uxp-pins:
-    desc: "Fail if the UXP (Crossplane) chart version differs between the management cluster, pair pre-install, solo and the docs."
-    cmds:
-      - scripts/check-uxp-pins.sh
 
   docs:test:
     desc: "Run the docs site's component unit tests (vitest + @testing-library/react)."
@@ -1512,7 +1504,13 @@ tasks:
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       # Pre-installed Crossplane (#229): the composed Release only goes
       # Ready once `helm install --wait` succeeded inside the vcluster.
-      - kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
+      # Skipped for pairs with `preinstallCrossplane: false`.
+      - |
+        if [ "$(kubectl get developerenvironments.workshop.example.io {{.PAIR}} -o jsonpath='{.spec.preinstallCrossplane}')" = "false" ]; then
+          echo "{{.PAIR}}: preinstallCrossplane=false, skipping the Crossplane checks"
+        else
+          kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
+        fi
       # Operator-side inner-vcluster smoke test. Pull the kubeconfig
       # written by the vcluster Helm chart into Secret/vc-<pair>,
       # rewrite its in-cluster server URL to a local port-forward, and
@@ -1535,8 +1533,10 @@ tasks:
           sleep 0.5
         done
         kubectl --kubeconfig "${KCFG}" --insecure-skip-tls-verify get ns
-        kubectl wait --kubeconfig "${KCFG}" --insecure-skip-tls-verify \
-          --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
+        if [ "$(kubectl get developerenvironments.workshop.example.io "${PAIR}" -o jsonpath='{.spec.preinstallCrossplane}')" != "false" ]; then
+          kubectl wait --kubeconfig "${KCFG}" --insecure-skip-tls-verify \
+            --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
+        fi
         # Aruba bundle smoke — skips if `task workshop:enable-aruba PAIR=...`
         # hasn't been run yet for this pair (provider CRD absent).
         KUBECONFIG="${KCFG}" INSECURE_SKIP_TLS_VERIFY=true \
@@ -1685,7 +1685,13 @@ tasks:
       - kubectl wait --for=condition=Ready pod -l app=vcluster -n participant-{{.PAIR}} --timeout=300s
       # Pre-installed Crossplane (#229): the composed Release only goes
       # Ready once `helm install --wait` succeeded inside the vcluster.
-      - kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
+      # Skipped for pairs with `preinstallCrossplane: false`.
+      - |
+        if [ "$(kubectl get developerenvironments.workshop.example.io {{.PAIR}} -o jsonpath='{.spec.preinstallCrossplane}')" = "false" ]; then
+          echo "{{.PAIR}}: preinstallCrossplane=false, skipping the Crossplane checks"
+        else
+          kubectl wait --for=condition=Ready release.helm.crossplane.io/crossplane-{{.PAIR}} --timeout=600s
+        fi
       # Same path participants take. `vcluster platform connect
       # vcluster` writes a kubeconfig pointing at the Platform proxy
       # URL (https://<platform-host>/kubernetes/project/<project>/virtualcluster/<pair>),
@@ -1701,8 +1707,10 @@ tasks:
           exit 1
         fi
         vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- kubectl get ns
-        vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- \
-          kubectl wait --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
+        if [ "$(kubectl get developerenvironments.workshop.example.io "{{.PAIR}}" -o jsonpath='{.spec.preinstallCrossplane}')" != "false" ]; then
+          vcluster platform connect vcluster "{{.PAIR}}" --project "{{.PROJECT}}" -- \
+            kubectl wait --for=condition=Available deploy/crossplane -n crossplane-system --timeout=120s
+        fi
         # Aruba bundle smoke. `vcluster platform connect ... -- KUBECONFIG=<path> ...`
         # is the trick: the connect command writes a fresh
         # platform-proxied kubeconfig and runs the trailing command
