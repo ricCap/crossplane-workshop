@@ -1073,7 +1073,7 @@ tasks:
         fi
 
         echo "Done. ${n} kubeconfig(s) issued under out/kubeconfigs/."
-        echo "Distribute via: task pairs:upload-kubeconfigs && task pairs:qr"
+        echo "Distribute via: task pairs:upload-kubeconfigs && task pairs:doc"
         echo "Operator: KUBECONFIG=out/kubeconfigs/merged.yaml kubectl config get-contexts"
       # Registry push logins ride in the same per-pair ZIP.
       - task: registry:credentials
@@ -1089,10 +1089,10 @@ tasks:
       set up Drive OAuth.
 
       The ZIP layer defends against URL-leak scenarios (recorded
-      sessions, screenshotted Miro boards, "I learned Crossplane
-      today!" posts): a leaked link alone no longer yields kubectl
-      access — the recipient also needs the password, which the
-      operator shares verbally / on the live Miro board. Without
+      sessions, a photographed slide, "I learned Crossplane today!"
+      posts): a leaked link alone no longer yields kubectl access —
+      the recipient also needs the password, which the operator puts
+      on the slide or says out loud, never in the links doc. Without
       this, the leaked URL would expose the shared Aruba API key and
       GitHub App PEM mirrored into every pair vcluster via
       sync.fromHost.
@@ -1124,7 +1124,7 @@ tasks:
         set -euo pipefail
         if [ -z "${KUBECONFIG_ZIP_PASSWORD:-}" ]; then
           echo "KUBECONFIG_ZIP_PASSWORD is required but not set." >&2
-          echo "Set a shared password the operator will hand out (verbally / on Miro) so participants" >&2
+          echo "Set a shared password the operator will hand out (on the slide / out loud) so participants" >&2
           echo "can extract their kubeconfig:" >&2
           echo "  KUBECONFIG_ZIP_PASSWORD='<pw>' task pairs:upload-kubeconfigs" >&2
           exit 1
@@ -1191,57 +1191,182 @@ tasks:
         done
 
         echo "Done. URLs written to out/urls.txt."
-        echo "Next: task pairs:qr"
-        echo "Share KUBECONFIG_ZIP_PASSWORD with participants out-of-band (verbally / live Miro)."
+        echo "Next: task pairs:doc"
+        echo "Share KUBECONFIG_ZIP_PASSWORD with participants out-of-band (on the slide / out loud, never in the doc)."
 
-  pairs:qr:
+  pairs:doc:
     desc: |
-      Encode each per-pair shareable URL from `out/urls.txt` as a PNG
-      QR code under `out/qr/`. Operator drags these onto the workshop
-      Miro board so each pair can scan their own.
+      Build the one page participants open to fetch their credentials:
+      a Google Doc listing every pair's ZIP download link from
+      `out/urls.txt`, shared "anyone with the link can view", plus ONE
+      QR code (`out/qr/workshop.png`) pointing at that doc for the
+      slide. The ZIP password never goes in the doc: it goes on the
+      slide or is said out loud.
+
+      Steps:
+        1. Render `out/pairs.html` (imported as the Doc) and
+           `out/pairs.md` (same table, manual-paste fallback).
+        2. Upload `out/pairs.html` to
+           `<RCLONE_REMOTE>:<RCLONE_FOLDER>/<PAIRS_DOC_NAME>` as a
+           Google Doc (rclone `--drive-import-formats html`),
+           replacing any previous doc of the same name.
+        3. `rclone link` the doc (view-only, anyone with the link) and
+           write the URL to `out/doc-url.txt`.
+        4. Encode the doc URL as `out/qr/workshop.png`.
+
+      The doc lives in the same remote folder as the ZIPs, so
+      `task pairs:cleanup` deletes it too. Delete it after the event.
+
+      Optional env vars:
+        DOC_URL             Skip the upload and only make the QR from
+                            this URL (a doc you created by hand).
+        PAIRS_DOC_UPLOAD    `false` renders HTML/MD only, no upload,
+                            no QR. Default: true.
+        PAIRS_DOC_NAME      Doc name on the remote. Default:
+                            crossplane-workshop-credentials.
+        RCLONE_REMOTE       Default: gdrive.
+        RCLONE_FOLDER       Default: workshop-kubeconfigs.
+        RCLONE_LINK_EXPIRE  Default: 24h (see pairs:upload-kubeconfigs).
 
       Usage:
-        task pairs:qr
+        task pairs:doc
+        PAIRS_DOC_UPLOAD=false task pairs:doc
+        task pairs:doc DOC_URL=<url>
+    vars:
+      RCLONE_REMOTE: '{{.RCLONE_REMOTE | default "gdrive"}}'
+      RCLONE_FOLDER: '{{.RCLONE_FOLDER | default "workshop-kubeconfigs"}}'
+      RCLONE_LINK_EXPIRE: '{{.RCLONE_LINK_EXPIRE | default "24h"}}'
+      PAIRS_DOC_NAME: '{{.PAIRS_DOC_NAME | default "crossplane-workshop-credentials"}}'
+      PAIRS_DOC_UPLOAD: '{{.PAIRS_DOC_UPLOAD | default "true"}}'
+      DOC_URL: '{{.DOC_URL | default ""}}'
+    env:
+      # Passed via env, not templated into the script, so a URL with
+      # quotes or `&` can't break the shell.
+      DOC_URL: '{{.DOC_URL}}'
     cmds:
       - |
         set -euo pipefail
-        command -v qrencode >/dev/null || {
-          echo "qrencode not found. Install via 'brew install qrencode' (or your package manager)." >&2
-          exit 1
-        }
+        workshop_url="https://crossplane.workshop.riccardocapraro.com"
+        title="Crossplane workshop — your credentials"
+
         [ -f out/urls.txt ] && [ -s out/urls.txt ] || {
           echo "out/urls.txt is empty or missing. Run 'task pairs:upload-kubeconfigs' first." >&2
           exit 1
         }
+        command -v qrencode >/dev/null || {
+          echo "qrencode not found. Install via 'brew install qrencode' (or your package manager)." >&2
+          exit 1
+        }
 
+        upload=true
+        if [ -n "${DOC_URL:-}" ]; then
+          upload=false
+        elif [ "{{.PAIRS_DOC_UPLOAD}}" = "false" ]; then
+          upload=false
+        fi
+        if [ "${upload}" = "true" ]; then
+          command -v rclone >/dev/null || {
+            echo "rclone not found. Install via 'brew install rclone', or render only with PAIRS_DOC_UPLOAD=false." >&2
+            exit 1
+          }
+          rclone listremotes 2>/dev/null | grep -q "^{{.RCLONE_REMOTE}}:$" || {
+            echo "rclone remote '{{.RCLONE_REMOTE}}' not configured. Run 'rclone config', or render only with PAIRS_DOC_UPLOAD=false." >&2
+            exit 1
+          }
+        fi
+
+        # Parse `pair=<id> url=<link>` lines into sorted "<id> <link>" rows.
+        rows=$(sed -n 's/^pair=\([^ ]*\) url=\(.*\)$/\1 \2/p' out/urls.txt | sort)
+        [ -n "${rows}" ] || {
+          echo "out/urls.txt has no 'pair=<id> url=<link>' lines. Re-run 'task pairs:upload-kubeconfigs'." >&2
+          exit 1
+        }
+        esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'; }
+
+        # Render. Nothing secret goes in here: pair IDs and links only.
+        {
+          printf '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>%s</title></head><body>\n' "${title}"
+          printf '<h1>%s</h1>\n' "${title}"
+          printf '<ol>\n'
+          printf '<li>Find your pair ID in the table below.</li>\n'
+          printf '<li>Download the ZIP for your pair ID.</li>\n'
+          printf '<li>Unzip it with the password on the slide.</li>\n'
+          printf '<li>Follow the workshop at <a href="%s">%s</a>.</li>\n' "${workshop_url}" "${workshop_url}"
+          printf '</ol>\n'
+          printf '<table border="1" cellpadding="6">\n<tr><th>Pair ID</th><th>Download link</th></tr>\n'
+          echo "${rows}" | while read -r pair url; do
+            printf '<tr><td>%s</td><td><a href="%s">%s.zip</a></td></tr>\n' "$(esc "${pair}")" "$(esc "${url}")" "$(esc "${pair}")"
+          done
+          printf '</table>\n</body></html>\n'
+        } > out/pairs.html
+        {
+          printf '# %s\n\n' "${title}"
+          printf '1. Find your pair ID in the table below.\n'
+          printf '2. Download the ZIP for your pair ID.\n'
+          printf '3. Unzip it with the password on the slide.\n'
+          printf '4. Follow the workshop at %s.\n\n' "${workshop_url}"
+          printf '| Pair ID | Download link |\n|---|---|\n'
+          echo "${rows}" | while read -r pair url; do
+            printf '| %s | %s |\n' "${pair}" "${url}"
+          done
+        } > out/pairs.md
+        n=$(echo "${rows}" | wc -l | tr -d ' ')
+        echo "  ok: rendered out/pairs.html and out/pairs.md (${n} pair(s))"
+
+        doc_url="${DOC_URL:-}"
+        if [ "${upload}" = "true" ]; then
+          # Drive stores the imported Google Doc under its name with no
+          # extension; rclone addresses it as <name>.html when both the
+          # import and export formats are html (without the export
+          # format rclone refuses the import, since the default export
+          # would be .docx). Delete the previous doc first so reruns
+          # replace it instead of piling up copies.
+          remote_doc="{{.RCLONE_REMOTE}}:{{.RCLONE_FOLDER}}/{{.PAIRS_DOC_NAME}}.html"
+          rclone deletefile "${remote_doc}" --drive-import-formats html --drive-export-formats html --quiet 2>/dev/null || true
+          rclone copyto out/pairs.html "${remote_doc}" --drive-import-formats html --drive-export-formats html --quiet
+          doc_url=$(rclone link --expire "{{.RCLONE_LINK_EXPIRE}}" "${remote_doc}" --drive-import-formats html --drive-export-formats html) || {
+            echo "rclone link failed for ${remote_doc}. Share the doc by hand (anyone with the link, Viewer) and re-run with DOC_URL=<url>." >&2
+            exit 1
+          }
+          [ -n "${doc_url}" ] || { echo "rclone link returned an empty URL for ${remote_doc}." >&2; exit 1; }
+          echo "  ok: uploaded ${remote_doc}"
+        fi
+
+        if [ -z "${doc_url}" ]; then
+          echo
+          echo "Upload skipped (PAIRS_DOC_UPLOAD=false). Create the doc by hand:"
+          echo "  1. Paste out/pairs.md (or import out/pairs.html) into a new Google Doc."
+          echo "  2. Share it: anyone with the link, Viewer."
+          echo "  3. task pairs:doc DOC_URL=<doc url>   # makes the QR"
+          echo "Reminder: the ZIP password goes on the slide or is said out loud, never in the doc."
+          exit 0
+        fi
+
+        printf '%s\n' "${doc_url}" > out/doc-url.txt
         mkdir -p out/qr
-        n=0
-        while IFS= read -r line; do
-          pair=$(echo "${line}" | sed -n 's/^pair=\([^ ]*\) .*/\1/p')
-          url=$(echo "${line}" | sed -n 's/^pair=[^ ]* url=\(.*\)$/\1/p')
-          [ -n "${pair}" ] && [ -n "${url}" ] || continue
-          qrencode -o "out/qr/${pair}.png" -s 10 -m 2 "${url}"
-          echo "  ok: ${pair} → out/qr/${pair}.png"
-          n=$((n + 1))
-        done < out/urls.txt
+        qrencode -o out/qr/workshop.png -s 10 -m 2 "${doc_url}"
 
-        echo "Done. ${n} QR code(s) under out/qr/. Drag onto the workshop Miro."
+        echo
+        echo "Doc URL: ${doc_url}  (saved to out/doc-url.txt)"
+        echo "QR code: out/qr/workshop.png  (put it on the slide)"
+        echo "Reminder: the ZIP password goes on the slide or is said out loud, never in the doc."
+        echo "Reminder: delete the doc after the event ('task pairs:cleanup' purges the remote folder)."
 
   pairs:distribute:
     desc: |
       Umbrella for the everyday workshop-day flow: mint per-pair
       access keys + kubeconfigs, wrap them in password-protected
-      ZIPs, upload to the shared remote, and generate the QR codes
-      for the Miro board. Equivalent to:
+      ZIPs, upload to the shared remote, publish the links doc and
+      generate its single QR code for the slide. Equivalent to:
 
         task pairs:issue-kubeconfigs
         task pairs:upload-kubeconfigs
-        task pairs:qr
+        task pairs:doc
 
       Required env vars:
         KUBECONFIG_ZIP_PASSWORD  Shared password the operator hands
-                                 out (verbally / on the live Miro
-                                 board) so participants can extract
+                                 out (on the slide / out loud, never
+                                 in the doc) so participants can extract
                                  their kubeconfig. Fail-fast here so
                                  we don't burn a kubeconfig rotation
                                  only to error out at upload time.
@@ -1253,13 +1378,13 @@ tasks:
         set -euo pipefail
         if [ -z "${KUBECONFIG_ZIP_PASSWORD:-}" ]; then
           echo "KUBECONFIG_ZIP_PASSWORD is required but not set." >&2
-          echo "Set a shared password the operator will hand out (verbally / on Miro):" >&2
+          echo "Set a shared password the operator will hand out (on the slide / out loud):" >&2
           echo "  KUBECONFIG_ZIP_PASSWORD='<pw>' task pairs:distribute" >&2
           exit 1
         fi
       - task: pairs:issue-kubeconfigs
       - task: pairs:upload-kubeconfigs
-      - task: pairs:qr
+      - task: pairs:doc
 
   pairs:cleanup:
     desc: |
