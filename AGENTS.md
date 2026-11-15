@@ -417,8 +417,10 @@ scope to enable in-workshop deletes.
 
 Participants do not log into the vCluster Platform UI. Instead, each
 pair gets a kubeconfig file with a per-pair Loft Platform access key
-embedded as a bearer token, distributed via a shareable link encoded
-as a QR code on the workshop Miro board. The kubeconfig itself ships
+embedded as a bearer token. The operator publishes one view-only
+Google Doc listing every pair's ZIP download link and shows **one** QR
+code pointing at that doc on a slide: participants scan it, find their
+pair ID in the doc, and download their ZIP. The kubeconfig itself ships
 inside a password-protected ZIP — see "Threat model" below.
 
 The flow is split across three Taskfile targets, with an umbrella
@@ -431,23 +433,26 @@ KUBECONFIG_ZIP_PASSWORD=<shared-pw> task pairs:distribute
 `KUBECONFIG_ZIP_PASSWORD` is **required** — the umbrella fails fast
 if it's unset so we don't burn a kubeconfig rotation only to error
 out at upload time. The password is **operator-shared, not
-per-pair**: pick one short, memorable string and share it verbally /
-on the live Miro board at the start of the workshop. Every pair's
-ZIP uses the same password.
+per-pair**: pick one short, memorable string and put it on the slide
+or say it out loud at the start of the workshop — never in the links
+doc. Every pair's ZIP uses the same password.
 
 **Threat model.** Each kubeconfig embeds a bearer token with full
 admin on the pair vcluster, which can read
 `crossplane-system/aruba-creds` (shared Aruba API key, account-admin
 scope — see above) and `crossplane-system/github-app-credentials`
-(GitHub App PEM for the workshop sandbox org). The shareable URL is
-distributed via a QR code on a public Miro board and gets shown on
-screen during the workshop — recorded sessions, screenshots, and
-attendees who post "I learned Crossplane today!" with the board
-visible are realistic leak vectors. The 24h Drive TTL is the only
-defense against a leaked URL on its own; that's not enough for events
-with public recordings. The ZIP layer means a leaked link plus
-nothing else gets the attacker an encrypted blob — they also need
-the password, which never goes through Drive.
+(GitHub App PEM for the workshop sandbox org). The links doc lists
+every pair's ZIP URL and its QR code is shown on screen during the
+workshop, so anyone with the doc link has every pair's download link
+— the same exposure the old public Miro board had. Recorded sessions,
+photographed slides, and attendees who post "I learned Crossplane
+today!" with the QR visible are realistic leak vectors. The doc is
+shared view-only, so nobody can swap a link for one of their own. The
+24h link TTL (where Drive honours it; unverified for this account) is
+the only defense against a leaked URL on its own; that's not enough
+for events with public recordings. The ZIP layer means a leaked link
+plus nothing else gets the attacker an encrypted blob — they also
+need the password, which never goes in the doc or through Drive.
 
 What each step does:
 
@@ -481,8 +486,20 @@ What each step does:
   (default `24h`) on backends that support TTL (Drive does). The
   `-j` flag flattens path components so participants get a flat
   `<pair>.yaml` after extracting the ZIP.
-- `pairs:qr` — encodes each URL into `out/qr/<pair>.png`. Operator
-  drags these onto the workshop Miro board.
+- `pairs:doc` — reads `out/urls.txt` and renders `out/pairs.html`
+  (title, a four-step instruction, a Pair ID | Download link table;
+  nothing secret) plus `out/pairs.md` (same table, manual-paste
+  fallback). Uploads the HTML into `<RCLONE_REMOTE>:<RCLONE_FOLDER>/`
+  as a Google Doc named `crossplane-workshop-credentials`
+  (`rclone copyto --drive-import-formats html --drive-export-formats
+  html`; the export flag is what lets rclone address the imported Doc
+  as `<name>.html`), replacing any previous doc of that name. Links it
+  with `rclone link --expire $RCLONE_LINK_EXPIRE` ("anyone with the
+  link", Viewer), writes the URL to `out/doc-url.txt`, and encodes it
+  as the single QR `out/qr/workshop.png` for the slide.
+  `PAIRS_DOC_UPLOAD=false` renders HTML/MD only and prints how to
+  create the doc by hand; `DOC_URL=<url>` skips the upload and just
+  makes the QR from that URL.
 
 Required env vars:
 
@@ -496,11 +513,22 @@ Optional env vars:
   server URL host/path.
 - `RCLONE_REMOTE` (default `gdrive`), `RCLONE_FOLDER` (default
   `workshop-kubeconfigs`), `RCLONE_LINK_EXPIRE` (default `24h`).
+- `PAIRS_DOC_UPLOAD` (default `true`) — `false` makes `pairs:doc`
+  render only, no upload and no QR.
+- `DOC_URL` — URL of a links doc created by hand; `pairs:doc` skips
+  the upload and only makes the QR.
+- `PAIRS_DOC_NAME` (default `crossplane-workshop-credentials`) — the
+  doc's name on the remote.
 
 One-time prereq: run `rclone config` interactively to create the
 `gdrive` remote (Google Drive, scope `drive.file` is enough — that
 limits rclone's reach to files it created). After that, the task is
 non-interactive.
+
+**After the event.** Delete the links doc and the ZIPs, and revoke
+the keys: `task pairs:cleanup` revokes every `kubeconfig-<pair>`
+AccessKey and purges the remote folder, which holds the doc too. Do
+not rely on link expiry alone.
 
 **Rotating a single pair.** No dedicated target; just re-run the full
 issue step (it rotates everyone). For 10-pair workshops the cost is
