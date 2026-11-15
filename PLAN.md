@@ -79,6 +79,9 @@ Fresh `task bootstrap:all`, Platform EULA, `platform:register-vclusters`, `githu
 - `pairs:distribute`, then walk 101 modules 01–06 from a laptop with the ZIP only: participant path, not the operator port-forward. Do one laptop cold (empty Docker cache, no CLI) for [#226](https://github.com/ricCap/crossplane-workshop/issues/226).
 - Walk the provider-github stretch module on one pair ([#73](https://github.com/ricCap/crossplane-workshop/issues/73)) and link it from the 101 recap.
 - Check the wall tile and validator dashboard on the projector view.
+- Links doc (`pairs:doc`, §Decided: one Google Doc + one QR): confirm whether Drive honours `rclone link --expire` on the doc and the ZIPs. If not, deleting them (`pairs:cleanup`) is the only cleanup; make it a runbook item.
+- Confirm the `drive.file` rclone scope can create the imported Google Doc and share it "anyone with the link".
+- Scan the slide QR from a phone, then download and unzip a ZIP from a browser not logged into Google.
 
 Exit: `task verify:all MODE=platform` green; both pairs reach the wall; timings recorded.
 
@@ -93,7 +96,7 @@ Exit: five pairs on the wall, no 429s, no pair stuck on volume provisioning, nod
 
 ### Phase 5 — Ready for the event
 
-- **Workshop-day runbook ([#250](https://github.com/ricCap/crossplane-workshop/issues/250)).** Replace [WORKSHOP-DAY-1-CHECKLIST.md](WORKSHOP-DAY-1-CHECKLIST.md) with T-1d / T-0 / after: provision pairs the day before (#239), EULA, credentials, `verify:all MODE=platform` the morning of, spare pair, `pairs:distribute`, QR codes on the board, teardown, credential rotation.
+- **Workshop-day runbook ([#250](https://github.com/ricCap/crossplane-workshop/issues/250)).** Replace [WORKSHOP-DAY-1-CHECKLIST.md](WORKSHOP-DAY-1-CHECKLIST.md) with T-1d / T-0 / after: provision pairs the day before (#239), EULA, credentials, `verify:all MODE=platform` the morning of, spare pair, `pairs:distribute`, create the links doc T-1 (`pairs:doc`) with its QR on the slide, delete the doc after, teardown, credential rotation.
 - **Release ([#251](https://github.com/ricCap/crossplane-workshop/issues/251)).** `v0.6.1` is out and pinned (Phase 2). Cut a final `vX.Y.Z` after the last module fix: sweep new MDX for `…/main/…` URLs, release, merge the bot's bump PR, watch both image builds.
 - **Tear down or keep** the load-test cluster, decided by the event date. If kept, rotate every credential (`pairs:distribute` re-issues kubeconfigs and registry logins).
 - Slides: the instructor owns them.
@@ -120,6 +123,15 @@ This takes off the Denmark list, in one move:
 `github:register` **stays**: it is what makes the provider-github stretch goal work.
 
 What is lost: the Kyverno policies that are not about Aruba (`06-no-provider-exec`, `12-restrict-priority-class`, `05-secret-no-pod-mount`). The host-side `ResourceQuota` and `LimitRange` still bound what a pair can do. The GitHub App's reach is unchanged: it can write any repo in `riccap-demo-org`, and the `pair-<id>-*` naming convention is the only per-pair fence (AGENTS.md §github-app-credentials). The 3-hour run keeps the bundle.
+
+### Decided: one Google Doc + one QR instead of Miro
+
+There is no Miro board at this event. `pairs:doc` replaces the per-pair QR codes: one Google Doc lists every pair's ZIP download link, and one QR code on a slide points at it.
+
+- The doc is shared "anyone with the link", **view-only**, so nobody can swap a link. It exposes every pair's link, the same as the old public board.
+- The ZIP password is on the slide or said out loud, never in the doc.
+- The operator assigns pair IDs per table, so two pairs don't take the same row.
+- Delete the doc (and the ZIPs) after the event; `pairs:cleanup` purges the folder that holds both.
 
 ### Decided: the registry ([#223](https://github.com/ricCap/crossplane-workshop/issues/223))
 
