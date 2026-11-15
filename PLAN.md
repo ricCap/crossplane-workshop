@@ -32,7 +32,7 @@ Goal: the workshop is runnable end to end, today. Five phases, in order; each ph
 3. **Module 01 step 3** reads the registry login from the bundle (`source <pair>-registry.env`, `docker login --password-stdin`). Part of #245.
 4. **On-the-day self-check ([#246](https://github.com/ricCap/crossplane-workshop/issues/246)).** No pre-event email, so module 01 gets one copy-paste script that prints green/red for Docker running, CLI `v2.5.0`, and the base images pulled.
 5. **Solo fallback is one command ([#227](https://github.com/ricCap/crossplane-workshop/issues/227)).** `task solo:all` provisions Crossplane (item 2) and a local registry, replacing the `k3d`/`docker exec` recipe in module 05.
-6. **Close-event** revokes registry logins and wipes the registry PVC (#245), and fixes the `retentionPolicy: Retain` volume leak ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)).
+6. **Close-event** revokes registry logins and wipes the registry PVC (#245), and no longer leaks pair volumes ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)): the Composition sets the vcluster PVC `retentionPolicy: Delete`, and `task workshop:sweep-volumes` hands any `Released` pair PV back to the CSI driver in case the `acloud` StorageClass reclaims with `Retain`. Run it after the teardown PR merges, then check the Aruba console for volumes stuck in `Creating`. The runbook step for a volume that binds but won't attach (delete the PVC, then the pod) goes into #250.
 
 Exit: `task docs:test` green; the local Zot spike passes against the config `registry:credentials` renders (own-prefix push OK, other prefix `DENIED`, anonymous pull OK, anonymous push `401`).
 

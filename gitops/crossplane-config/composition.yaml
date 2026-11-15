@@ -93,6 +93,14 @@ spec:
                           registry: ghcr.io
                           repository: loft-sh/vcluster-pro
                         persistence:
+                          # The chart defaults to Retain, which keeps
+                          # the 5Gi kine PVC after the vcluster is
+                          # uninstalled and leaks it into the Aruba
+                          # 20 GiB block-storage quota on every
+                          # close-event (#239). Pair vclusters are
+                          # rebuilt per event; nothing is worth keeping.
+                          volumeClaim:
+                            retentionPolicy: Delete
                           addVolumes:
                             - name: platform-api-key
                               secret:
