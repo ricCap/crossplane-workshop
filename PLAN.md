@@ -38,6 +38,8 @@ Goal: the workshop is runnable end to end, today. Five phases, in order; each ph
 
 Exit: `task docs:test` green; the local Zot spike passes against the config `registry:credentials` renders (own-prefix push OK, other prefix `DENIED`, anonymous pull OK, anonymous push `401`).
 
+Exit met (2026-11-15): `task docs:test` green. The config `registry:credentials` renders for `bold-kiwi` and `merry-cherry`, served by Zot `v2.1.22` on the laptop, gave: `crossplane project push` to `bold-kiwi/` OK (the CLI's Docker v2 manifest is accepted, so `docker2s2` works); push as `bold-kiwi` to `merry-cherry/` `denied`; anonymous manifest pull `200`; anonymous blob upload `401`. Spike gotcha: on macOS, `docker login` writes to the keychain even with a throwaway `DOCKER_CONFIG`, and Docker Desktop reuses that login for later pushes, so test the anonymous case with `curl`, not `docker push`.
+
 ### Phase 2 — Local dry run ([#247](https://github.com/ricCap/crossplane-workshop/issues/247))
 
 On `task local:all` (vind), two pairs. Walk 101 modules 01–06 as a participant would, timing each one.
