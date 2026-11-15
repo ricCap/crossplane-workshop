@@ -1,0 +1,15 @@
+# Package storage. Crossplane 101 pushes one Configuration of a few KB
+# per pair per version, so 1Gi is generous. It also caps how much a
+# pair can push before the registry fills up (Zot has no per-repo
+# quota). Counts against the Aruba block-storage quota shared with the
+# ~5 GiB per pair vcluster volumes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-data
+  namespace: registry
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

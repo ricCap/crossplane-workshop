@@ -570,6 +570,8 @@ tasks:
       - task: bootstrap:envoy-gateway
       - task: bootstrap:vcluster-platform
       - task: bootstrap:root-app
+      # Zot's pod waits on this Secret; re-issued by pairs:distribute.
+      - task: registry:credentials
 
   # ------------------------------------------------------------------
   # ArgoCD UI
@@ -810,6 +812,138 @@ tasks:
         echo "Each pair vcluster mirrors this into crossplane-system/github-app-credentials via sync.fromHost."
 
   # ------------------------------------------------------------------
+  # Workshop registry (Zot, gitops/registry/, #245)
+  # ------------------------------------------------------------------
+
+  registry:credentials:
+    desc: |
+      Mint a push login per pair for the Zot registry and install
+      Zot's config on the management cluster.
+
+      For every file under `gitops/participant-xrs/`, generates a
+      random password and writes `out/kubeconfigs/<pair>-registry.env`
+      (REGISTRY, REGISTRY_USER, REGISTRY_PASSWORD), which
+      `pairs:upload-kubeconfigs` zips next to the pair's kubeconfig.
+      Then renders Zot's `htpasswd` and `config.json` into Secret
+      `registry/zot-config` and restarts the Zot pod so it loads them.
+
+      Access rules: anyone may read everything (pair clusters pull
+      without a pull secret); each pair may push only under
+      `<pair>/`. With no pair files, the config has no users, so the
+      registry is read-only — `workshop:close-event` relies on this to
+      revoke every login.
+
+      Idempotent. Re-running rotates every pair's password; previously
+      issued logins stop working. `pairs:issue-kubeconfigs` and
+      `bootstrap:all` call it.
+
+      Optional env vars:
+        REGISTRY_HOST   registry.workshop.riccardocapraro.com
+
+      Usage:
+        task registry:credentials
+    vars:
+      REGISTRY_HOST: '{{.REGISTRY_HOST | default "registry.workshop.riccardocapraro.com"}}'
+      REGISTRY_NS: registry
+    cmds:
+      - |
+        set -euo pipefail
+        command -v htpasswd >/dev/null || {
+          echo "htpasswd not found. It ships with macOS; on Debian/Ubuntu install apache2-utils." >&2
+          exit 1
+        }
+        command -v openssl >/dev/null || { echo "openssl not found." >&2; exit 1; }
+
+        mkdir -p out/kubeconfigs
+        tmp=$(mktemp -d)
+        trap 'rm -rf "${tmp}"' EXIT
+        : > "${tmp}/htpasswd"
+
+        # Everyone reads everything; nobody writes outside their prefix.
+        repos='    "**": {"anonymousPolicy": ["read"], "defaultPolicy": ["read"]}'
+        n=0
+        for f in gitops/participant-xrs/*.yaml; do
+          [ -e "$f" ] || continue
+          pair=$(basename "$f" .yaml)
+          # Pair IDs go into JSON and htpasswd unquoted; refuse anything odd.
+          if ! echo "${pair}" | grep -qE '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'; then
+            echo "Refusing pair ID '${pair}': only lowercase letters, digits and '-'." >&2
+            exit 1
+          fi
+          pw=$(openssl rand -hex 16)
+          # -i reads the password from stdin, so it never shows in `ps`.
+          # -C 10: macOS htpasswd defaults to bcrypt cost 5.
+          printf '%s\n' "${pw}" | htpasswd -niB -C 10 "${pair}" | sed '/^$/d' >> "${tmp}/htpasswd"
+          repos="${repos},
+            \"${pair}/**\": {\"policies\": [{\"users\": [\"${pair}\"], \"actions\": [\"read\", \"create\", \"update\", \"delete\"]}], \"anonymousPolicy\": [\"read\"], \"defaultPolicy\": [\"read\"]}"
+          # Lock the file down before the password goes in (Task's shell
+          # has no umask builtin).
+          env_file="out/kubeconfigs/${pair}-registry.env"
+          : > "${env_file}"
+          chmod 600 "${env_file}"
+          printf 'REGISTRY=%s\nREGISTRY_USER=%s\nREGISTRY_PASSWORD=%s\n' \
+            "{{.REGISTRY_HOST}}" "${pair}" "${pw}" >> "${env_file}"
+          echo "  ok: ${pair} → out/kubeconfigs/${pair}-registry.env"
+          n=$((n + 1))
+        done
+
+        # compat docker2s2: the Crossplane CLI pushes a Docker v2
+        # manifest, which Zot rejects as MANIFEST_INVALID without it.
+        # failDelay slows password guessing. No extensions: only the
+        # plain OCI API is exposed (no UI, search or sync).
+        cat > "${tmp}/config.json" <<EOF
+        {
+          "distSpecVersion": "1.1.1",
+          "storage": {"rootDirectory": "/var/lib/registry", "gc": true},
+          "http": {
+            "address": "0.0.0.0",
+            "port": "5000",
+            "compat": ["docker2s2"],
+            "auth": {
+              "htpasswd": {"path": "/etc/zot/htpasswd"},
+              "failDelay": 5
+            },
+            "accessControl": {
+              "repositories": {
+        ${repos}
+              }
+            }
+          },
+          "log": {"level": "info"}
+        }
+        EOF
+
+        kubectl create namespace {{.REGISTRY_NS}} --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+        kubectl -n {{.REGISTRY_NS}} create secret generic zot-config \
+          --from-file=config.json="${tmp}/config.json" \
+          --from-file=htpasswd="${tmp}/htpasswd" \
+          --dry-run=client -o yaml \
+          | kubectl apply -f - >/dev/null
+
+        # Deleting the pod (not `rollout restart`) picks up the new
+        # Secret without touching the Deployment spec, so ArgoCD sees
+        # no drift. Before ArgoCD has synced gitops/registry/ there is
+        # no pod yet, which is fine.
+        kubectl -n {{.REGISTRY_NS}} delete pod -l app=zot --ignore-not-found --wait=false >/dev/null
+
+        echo "Done. ${n} pair login(s); Secret {{.REGISTRY_NS}}/zot-config updated."
+        [ "${n}" -gt 0 ] || echo "No pairs: the registry is read-only until pairs are added."
+
+  registry:wipe:
+    desc: |
+      Delete every package stored in the Zot registry by deleting its
+      PVC and pod. ArgoCD recreates an empty PVC (selfHeal). Run after
+      an event so attendees' packages don't stay publicly readable;
+      `workshop:close-event` calls it.
+
+      Usage:
+        task registry:wipe
+    cmds:
+      - kubectl -n registry delete pvc zot-data --ignore-not-found --wait=false
+      - kubectl -n registry delete pod -l app=zot --ignore-not-found --wait=false
+      - echo "Wiped. ArgoCD recreates the empty zot-data PVC on its next sync."
+
+  # ------------------------------------------------------------------
   # Per-pair kubeconfig issuance + distribution
   # ------------------------------------------------------------------
 
@@ -918,6 +1052,8 @@ tasks:
         echo "Done. ${n} kubeconfig(s) issued under out/kubeconfigs/."
         echo "Distribute via: task pairs:upload-kubeconfigs && task pairs:qr"
         echo "Operator: KUBECONFIG=out/kubeconfigs/merged.yaml kubectl config get-contexts"
+      # Registry push logins ride in the same per-pair ZIP.
+      - task: registry:credentials
 
   pairs:upload-kubeconfigs:
     desc: |
@@ -1003,8 +1139,12 @@ tasks:
           [ "${pair}" = "merged" ] && continue
           zip_path="out/kubeconfigs/${pair}.zip"
           rm -f "${zip_path}"
-          zip -q -e -j -P "${KUBECONFIG_ZIP_PASSWORD}" "${zip_path}" "${kc}"
-          rm -f "${kc}"
+          # The registry login (from registry:credentials) goes in the
+          # same ZIP, so one link + one password gives a pair everything.
+          reg="out/kubeconfigs/${pair}-registry.env"
+          [ -f "${reg}" ] || { echo "Missing ${reg}. Run 'task pairs:issue-kubeconfigs' first." >&2; exit 1; }
+          zip -q -e -j -P "${KUBECONFIG_ZIP_PASSWORD}" "${zip_path}" "${kc}" "${reg}"
+          rm -f "${kc}" "${reg}"
           chmod 600 "${zip_path}"
           echo "  zip: ${pair} → ${zip_path}"
         done
@@ -1432,6 +1572,8 @@ tasks:
         echo "  * each ArgoCD Cluster Secret + aruba-bundle-<pair> Application deleted"
         echo "  * in-vcluster Aruba MRs reaped, triggering provider-arubacloud"
         echo "    deletes against Aruba's API"
+        echo "Immediately (current kubectl context): every registry push login"
+        echo "is revoked and all stored packages are deleted."
         echo ""
 
         if [ "${CONFIRM:-}" != "yes" ]; then
@@ -1443,6 +1585,12 @@ tasks:
         fi
 
         git rm gitops/participant-xrs/*.yaml
+
+        # The registry is revoked now, not at merge: re-rendering with
+        # no pair files leaves no users, then the packages are wiped so
+        # nothing stays publicly readable.
+        task registry:credentials
+        task registry:wipe
 
         echo ""
         echo "Removed. Next steps:"

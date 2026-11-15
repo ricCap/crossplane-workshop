@@ -1,0 +1,29 @@
+# Public route for registry.workshop.riccardocapraro.com. TLS
+# terminates at the Gateway's `https-registry` listener; Zot itself
+# speaks plain HTTP. Laptops push through this route, and pair
+# clusters pull through it too: the package hostname is baked in at
+# build time, so both sides must use the same name.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: zot
+  namespace: registry
+spec:
+  parentRefs:
+    - name: workshop
+      namespace: envoy-gateway-system
+      sectionName: https-registry
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: "max-age=31536000; includeSubDomains"
+      backendRefs:
+        - name: zot
+          port: 5000

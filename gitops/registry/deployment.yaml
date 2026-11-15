@@ -1,0 +1,86 @@
+# Zot OCI registry for the Crossplane 101 packages (#245).
+#
+# The config and htpasswd come from Secret `zot-config`, which
+# `task registry:credentials` renders from gitops/participant-xrs/
+# and applies out of band — it holds one push login per pair, so it
+# is operator-injected state, not git (AGENTS.md §External credential
+# bootstrap). Until that task has run, the pod stays in
+# ContainerCreating.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  namespace: registry
+  labels:
+    app: zot
+spec:
+  replicas: 1
+  # RWO volume: the old pod must release it before the new one mounts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zot
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: zot
+          # v2.1.22, multi-arch index. v2.1.21+ hot-reloads htpasswd
+          # from a Secret mount (project-zot/zot#4285).
+          image: ghcr.io/project-zot/zot:v2.1.22@sha256:96cda11459ce6f8c60da3b03f03e9f67fd11b3ae2d82c4c04c92b3c608996080
+          args: ["serve", "/etc/zot/config.json"]
+          ports:
+            - name: http
+              containerPort: 5000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Anonymous read is allowed, so /v2/ answers 200 without auth.
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v2/
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /etc/zot
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/registry
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          secret:
+            secretName: zot-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: zot-data
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,22 @@
+# Only Envoy may reach Zot. Everything else in the cluster goes
+# through the public route like a laptop does. This matters because
+# the per-pair vcluster syncer pods have unrestricted egress.
+# Kubelet probes come from the node and are not affected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zot-allow-envoy-only
+  namespace: registry
+spec:
+  podSelector:
+    matchLabels:
+      app: zot
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 5000
