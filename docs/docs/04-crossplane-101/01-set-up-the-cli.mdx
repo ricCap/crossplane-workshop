@@ -59,7 +59,7 @@ set -a; source <path to your-pair-ID-registry.env>; set +a
 echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
 ```
 
-You should see `Login Succeeded`. Keep this terminal open: later steps use `$REGISTRY`. You can push only under your own pair ID; anyone can pull.
+You should see `Login Succeeded`. Keep this terminal open: later steps use `$REGISTRY`.
 
 ### 4. Point `kubectl` at your workshop cluster
 
