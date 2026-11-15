@@ -15,6 +15,7 @@ GitOps scaffolding for a Crossplane workshop on ArubaCloud. Crossplane 101 is a 
 - `gitops/per-vcluster-bundle/` — Helm chart synced into each pair vcluster by `workshop:enable-aruba`: provider-arubacloud, its ProviderConfig and the Kyverno policies. 3-hour delivery only; the 90-minute Denmark run skips it.
 - `gitops/solo/` — the k3d single-laptop path, applied directly without ArgoCD.
 - `gitops/docs/`, `gitops/cert-manager/`, `gitops/envoy-gateway/`, `gitops/vcluster-platform/` — the docs site and substrate on the management cluster.
+- `gitops/registry/` — the Zot registry participants push their Crossplane 101 package to, at `registry.workshop.riccardocapraro.com`.
 - `gitops/crossplane-config/` — DeveloperEnvironment XRD + Composition, ProviderConfigs.
 - `gitops/crossplane-packages/` — Crossplane providers, functions, RBAC.
 - `docs/` — the Docusaurus workshop site (English source under `docs/docs/`, Italian mirror under `docs/i18n/it/`).
@@ -209,7 +210,7 @@ If you need to roll back, open a PR reverting `gitops/docs/deployment.yaml` to t
 
 ## Required tools
 
-`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.37.4, matching the chart the Composition pins), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional. For per-pair kubeconfig distribution (`task pairs:distribute`) you also need `rclone` (with a configured remote — see below) and `qrencode`.
+`docker`, `helm`, `kubectl`, `task` (go-task), the `vcluster` CLI (>= 0.37.4, matching the chart the Composition pins), and `gh` (authenticated via `gh auth login` — used by `bootstrap:repo-credentials` to provision a read-only GitHub deploy key). `argocd` CLI is optional. For per-pair kubeconfig distribution (`task pairs:distribute`) you also need `rclone` (with a configured remote — see below), `qrencode`, `openssl` and `htpasswd` (ships with macOS; `apache2-utils` on Debian/Ubuntu).
 
 "vind" in this repo refers to the [loft-sh/vind](https://github.com/loft-sh/vind) mode — running Kubernetes clusters as Docker containers using `vcluster` with the Docker driver. It is **not** a separate binary. `task local:up` calls `vcluster use driver docker && vcluster create …`, no `sudo` needed.
 
@@ -226,12 +227,12 @@ For local vind, this section does **not** apply: Platform isn't installed there,
 **Which pieces a delivery needs.** The 90-minute Crossplane 101 run
 (Cloud Native Denmark) needs `vcluster-platform-api-key`,
 `github-app-credentials` (provider-github is the stretch goal for pairs
-who finish early) and the per-pair kubeconfigs. It does **not** run
+who finish early), the per-pair kubeconfigs and the registry logins. It does **not** run
 `workshop:enable-aruba`, so `aruba-creds` and `workshop-aruba-shared`
 are skipped and no Aruba key reaches a participant cluster. The 3-hour
-delivery needs all five.
+delivery needs all six.
 
-Five pieces of operator-injected state live alongside the
+Six pieces of operator-injected state live alongside the
 GitOps-managed cluster. Three are Secrets the Taskfile provisions on
 the management cluster (with various namespace targets) so the
 per-pair vClusters can pick them up — `vcluster-platform-api-key`
@@ -242,9 +243,39 @@ mirrored into each pair vcluster's `aruba-system` namespace via
 `workshop-aruba-shared` ConfigMap (#97) — not a credential, just
 cloud resource references — provisioned in `crossplane-system` and
 mirrored into each pair vcluster's `default` namespace via
-`sync.fromHost.configMaps`. The fifth is per-pair *outbound* state
-— files dropped under `out/` and distributed to participants via a
-shared link. Nothing is committed to git.
+`sync.fromHost.configMaps`. The fifth is the `registry/zot-config`
+Secret holding the Zot registry's per-pair logins. The sixth is
+per-pair *outbound* state — files dropped under `out/` and
+distributed to participants via a shared link. Nothing is committed
+to git.
+
+### `zot-config` (workshop registry)
+
+Crossplane 101 has each pair build a Configuration on their laptop,
+push it to `registry.workshop.riccardocapraro.com/<pair>/…`, and
+install it into their pair cluster. The registry is Zot
+([gitops/registry/](gitops/registry/)) behind the `https-registry`
+Gateway listener. Its config and `htpasswd` live in Secret
+`registry/zot-config`, rendered from `gitops/participant-xrs/` by:
+
+```
+task registry:credentials
+```
+
+`bootstrap:all` and `pairs:issue-kubeconfigs` call it, so it rarely
+needs running by hand. Each run rotates every pair's password,
+writes `out/kubeconfigs/<pair>-registry.env`, and deletes the Zot pod
+so it reloads. The pod stays in `ContainerCreating` until the Secret
+exists.
+
+**Access model.** Anonymous read on everything, so pair clusters need
+no pull secret; each pair may push only under `<pair>/`. Accepted
+consequence: anyone with the hostname can read attendees' packages
+(workshop YAML, no secrets) and list pair IDs (already public in wall
+URLs). `workshop:close-event` revokes every login and runs
+`task registry:wipe` to delete all packages. Zot needs
+`http.compat: ["docker2s2"]` because the Crossplane CLI pushes a
+Docker v2 manifest; the task sets it.
 
 ### `vcluster-platform-api-key` (Loft Platform syncer)
 
@@ -439,9 +470,10 @@ What each step does:
   immediately.** That's a feature, not a bug: it's how you revoke
   after the workshop.
 - `pairs:upload-kubeconfigs` — wraps every plaintext kubeconfig in a
-  password-protected ZIP (`zip -e -j -P "$KUBECONFIG_ZIP_PASSWORD"
-  out/kubeconfigs/<pair>.zip out/kubeconfigs/<pair>.yaml`), deletes
-  the plaintext YAML so it can't accidentally upload, then
+  password-protected ZIP together with the pair's registry login
+  (`zip -e -j -P "$KUBECONFIG_ZIP_PASSWORD" out/kubeconfigs/<pair>.zip
+  out/kubeconfigs/<pair>.yaml out/kubeconfigs/<pair>-registry.env`),
+  deletes both plaintext files so they can't accidentally upload, then
   `rclone copy out/kubeconfigs/` (now containing only `.zip` files)
   to a configured remote (default: a Drive remote called `gdrive`
   set up via `rclone config`), and collects per-file shareable URLs

@@ -52,12 +52,14 @@ Keep the `--client` flag. Plain `crossplane version` also asks the cluster which
 
 ### 3. Log in to the registry
 
-Your credentials bundle has a registry address and a login. Export them and log in:
+Your credentials bundle is a ZIP with two files: `<your pair ID>.yaml`, your kubeconfig, and `<your pair ID>-registry.env`, your registry login. Load the login into your shell and log in:
 
 ```bash
-export REGISTRY=<registry address from your bundle>
-docker login "$REGISTRY"
+set -a; source <path to your-pair-ID-registry.env>; set +a
+echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
 ```
+
+You should see `Login Succeeded`. Keep this terminal open: later steps use `$REGISTRY`.
 
 ### 4. Point `kubectl` at your workshop cluster
 

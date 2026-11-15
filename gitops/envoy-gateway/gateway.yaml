@@ -48,3 +48,17 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # HTTPS listener for the Zot registry (gitops/registry/, #245).
+    # Covered by the *.workshop wildcard DNS record; cert-manager
+    # issues registry-tls like the two above.
+    - name: https-registry
+      protocol: HTTPS
+      port: 443
+      hostname: "registry.workshop.riccardocapraro.com"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: registry-tls
+      allowedRoutes:
+        namespaces:
+          from: All
