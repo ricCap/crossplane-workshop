@@ -20,35 +20,46 @@ The Crossplane CLI is a single binary. It does the work you would otherwise do b
 
 Every command group this workshop uses — `project`, `xrd`, `function`, `dependency` and `resource` — is marked beta. You pin a version so you get the output this workshop shows.
 
-You're about to check Docker, install the CLI, log in to the workshop registry, and confirm your cluster is running Crossplane.
+You're about to install the CLI, check your laptop, log in to the workshop registry, and confirm your cluster is running Crossplane.
 
 ## 1.2 Install and log in ⏱️ 4m
 
-### 1. Check Docker
-
-```bash
-docker version
-```
-
-Both a `Client` and a `Server` section should print. If `Server` is missing, start your container runtime and run the command again.
-
-### 2. Install the CLI
+### 1. Install the CLI
 
 ```bash
 curl -sfL "https://cli.crossplane.io/install.sh" | XP_VERSION=v2.5.0 sh
 sudo mv crossplane /usr/local/bin/
-crossplane version --client
-```
-
-The last command prints the pinned version:
-
-```
-Client Version: v2.5.0
 ```
 
 The installer downloads the binary into the current directory and does not add it to your `PATH`, which is why the `mv` is needed.
 
-Keep the `--client` flag. Plain `crossplane version` also asks the cluster which version it runs, and fails with `unable to get crossplane version` until your `kubectl` context is set in step 4.
+### 2. Check your laptop
+
+Paste this whole block into your terminal. It checks that Docker is running and that the Crossplane CLI is the pinned version, and tells you what to fix:
+
+```bash
+(
+  bad=0
+  if docker info >/dev/null 2>&1; then
+    echo "✅ Docker is running"
+  else
+    echo "❌ Docker is not running → start Docker Desktop (or your container runtime), then paste this block again"
+    bad=1
+  fi
+  if ! command -v crossplane >/dev/null 2>&1; then
+    echo "❌ Crossplane CLI not found → run the install commands in step 1 again, then paste this block again"
+    bad=1
+  elif crossplane version --client 2>/dev/null | grep -q 'v2\.5\.0$'; then
+    echo "✅ Crossplane CLI v2.5.0"
+  else
+    echo "❌ Crossplane CLI is not v2.5.0 → run the install commands in step 1 again, then paste this block again"
+    bad=1
+  fi
+  if [ "$bad" = 0 ]; then echo "All good. Go to step 3."; else echo "Fix the ❌ lines above, then carry on."; fi
+)
+```
+
+Keep the `--client` flag if you run the version check by hand. Plain `crossplane version` also asks the cluster which version it runs, and fails with `unable to get crossplane version` until your `kubectl` context is set in step 4.
 
 ### 3. Log in to the registry
 
