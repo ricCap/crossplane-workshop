@@ -1,6 +1,7 @@
 # Solo local (k3d) overlay — no ArgoCD, no vcluster, no participant-claims.
 # Installs a single docs+validator Deployment, an Envoy Gateway `Gateway`,
-# and one HTTPRoute that exposes the docs site on / and the synthetic
+# a local package registry (registry.yaml; imageconfig.yaml is applied
+# separately, after Crossplane), and one HTTPRoute that exposes the docs site on / and the synthetic
 # "local" pair's frontend/backend at /team/local/.
 #
 # Apply with either of:
@@ -18,3 +19,4 @@ resources:
   - httproute.yaml
   - rbac.yaml
   - docs.yaml
+  - registry.yaml

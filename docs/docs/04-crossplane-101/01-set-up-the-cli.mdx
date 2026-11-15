@@ -11,7 +11,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 <PairId />
 
 :::note Running solo locally?
-Your kubeconfig already points at your k3d cluster and your pair ID is `local`, so step 4 is done for you. The solo path has no registry yet, so skip step 3. You will need the install block in step 5. See [Solo local setup (k3d)](../solo-local-setup).
+Your kubeconfig already points at your k3d cluster and your pair ID is `local`, so step 4 is done for you. Your registry runs in your cluster and needs no login: in step 3, run only `export REGISTRY=127.0.0.1:5111`. Crossplane is already installed, so step 5 is a check. See [Solo local setup (k3d)](../solo-local-setup).
 :::
 
 ## 1.1 Before you start ⏱️ 1m

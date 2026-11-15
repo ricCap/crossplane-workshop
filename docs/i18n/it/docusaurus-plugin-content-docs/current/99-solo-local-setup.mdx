@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: Setup locale solo (k3d)
-translation_source_commit: 0d128d132be44ff7d0b4baa6d810eb4818e16146
+translation_source_commit: a14a260e46349d1e773e17c3e24e8200eaa613b2
 ---
 
 # Eseguire il workshop sul tuo laptop
@@ -29,10 +29,11 @@ Tutto qui. Crossplane lo installi tu al passo 4.
 ```bash
 k3d cluster create crossplane-workshop-solo \
   -p "8080:80@loadbalancer" \
+  -p "127.0.0.1:5111:30511@server:0" \
   --k3s-arg "--disable=traefik@server:0"
 ```
 
-Due flag che vale la pena spiegare. `-p "8080:80@loadbalancer"` inoltra la porta 8080 del tuo host al ServiceLB del cluster, che è dove Envoy Gateway termina il traffico. `--k3s-arg "--disable=traefik@server:0"` spegne l'ingress controller traefik incluso in k3s — il workshop instrada attraverso Envoy Gateway (Gateway API), e due controller che si contendono la porta 80 finiscono col farti ottenere la pagina 404 di traefik invece dei docs. Quando il cluster è su, `kubectl cluster-info` dovrebbe mostrare un context `k3d-crossplane-workshop-solo`.
+Tre flag che vale la pena spiegare. `-p "8080:80@loadbalancer"` inoltra la porta 8080 del tuo host al ServiceLB del cluster, che è dove Envoy Gateway termina il traffico. `-p "127.0.0.1:5111:30511@server:0"` espone il registry di pacchetti del cluster sul tuo laptop su `127.0.0.1:5111`, e solo lì: nient'altro sulla tua rete può raggiungerlo. `--k3s-arg "--disable=traefik@server:0"` spegne l'ingress controller traefik incluso in k3s — il workshop instrada attraverso Envoy Gateway (Gateway API), e due controller che si contendono la porta 80 finiscono col farti ottenere la pagina 404 di traefik invece dei docs. Quando il cluster è su, `kubectl cluster-info` dovrebbe mostrare un context `k3d-crossplane-workshop-solo`.
 
 ## 2. Installa Envoy Gateway
 
@@ -52,6 +53,7 @@ Un solo `kubectl apply` installa:
 2. il sidecar validator
 3. un listener `Gateway` sulla porta 80
 4. degli HTTPRoute che espongono `/` → docs, `/team/local/` → il frontend che creerai nel modulo Definisci-un'Application, e `/team/local/api/` → il suo backend
+5. un registry di pacchetti, su cui farai push della piattaforma che costruisci nel modulo Pubblica-la-tua-piattaforma
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml
@@ -78,15 +80,24 @@ helm upgrade --install crossplane crossplane \
 
 `--devel` serve perché Helm tratta il suffisso `-up.1` come un tag di pre-release e altrimenti lo salta. Aspettati un minuto o due mentre le immagini vengono scaricate.
 
+Poi indirizza Crossplane al registry del passo 3:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/imageconfig.yaml
+```
+
+Fai push dei pacchetti su `127.0.0.1:5111`, ma dentro il cluster quell'indirizzo è il pod stesso. Questo `ImageConfig` dice a Crossplane di prendere tutto ciò che sta sotto `127.0.0.1:5111` dall'indirizzo interno al cluster del registry. Si applica dopo l'installazione perché il tipo `ImageConfig` esiste solo quando Crossplane è in esecuzione.
+
 ## 5. Apri il workshop
 
 Visita [http://localhost:8080/](http://localhost:8080/). Dovresti atterrare sulla stessa pagina che stai leggendo ora, servita dal tuo cluster k3d.
 
 ## 6. Fai i moduli
 
-Segui Connetti-il-tuo-cluster, poi i moduli di Crossplane 101, in ordine. Due differenze rispetto al flusso del workshop dal vivo:
+Segui Connetti-il-tuo-cluster, poi i moduli di Crossplane 101, in ordine. Tre differenze rispetto al flusso del workshop dal vivo:
 
 - **Nessun download di kubeconfig.** Sei già sul cluster su cui girano i moduli — `kubectl config current-context` è `k3d-crossplane-workshop-solo`.
+- **Nessun login al registry.** Il tuo registry è `127.0.0.1:5111` e non richiede credenziali. Esegui `export REGISTRY=127.0.0.1:5111` dove il workshop ti dice di fare login.
 - **Il tuo pair ID è `local`.** Il validator riporta una sola coppia sintetica chiamata `local`, e la tile del wall su `/team/local/` è collegata ai Service frontend + backend che l'XR `Application` del modulo Definisci-un'Application crea nel namespace `default`.
 
 Il pulsante di validazione di ogni modulo valuterà contro il tuo cluster k3d e diventerà verde man mano che procedi.
@@ -107,6 +118,14 @@ k3d cluster delete crossplane-workshop-solo
 
 **`k3d cluster create` fallisce con "port 8080 already allocated"**
 : Un altro processo è bound sulla 8080 del tuo host. Fermalo, oppure scegli una porta host diversa (ad es. `-p "18080:80@loadbalancer"` e visita `http://localhost:18080/`). Usa la stessa porta nel browser.
+
+**`k3d cluster create` fallisce con "port 5111 already allocated"**
+: Un altro processo occupa la 5111. Liberala, oppure scegli un'altra porta host, ad esempio `-p "127.0.0.1:5112:30511@server:0"`. Poi applica l'`ImageConfig` con la stessa porta, e usala nel tuo `REGISTRY`:
+
+  ```bash
+  curl -sL https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/imageconfig.yaml | sed 's/5111/5112/' | kubectl apply -f -
+  export REGISTRY=127.0.0.1:5112
+  ```
 
 **`helm install eg …` fallisce con "cannot pull OCI chart"**
 : Docker Hub mette rate-limit ai pull OCI anonimi. Autenticati con `docker login` (qualunque account Docker Hub gratuito va bene) e riprova.

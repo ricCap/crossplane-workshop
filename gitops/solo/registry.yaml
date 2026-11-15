@@ -1,0 +1,134 @@
+# Local package registry for the solo path (#227).
+#
+# Crossplane 101 builds a Configuration on your laptop and pushes it to
+# $REGISTRY. On solo that is 127.0.0.1:5111: k3d maps that loopback-only
+# host port to this Service's NodePort, so nothing on your network can
+# reach it and no login is needed.
+#
+# Inside the cluster 127.0.0.1 is the pod itself, so the package manager
+# can't pull from that address. imageconfig.yaml (applied after
+# Crossplane is installed) rewrites 127.0.0.1:5111 to this Service's
+# fixed ClusterIP. Crossplane uses plain HTTP for private addresses, so
+# no certificate is needed. Only the package manager pulls from here;
+# functions come from xpkg.crossplane.io.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-config
+  namespace: registry
+data:
+  # docker2s2: the Crossplane CLI pushes a Docker v2 manifest, which Zot
+  # rejects as MANIFEST_INVALID without it. No auth and no extensions.
+  config.json: |
+    {
+      "distSpecVersion": "1.1.1",
+      "storage": {"rootDirectory": "/var/lib/registry", "gc": true},
+      "http": {"address": "0.0.0.0", "port": "5000", "compat": ["docker2s2"]},
+      "log": {"level": "info"}
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-data
+  namespace: registry
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  namespace: registry
+  labels:
+    app: zot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zot
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: zot
+          # Same pin as gitops/registry/deployment.yaml.
+          image: ghcr.io/project-zot/zot:v2.1.22@sha256:96cda11459ce6f8c60da3b03f03e9f67fd11b3ae2d82c4c04c92b3c608996080
+          args: ["serve", "/etc/zot/config.json"]
+          ports:
+            - name: http
+              containerPort: 5000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/zot
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/registry
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: zot-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: zot-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot
+  namespace: registry
+spec:
+  type: NodePort
+  # Fixed so imageconfig.yaml can name it. Inside k3s's default service
+  # range (10.43.0.0/16), in the low band Kubernetes keeps for fixed IPs.
+  clusterIP: 10.43.0.50
+  selector:
+    app: zot
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+      # k3d maps 127.0.0.1:5111 on the laptop to this port
+      # (`-p "127.0.0.1:5111:30511@server:0"` on cluster create).
+      nodePort: 30511

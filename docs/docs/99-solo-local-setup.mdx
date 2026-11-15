@@ -28,10 +28,11 @@ That's it. You install Crossplane yourself in step 4.
 ```bash
 k3d cluster create crossplane-workshop-solo \
   -p "8080:80@loadbalancer" \
+  -p "127.0.0.1:5111:30511@server:0" \
   --k3s-arg "--disable=traefik@server:0"
 ```
 
-Two flags worth explaining. `-p "8080:80@loadbalancer"` forwards your host's port 8080 to the cluster's ServiceLB, which is where Envoy Gateway terminates traffic. `--k3s-arg "--disable=traefik@server:0"` turns off k3s's bundled traefik ingress controller — the workshop routes through Envoy Gateway (Gateway API), and two controllers fighting over port 80 ends with curl getting traefik's 404 page instead of the docs. When the cluster is up, `kubectl cluster-info` should show a `k3d-crossplane-workshop-solo` context.
+Three flags worth explaining. `-p "8080:80@loadbalancer"` forwards your host's port 8080 to the cluster's ServiceLB, which is where Envoy Gateway terminates traffic. `-p "127.0.0.1:5111:30511@server:0"` exposes the cluster's package registry on your laptop at `127.0.0.1:5111`, and only there: nothing else on your network can reach it. `--k3s-arg "--disable=traefik@server:0"` turns off k3s's bundled traefik ingress controller — the workshop routes through Envoy Gateway (Gateway API), and two controllers fighting over port 80 ends with curl getting traefik's 404 page instead of the docs. When the cluster is up, `kubectl cluster-info` should show a `k3d-crossplane-workshop-solo` context.
 
 ## 2. Install Envoy Gateway
 
@@ -51,6 +52,7 @@ One `kubectl apply` installs:
 2. the validator sidecar
 3. a `Gateway` listener on port 80
 4. an HTTPRoutes that expose `/` → docs, `/team/local/` → the frontend you'll create in the Define-an-Application module, and `/team/local/api/` → its backend
+5. a package registry, where you'll push the platform you build in the Publish-your-platform module
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml
@@ -77,15 +79,24 @@ helm upgrade --install crossplane crossplane \
 
 `--devel` is needed because Helm treats the `-up.1` suffix as a pre-release tag and skips it otherwise. Expect a minute or two while the images pull.
 
+Then point Crossplane at the registry from step 3:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/imageconfig.yaml
+```
+
+You push packages to `127.0.0.1:5111`, but inside the cluster that address is the pod itself. This `ImageConfig` tells Crossplane to fetch anything under `127.0.0.1:5111` from the registry's in-cluster address instead. It applies after the install because the `ImageConfig` type only exists once Crossplane is running.
+
 ## 5. Open the workshop
 
 Visit [http://localhost:8080/](http://localhost:8080/). You should land on the same page you're reading now, served from your k3d cluster.
 
 ## 6. Do the modules
 
-Follow Connect-to-your-cluster, then the Crossplane 101 modules, in order. Two differences from the workshop-day flow:
+Follow Connect-to-your-cluster, then the Crossplane 101 modules, in order. Three differences from the workshop-day flow:
 
 - **No kubeconfig download.** You're already on the cluster where the modules run — `kubectl config current-context` is `k3d-crossplane-workshop-solo`.
+- **No registry login.** Your registry is `127.0.0.1:5111` and needs no credentials. Set `export REGISTRY=127.0.0.1:5111` where the workshop tells you to log in.
 - **Your pair ID is `local`.** The validator reports a single synthetic pair called `local`, and the wall's tile at `/team/local/` is wired to the frontend + backend Services that the Define-an-Application module's `Application` XR creates in the `default` namespace.
 
 Each module's validation button will evaluate against your k3d cluster and flip green as you progress.
@@ -106,6 +117,14 @@ k3d cluster delete crossplane-workshop-solo
 
 **`k3d cluster create` fails with "port 8080 already allocated"**
 : Another process is bound to 8080 on your host. Stop it, or pick a different host port (e.g. `-p "18080:80@loadbalancer"` and visit `http://localhost:18080/`). Use the same port in your browser.
+
+**`k3d cluster create` fails with "port 5111 already allocated"**
+: Another process holds 5111. Free it, or pick another host port, for example `-p "127.0.0.1:5112:30511@server:0"`. Then apply the `ImageConfig` with the same port, and use it in your `REGISTRY`:
+
+  ```bash
+  curl -sL https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/imageconfig.yaml | sed 's/5111/5112/' | kubectl apply -f -
+  export REGISTRY=127.0.0.1:5112
+  ```
 
 **`helm install eg …` fails with "cannot pull OCI chart"**
 : Docker Hub rate-limits anonymous OCI pulls. Authenticate with `docker login` (any free Docker Hub account works) and retry.

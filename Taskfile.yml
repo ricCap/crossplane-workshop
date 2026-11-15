@@ -85,13 +85,16 @@ tasks:
   # ------------------------------------------------------------------
 
   solo:up:
-    desc: "Create the solo k3d cluster with host port 8080 mapped to the load balancer."
+    desc: "Create the solo k3d cluster with host port 8080 mapped to the load balancer and 127.0.0.1:5111 to the local registry."
     # `--disable=traefik` prevents k3s's bundled traefik ingress controller from
     # claiming the cluster LB. Envoy Gateway's `eg` GatewayClass is what the
     # workshop manifests target, and two controllers fighting for port 80 ends
     # with curl getting traefik's 404 page instead of our docs.
+    # 127.0.0.1:5111 → NodePort 30511 is the local registry
+    # (gitops/solo/registry.yaml), bound to loopback only. Not 5000: macOS
+    # AirPlay Receiver holds it.
     cmds:
-      - k3d cluster create {{.SOLO_CLUSTER_NAME}} -p "8080:80@loadbalancer" --k3s-arg "--disable=traefik@server:0"
+      - k3d cluster create {{.SOLO_CLUSTER_NAME}} -p "8080:80@loadbalancer" -p "127.0.0.1:5111:30511@server:0" --k3s-arg "--disable=traefik@server:0"
       - kubectl cluster-info
 
   solo:down:
@@ -100,7 +103,7 @@ tasks:
       - k3d cluster delete {{.SOLO_CLUSTER_NAME}}
 
   solo:platform:
-    desc: "Install Envoy Gateway, apply gitops/solo and install Crossplane (UXP) against the current kube context."
+    desc: "Install Envoy Gateway, apply gitops/solo (incl. the local registry), install Crossplane (UXP) and the registry rewrite against the current kube context."
     cmds:
       - |
         helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm \
@@ -118,6 +121,10 @@ tasks:
           --namespace crossplane-system --create-namespace \
           --set webui.enabled=true \
           --wait --timeout 10m
+      # Rewrites 127.0.0.1:5111 to the in-cluster registry (#227). Needs
+      # the ImageConfig CRD, so it comes after the Crossplane install.
+      - kubectl apply -f gitops/solo/imageconfig.yaml
+      - kubectl -n registry rollout status deploy/zot --timeout=180s
 
   solo:render:
     desc: "Regenerate gitops/solo/all.yaml from the kustomize overlay."
