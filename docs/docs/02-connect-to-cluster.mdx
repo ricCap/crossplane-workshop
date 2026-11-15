@@ -26,7 +26,7 @@ You're about to: download a kubeconfig, export it, and apply a `hello` pod.
 
 ### 1. Download the kubeconfig file
 
-Your instructor has given you a QR code on the Miro board. Scan it on your laptop (or click the link the instructor posts) and download `<pair-id>.zip` — the kubeconfig is wrapped in a password-protected ZIP so a leaked link alone doesn't grant cluster access.
+Your instructor has given you a QR code on the Miro board. Scan it on your laptop (or click the link the instructor posts) and download `<your pair ID>.zip` — the kubeconfig is wrapped in a password-protected ZIP so a leaked link alone doesn't grant cluster access.
 
 ### 2. Unzip with the operator-shared password
 
@@ -35,24 +35,24 @@ Your instructor will share the ZIP password verbally or on the live Miro board. 
 - **macOS / Linux:**
   ```bash
   cd ~/Downloads
-  unzip <pair-id>.zip
-  # prompts for the password, then writes <pair-id>.yaml next to the zip
+  unzip <your pair ID>.zip
+  # prompts for the password, then writes <your pair ID>.yaml next to the zip
   ```
-- **Windows:** right-click `<pair-id>.zip` → **Extract All…** → enter the password the operator shared → confirm. You'll end up with `<pair-id>.yaml` in the same folder.
+- **Windows:** right-click `<your pair ID>.zip` → **Extract All…** → enter the password the operator shared → confirm. You'll end up with `<your pair ID>.yaml` in the same folder.
 
 ### 3. Point your shell at it
 
 ```bash
-export KUBECONFIG=$PWD/<pair-id>.yaml
+export KUBECONFIG=$PWD/<your pair ID>.yaml
 kubectl config current-context
 ```
 
-(On Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<pair-id>.yaml"`.)
+(On Windows / PowerShell: `$env:KUBECONFIG = "$PWD\<your pair ID>.yaml"`.)
 
 Expected output:
 
 ```
-workshop-<pair-id>
+workshop-<your pair ID>
 ```
 
 The `workshop-` prefix is your visual cue that you're on the right cluster. If you see `docker-desktop`, `minikube`, `k3d-…`, or anything that doesn't start with `workshop-`, the `export` didn't take effect in this shell — re-run it in the same terminal where you'll run the rest of the workshop. If `kubectl` prints an error, re-check the file path and that the unzip step actually produced the YAML.
@@ -63,7 +63,7 @@ Open a new tab or window and the variable is gone — `kubectl` falls back to wh
 - **Re-run the export in each new terminal.** Copy-paste the same line. Fine for a 3-hour workshop.
 - **Persist with one line in your shell startup file:**
   ```bash
-  mkdir -p ~/.kube && mv <pair-id>.yaml ~/.kube/workshop.yaml
+  mkdir -p ~/.kube && mv <your pair ID>.yaml ~/.kube/workshop.yaml
   echo 'export KUBECONFIG=$HOME/.kube/workshop.yaml' >> ~/.zshrc   # or ~/.bashrc
   ```
   New terminals pick it up automatically. Once the workshop is over, delete that line and `rm ~/.kube/workshop.yaml`.
@@ -71,25 +71,25 @@ Open a new tab or window and the variable is gone — `kubectl` falls back to wh
 <details>
 <summary>Already use <code>kubectl</code> with other clusters and don't want to lose them?</summary>
 
-Don't overwrite `~/.kube/config` with the workshop file — that wipes out every other context. Don't `cat <pair-id>.yaml >> ~/.kube/config` either: a kubeconfig is a single YAML document, not a stream, so appending two of them produces duplicate top-level keys and `kubectl` can't parse the result.
+Don't overwrite `~/.kube/config` with the workshop file — that wipes out every other context. Don't `cat <your pair ID>.yaml >> ~/.kube/config` either: a kubeconfig is a single YAML document, not a stream, so appending two of them produces duplicate top-level keys and `kubectl` can't parse the result.
 
 Merge them with `kubectl`'s built-in support:
 
 ```bash
 cp -p ~/.kube/config ~/.kube/config.bak.$(date +%Y%m%d-%H%M%S) \
-  && KUBECONFIG=$HOME/.kube/config:$PWD/<pair-id>.yaml \
+  && KUBECONFIG=$HOME/.kube/config:$PWD/<your pair ID>.yaml \
        kubectl config view --flatten --raw > ~/.kube/config.new \
   && mv ~/.kube/config.new ~/.kube/config \
   && chmod 600 ~/.kube/config \
-  && kubectl config use-context workshop-<pair-id>
+  && kubectl config use-context workshop-<your pair ID>
 ```
 
-The first line snapshots your current `~/.kube/config` to a timestamped backup so you can restore it (`mv ~/.kube/config.bak.<timestamp> ~/.kube/config`) if anything looks wrong afterward. The `mv` on line 4 then replaces `~/.kube/config`, but it's safe: the `kubectl config view` line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<pair-id>` alongside your normal contexts. After the workshop, remove the workshop entries (and the backup, once you've confirmed everything is fine):
+The first line snapshots your current `~/.kube/config` to a timestamped backup so you can restore it (`mv ~/.kube/config.bak.<timestamp> ~/.kube/config`) if anything looks wrong afterward. The `mv` on line 4 then replaces `~/.kube/config`, but it's safe: the `kubectl config view` line reads *both* files (that's what `KUBECONFIG=A:B` does — `kubectl` merges them in memory) and writes the union to `config.new`, so the file you're moving into place already contains every cluster, context, and user that was in your old `~/.kube/config`, plus the workshop entries. `kubectx` will now list `workshop-<your pair ID>` alongside your normal contexts. After the workshop, remove the workshop entries (and the backup, once you've confirmed everything is fine):
 
 ```bash
-kubectl config delete-context workshop-<pair-id>
-kubectl config delete-cluster workshop-<pair-id>
-kubectl config delete-user    workshop-<pair-id>
+kubectl config delete-context workshop-<your pair ID>
+kubectl config delete-cluster workshop-<your pair ID>
+kubectl config delete-user    workshop-<your pair ID>
 rm ~/.kube/config.bak.*
 ```
 
@@ -116,7 +116,7 @@ Windows / plain Linux install links are in the [Cheatsheet](./cheatsheet#12-tool
 
 ### 6. (Strongly recommended) Show the cluster in your shell prompt
 
-The single most effective way to avoid running `kubectl apply` or `helm install` against the wrong cluster is to make the active context visible in your shell prompt. Install [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) or enable [Starship](https://starship.rs)'s `kubernetes` module — both render the current context next to every prompt. When you see `(workshop-<pair-id>)` you're safe; when you see `(docker-desktop)` you know to fix it before typing. Install pointers are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
+The single most effective way to avoid running `kubectl apply` or `helm install` against the wrong cluster is to make the active context visible in your shell prompt. Install [`kube-ps1`](https://github.com/jonmosco/kube-ps1) (Bash/Zsh) or enable [Starship](https://starship.rs)'s `kubernetes` module — both render the current context next to every prompt. When you see `(workshop-<your pair ID>)` you're safe; when you see `(docker-desktop)` you know to fix it before typing. Install pointers are in the [Cheatsheet](./cheatsheet#12-tools-worth-installing).
 
 ## 2.3 Smoke test — apply a `hello` pod ⏱️ 5m {#23-smoke-test-apply-a-hello-pod}
 

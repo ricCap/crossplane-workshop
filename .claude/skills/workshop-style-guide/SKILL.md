@@ -252,6 +252,10 @@ A task section ends with exactly one `<ValidateCheck />` **when the validator ca
 
 This came up across the CLI-first 90 minute track, where modules 03, 04 and 05 (`project init`, `composition generate`, `composition render`) produce no cluster state at all; the first checkable moment is module 06, once the package is installed. When this applies, say so in the module rather than leaving the omission to be read as an oversight. *Decided while wiring the 90m checks.*
 
+### Write `<your pair ID>` and `<your registry>` literally; the site fills them (2026-11-15)
+
+In code blocks and inline code, write the placeholders exactly as `<your pair ID>` and `<your registry>` — never a sample pair like `bold-kiwi`, never a hand-substituted host, and no variants such as `<pair-id>` or `<PAIR>`. The `CodeBlock` / `CodeInline` theme wrappers ([`docs/src/lib/workshopValues.js`](../../../docs/src/lib/workshopValues.js)) replace these two exact strings with the pair ID saved by `<PairId />` and the registry for the serving host, so the copy button copies a command that runs as-is; with no saved pair ID they stay visible as placeholders. Shell variables (`$REGISTRY/$PAIR`) are still fine where a step builds on an earlier `export`. *Because:* participants copy-paste, and a placeholder in any other spelling silently stays unfilled. *Decided while fixing the module 05 install command on the Aruba dry run.*
+
 *(Append further concrete decisions here — with a short "because" — as they emerge. Keep each rule under a sentence plus rationale.)*
 
 <!--
