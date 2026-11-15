@@ -1,5 +1,5 @@
 # Helm values for the argo/argo-cd chart.
-# Kept minimal on purpose — ingress/TLS/DNS/SSO are deferred (see PLAN.md).
+# Kept minimal on purpose — ingress/TLS/DNS/SSO are deferred (see the `deferred` issues).
 #
 # The ApplicationSet controller is required so the participant-vclusters
 # ApplicationSet works.

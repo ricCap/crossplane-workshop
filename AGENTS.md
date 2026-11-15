@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Operational guide for anyone (human or AI) working in this repo. For forward-looking work and the rationale behind big calls, see [PLAN.md](PLAN.md).
+Operational guide for anyone (human or AI) working in this repo. The roadmap lives in GitHub: one [milestone](https://github.com/ricCap/crossplane-workshop/milestones) per delivery, decisions recorded on their issues.
 
 ## Purpose
 
@@ -68,7 +68,9 @@ Use the local task on a vind because Platform isn't exposed there (no LE cert fo
 
 ## Planning
 
-PLAN.md holds the roadmap. Whenever you agree a new plan with the user, update PLAN.md in the same change — otherwise this file drifts and stops being useful.
+The roadmap is GitHub milestones and issues, not a file in the repo. The current delivery's milestone description holds the context (date, pair count, scope, what is out); each piece of work is an issue in it; the reasoning behind a big call is a comment on its issue (look for "Decision record"). Work parked without a date carries the `deferred` label and no milestone.
+
+Whenever you agree a new plan with the user, update the milestone and issues in the same session. Findings from a dry run become issues in the milestone; runbook items go on the runbook issue.
 
 ## Authoring workshop modules
 
@@ -298,6 +300,14 @@ Create. Override `PLATFORM_HOST`, `PLATFORM_PROJECT`, or
 defaults. Re-running is safe (Secret is replaced in place; affected
 StatefulSets are restarted so the syncer remounts the populated
 volume).
+
+**Two keys, two jobs.** The key above lands inside every pair's
+vcluster, so scope it (the UI's `loft-cli` + `vcluster` roles are
+enough). That scope is *not* enough for the operator's own CLI:
+`vcluster platform login --access-key <key>` with it makes
+`task verify:pair:platform` / `verify:all MODE=platform` fail with
+`denied by loft access key scope`. Create a second, unscoped key for
+`vcluster platform login` and delete it after the event.
 
 ### `aruba-creds` (provider-arubacloud)
 
@@ -540,6 +550,26 @@ negligible. If targeted rotation ever becomes painful, add a
 deliberately has no `passwordRef` — interactive login is disabled.
 Do not reintroduce a password Secret; access keys are the auth path.
 
+## Cluster sizing
+
+**Measured on the old single-node cluster (2026-05-10); per-node figures still hold.** The smoketest cluster's `md-medium` nodes have the same 4 vCPU / 7.66 GiB allocatable / 110 pods as the old `md-standard`. Re-measure on the real pool ([#93](https://github.com/ricCap/crossplane-workshop/issues/93)).
+
+- **Runtime**: Kubernetes v1.35 on the event cluster (v1.33 on the smoketest), containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
+- **Baseline** (ArgoCD, Crossplane + functions + providers, UXP webui, Platform, Envoy, cert-manager, docs, CSI, metrics-server): ~1.3 vCPU / 2.8 GiB requests.
+- **Per pair** with Crossplane pre-installed (#229, measured on k3d 2026-11-09): **720m / 1.5 GiB requests** counted against the pair quota (syncer 250m/512Mi, the rest mostly LimitRange defaults on UXP's containers); actual use ~100m / 790 MiB idle. Requests are what bin-packing sees — re-check the rule of thumb below on the real pool. Quota allows 2 vCPU / 4 GiB.
+- **Rule of thumb**: ~5–6 pairs per node before bin-packing fails, plus one node's headroom. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.
+- **Envoy runs as a DaemonSet** (#235). Keep `externalTrafficPolicy: Local`: `Cluster` would SNAT traffic and collapse Platform's per-client login rate limit to per-node, 429ing a room at ~2–4 pairs per node.
+
+## Known behaviour worth remembering
+
+From the 2026-10-25 smoketest; details in the linked issues and `git log`.
+
+- `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.2`.
+- provider-helm and `crossplane-apollo` crashloop once or twice on cold start (RBAC race). Self-heals; not a fault.
+- ArgoCD caches per-cluster API discovery; after installing CRDs into a pair, restart the application-controller (#237).
+
+- **Solo registry assumes k3d.** It relies on k3d's loopback port mapping and on k3s's default Service range (`10.43.0.0/16`) for the pinned `10.43.0.50`. On kind (`10.96.0.0/12`) the Service would be rejected. The solo page says so.
+
 ## Out of scope
 
-See [PLAN.md](PLAN.md) §Deferred.
+Issues labelled [`deferred`](https://github.com/ricCap/crossplane-workshop/issues?q=label%3Adeferred).

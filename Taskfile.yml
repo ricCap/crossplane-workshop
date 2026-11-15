@@ -1,6 +1,6 @@
 version: '3'
 
-# Every workshop operation lives here. See AGENTS.md and PLAN.md.
+# Every workshop operation lives here. See AGENTS.md.
 #
 # Phase 1 (local vind):   task local:all
 #                         task verify:pair PAIR=fancy-lemon            # operator path
@@ -2145,4 +2145,4 @@ tasks:
         echo "Run interactively against the ArubaCloud KUBECONFIG:"
         echo "  vcluster platform login <your-vcluster.cloud-host>"
         echo "  vcluster platform connect cluster <cluster-name>"
-        echo "Confirm the exact incantation on first run; see PLAN.md open items."
+        echo "Confirm the exact incantation on first run."
