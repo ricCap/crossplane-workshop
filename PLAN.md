@@ -6,7 +6,7 @@ For what was done and when, use `git log`. This file does not keep a changelog.
 
 ## Context
 
-- **Next event: Cloud Native Denmark 2026.** Not yet delivered. Date: _TBD — fill in_. A 90-minute session: 20m intro, 60m hands-on Crossplane 101, 10m outro with the gotcha reveal.
+- **Next event: Cloud Native Denmark 2026.** Not yet delivered. Date: **Friday 2026-11-20**. A 90-minute session: 20m intro, 60m hands-on Crossplane 101, 10m outro with the gotcha reveal.
 - **Attendance: planned at 5 pairs.** Size nodes, the registry and Platform rate limits for 5 pairs, and prove it with a final load test at 5 pairs before the event.
 - **Infra: Aruba primary, solo fallback.** Pairs work in per-pair vClusters on the Aruba management cluster; anyone who cannot reach it (network, laptop policy) falls back to `task solo:all` on k3d.
 - **Laptop prerequisites: Docker and the Crossplane CLI.** This reverses the "install nothing" rule of the first delivery (Road to CND Italy, May 2026). Crossplane 101 builds and pushes a package from the laptop, so there is no way around it.
@@ -19,7 +19,9 @@ For what was done and when, use `git log`. This file does not keep a changelog.
 
 Shipped and exercised live on Aruba (2-pair smoketest, 2026-10-25): bootstrap from fresh, the `DeveloperEnvironment` Composition, Platform access, `task verify:all MODE=platform`, every version pin from #233, and a deliberate Kyverno denial. The Envoy `externalTrafficPolicy` bug that looked like hairpin NAT is fixed (#235).
 
-Shipped but **never run live**: Crossplane 101 modules 01–06 on a pair cluster (dry-run only, on a local cluster, 2026-10-18), the `configuration-installed` validator check, the wall tile at the end of module 05, the validator dashboard, `pairs:distribute` against Platform `4.12.4`, and the 3XX provider-github / Aruba `Database` modules.
+Exercised live on the event cluster (Aruba, 2 pairs, Phase 3 dry run, 2026-11-15): bootstrap from fresh, Crossplane 101 modules 01–06 from the participant ZIP, `pairs:distribute` with the links doc (#269), registry push from a laptop and pull from a pair (#266), and `task verify:all MODE=platform`.
+
+Shipped but **never run live**: the 3XX provider-github / Aruba `Database` modules.
 
 ## Go-live plan (from 2026-11-15)
 
@@ -85,6 +87,25 @@ Fresh `task bootstrap:all`, Platform EULA, `platform:register-vclusters`, `githu
 
 Exit: `task verify:all MODE=platform` green; both pairs reach the wall; timings recorded.
 
+**Result (2026-11-15): exit met, on the cluster we keep for the event** (2 × `md-medium`, Kubernetes v1.35.3, 50 GiB block storage). `bootstrap:all` → both pair XRs Ready in ~5 min with Crossplane running; ArgoCD all Synced/Healthy; Let's Encrypt certs Ready. Modules 01–06 walked from the ZIP; `pairs:distribute` ran against the real `gdrive` remote with the links doc; `verify:all MODE=platform` green. Participant timings were not recorded.
+
+Found and fixed:
+
+- **Pair pods could not reach the registry** (curl from `participant-bold-kiwi` timed out): kube-proxy rewrites in-cluster traffic for the gateway's public IP to an Envoy pod IP, which the RFC1918 exclusion drops. Added `pair-netpol-allow-egress-envoy-gateway`, Envoy's HTTPS container port only (#266). Without it, `xpkg install` in module 05 fails for every pair.
+- **Placeholders**: code blocks and inline code now fill `<your pair ID>` / `<your registry>` from the pair ID saved in the browser (#267); the connect page used `<pair-id>` and was renamed. Reaches Aruba with the next release.
+- **No Miro**: one Google Doc + one QR (#269).
+
+Found, not fixed:
+
+- **Operator Platform login needs an unscoped access key.** The key created for `platform:register-vclusters` is scoped to `loft-cli` + `vcluster`, which is right for the syncer but makes `verify:pair:platform` fail with `denied by loft access key scope`. Create a second, unscoped key for `vcluster platform login`; delete it after the event.
+- **Duplicate Platform entries**: once the API-key Secret lands, each syncer registers itself again (`bold-kiwi-c6efd`, `merry-cherry-e0bf8`, `Failed / NetworkPeerOffline`) next to the Composition's `Ready` VCI. Kubeconfigs use the original names and work.
+- **Transient attach error**: a fresh pair PVC can log `AttachVolume.Attach failed … Volume in not in a valid status` and attach by itself ~70 s later. Runbook: wait 2 minutes before deleting anything.
+- **`pairs:issue-kubeconfigs` fails silently** (exit 1, no message) when `KUBECONFIG` points at a pair or another cluster: the CLI's stderr is discarded. Check the context first; fix the task to print the error.
+- **Module 01 step 3 is bash/zsh only**: `set -a; source …` fails in fish. Add a fish line.
+- **Link expiry vs. timing**: with `RCLONE_LINK_EXPIRE=24h` (if Drive honours it, still unverified), links issued the evening before die on event evening. Run `pairs:distribute` the morning of, or set `48h`.
+
+Not done: the cold-laptop run ([#226](https://github.com/ricCap/crossplane-workshop/issues/226)), the provider-github stretch module (`github:register` skipped), and a phone scan of the slide QR.
+
 ### Phase 4 — Load test on Aruba, 5 pairs ([#249](https://github.com/ricCap/crossplane-workshop/issues/249))
 
 - **Block storage first.** 5 pairs × ~5 GiB plus the 1 GiB registry PVC exceeds the 20 GiB Aruba block-storage quota. Raise the quota or shrink the per-pair PVC before adding pairs.
@@ -98,7 +119,7 @@ Exit: five pairs on the wall, no 429s, no pair stuck on volume provisioning, nod
 
 - **Workshop-day runbook ([#250](https://github.com/ricCap/crossplane-workshop/issues/250)).** Replace [WORKSHOP-DAY-1-CHECKLIST.md](WORKSHOP-DAY-1-CHECKLIST.md) with T-1d / T-0 / after: provision pairs the day before (#239), EULA, credentials, `verify:all MODE=platform` the morning of, spare pair, `pairs:distribute`, create the links doc T-1 (`pairs:doc`) with its QR on the slide, delete the doc after, teardown, credential rotation.
 - **Release ([#251](https://github.com/ricCap/crossplane-workshop/issues/251)).** `v0.6.1` is out and pinned (Phase 2). Cut a final `vX.Y.Z` after the last module fix: sweep new MDX for `…/main/…` URLs, release, merge the bot's bump PR, watch both image builds.
-- **Tear down or keep** the load-test cluster, decided by the event date. If kept, rotate every credential (`pairs:distribute` re-issues kubeconfigs and registry logins).
+- **Keep the dry-run cluster for the event** (decided 2026-11-15: event is Friday; no time to rebuild). Run Phase 4 on it, then `pairs:distribute` the morning of, which re-issues kubeconfigs and registry logins.
 - Slides: the instructor owns them.
 
 ### Decided, not doing
@@ -186,7 +207,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 
 ### Open questions
 
-- Event date — unconfirmed. Decides whether the load-test cluster is kept or torn down.
+- Settled: event Friday 2026-11-20; the dry-run cluster is kept for it.
 - Settled: the 2026-10-25 smoketest cluster is no longer running.
 - `crossplane project run` stays out: it creates its own KIND cluster and registry, the riskiest possible thing on conference wifi.
 
@@ -194,7 +215,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 
 **Measured on the old single-node cluster (2026-05-10); per-node figures still hold.** The smoketest cluster's `md-medium` nodes have the same 4 vCPU / 7.66 GiB allocatable / 110 pods as the old `md-standard`. Re-measure on the real pool ([#93](https://github.com/ricCap/crossplane-workshop/issues/93)).
 
-- **Runtime**: Kubernetes v1.33, containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
+- **Runtime**: Kubernetes v1.35 on the event cluster (v1.33 on the smoketest), containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
 - **Baseline** (ArgoCD, Crossplane + functions + providers, UXP webui, Platform, Envoy, cert-manager, docs, CSI, metrics-server): ~1.3 vCPU / 2.8 GiB requests.
 - **Per pair** with Crossplane pre-installed (#229, measured on k3d 2026-11-09): **720m / 1.5 GiB requests** counted against the pair quota (syncer 250m/512Mi, the rest mostly LimitRange defaults on UXP's containers); actual use ~100m / 790 MiB idle. Requests are what bin-packing sees — re-check the rule of thumb below on the real pool. Quota allows 2 vCPU / 4 GiB.
 - **Rule of thumb**: ~5–6 pairs per node before bin-packing fails, plus one node's headroom. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.

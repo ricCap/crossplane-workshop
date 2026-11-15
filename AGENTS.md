@@ -299,6 +299,14 @@ defaults. Re-running is safe (Secret is replaced in place; affected
 StatefulSets are restarted so the syncer remounts the populated
 volume).
 
+**Two keys, two jobs.** The key above lands inside every pair's
+vcluster, so scope it (the UI's `loft-cli` + `vcluster` roles are
+enough). That scope is *not* enough for the operator's own CLI:
+`vcluster platform login --access-key <key>` with it makes
+`task verify:pair:platform` / `verify:all MODE=platform` fail with
+`denied by loft access key scope`. Create a second, unscoped key for
+`vcluster platform login` and delete it after the event.
+
 ### `aruba-creds` (provider-arubacloud)
 
 The shared Aruba Cloud API key the per-pair `provider-arubacloud`
