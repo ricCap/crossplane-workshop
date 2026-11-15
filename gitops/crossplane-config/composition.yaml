@@ -657,6 +657,50 @@ spec:
                     fmt: "participant-%s"
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
 
+          # In-cluster traffic to the gateway's public LoadBalancer IP is
+          # short-circuited by kube-proxy to an Envoy pod IP (10.x), which
+          # the external policy above excludes. Without this, Crossplane's
+          # package manager inside the pair cannot pull the participant's
+          # Configuration from registry.workshop.<domain> (curl from a
+          # pair pod timed out on Aruba, 2026-11-15). Only Envoy's HTTPS
+          # listener port (container port 10443 behind Service port 443).
+          - name: netpol-allow-egress-envoy-gateway
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: networking.k8s.io/v1
+                    kind: NetworkPolicy
+                    metadata:
+                      name: pair-netpol-allow-egress-envoy-gateway
+                      namespace: placeholder
+                    spec:
+                      podSelector: {}
+                      policyTypes: [Egress]
+                      egress:
+                        - to:
+                            - namespaceSelector:
+                                matchLabels:
+                                  kubernetes.io/metadata.name: envoy-gateway-system
+                              podSelector:
+                                matchLabels:
+                                  app.kubernetes.io/name: envoy
+                                  gateway.envoyproxy.io/owning-gateway-name: workshop
+                          ports:
+                            - protocol: TCP
+                              port: 10443
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.pairId
+                  strategy: string
+                  string:
+                    fmt: "participant-%s"
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
           # The two policies below grant the vcluster syncer
           # unrestricted ingress + egress. The selector deliberately
           # matches the *real* syncer only — `app=vcluster` AND no
