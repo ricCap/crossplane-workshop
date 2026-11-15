@@ -72,8 +72,10 @@ crossplane xpkg install configuration <your registry>/<your pair ID>/my-platform
 ```
 
 ```
-configuration/local-my-platform created
+configuration/<your pair ID>-my-platform created
 ```
+
+The CLI names the Configuration after the last two parts of the package path, so yours is `<your pair ID>-my-platform`. You need that name in the next module.
 
 Check it settled, and note that the functions your Composition depends on were installed for you:
 
@@ -84,7 +86,7 @@ kubectl get function.pkg
 
 ```
 NAME                INSTALLED   HEALTHY   PACKAGE
-local-my-platform   True        True      <your registry>/<your pair ID>/my-platform:v0.1.0
+<your pair ID>-my-platform   True        True      <your registry>/<your pair ID>/my-platform:v0.1.0
 
 NAME                                              INSTALLED   HEALTHY
 crossplane-contrib-function-auto-ready            True        True

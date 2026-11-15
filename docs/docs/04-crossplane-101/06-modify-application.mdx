@@ -48,8 +48,8 @@ Use a new tag. Pushing changed content over an existing tag leaves the cluster w
 ### 3. Point the cluster at the new version
 
 ```bash
-kubectl patch configuration.pkg local-my-platform --type=merge \
-  -p '{"spec":{"package":"<your registry>/<your pair ID>/my-platform:v0.2.0"}}'
+kubectl patch configuration.pkg "$PAIR-my-platform" --type=merge \
+  -p "{\"spec\":{\"package\":\"$REGISTRY/$PAIR/my-platform:v0.2.0\"}}"
 ```
 
 ```bash
@@ -58,7 +58,7 @@ kubectl get configuration.pkg
 
 ```
 NAME                INSTALLED   HEALTHY   PACKAGE
-local-my-platform   True        True      .../my-platform:v0.2.0
+<your pair ID>-my-platform   True        True      .../my-platform:v0.2.0
 ```
 
 ### 4. Watch the change land
