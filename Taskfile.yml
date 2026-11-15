@@ -1614,8 +1614,57 @@ tasks:
         echo "  gh pr create"
         echo ""
         echo "Once merged, ArgoCD reaps everything within ~5 minutes."
+        echo "Then check no pair volume survived: task workshop:sweep-volumes"
         echo "Don't forget to also remove the aruba-creds Secret + revoke"
         echo "the api_key in the Aruba console (see this task's desc)."
+
+  workshop:sweep-volumes:
+    desc: |
+      After a close-event teardown, find pair volumes that outlived
+      their pair and hand them back to the CSI driver for deletion.
+
+      The Composition sets the vcluster PVC retentionPolicy to Delete,
+      and the participant namespace goes with the XR, so every pair
+      PVC is deleted on teardown (#239). Whether the volume behind it
+      goes too is up to the StorageClass reclaimPolicy. If that is
+      Retain, the PV stays `Released` and still counts against the
+      Aruba block-storage quota.
+
+      Only PVs that are `Released` or `Failed` and whose claim lived
+      in a `participant-*` namespace are touched. Each is patched to
+      reclaimPolicy Delete, so the CSI driver deletes the Aruba volume
+      and then the PV. Deleting the PV object alone would leave the
+      Aruba volume behind.
+
+      Without CONFIRM=yes it only lists what it would patch. A volume
+      stuck in `Creating` on the Aruba side can fail to delete and
+      stay listed here; clear it in the Aruba console.
+
+      Usage:
+        task workshop:sweep-volumes              # list only
+        task workshop:sweep-volumes CONFIRM=yes  # patch for deletion
+    cmds:
+      - |
+        set -euo pipefail
+        pvs=$(kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name} {.status.phase} {.spec.claimRef.namespace} {.spec.persistentVolumeReclaimPolicy} {.spec.capacity.storage}{"\n"}{end}' \
+          | awk '($2 == "Released" || $2 == "Failed") && $3 ~ /^participant-/')
+        if [ -z "${pvs}" ]; then
+          echo "No leftover pair volumes."
+          exit 0
+        fi
+        echo "Leftover pair volumes (name phase namespace reclaim size):"
+        echo "${pvs}" | sed 's/^/  /'
+        if [ "${CONFIRM:-}" != "yes" ]; then
+          echo ""
+          echo "Re-run with CONFIRM=yes to delete them."
+          exit 0
+        fi
+        echo "${pvs}" | while read -r name _; do
+          kubectl patch pv "${name}" --type=merge -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
+        done
+        echo ""
+        echo "Patched. The CSI driver deletes each volume; re-run in a"
+        echo "minute to confirm none are left."
 
   # ------------------------------------------------------------------
   # Verify
