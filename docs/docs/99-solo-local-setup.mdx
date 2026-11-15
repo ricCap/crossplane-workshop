@@ -11,14 +11,14 @@ You do not need to clone this repo. Every manifest is fetched from public URLs; 
 
 ## Prerequisites
 
-| Tool | Install hint |
+| Tool | Install hint (macOS; on Linux, follow the tool's link) |
 |---|---|
 | [Docker](https://docs.docker.com/get-docker/) | `brew install --cask docker` on macOS (or better, Docker Desktop)|
 | [kubectl](https://kubernetes.io/docs/tasks/tools/) | `brew install kubernetes-cli` |
 | [helm](https://helm.sh/docs/intro/install/) | `brew install helm` |
 | [k3d](https://k3d.io/#installation) | `brew install k3d` |
 
-> You can use any local kubernetes installation (minikube/kind/...). Just beware of load balancer conflicts.
+> This recipe assumes k3d. The package registry relies on k3d's port mapping and on k3s's default Service range, so on minikube, kind or another local cluster the registry steps need adapting.
 
 
 That's it. You install Crossplane yourself in step 4.
@@ -40,7 +40,7 @@ The workshop's routing is [Gateway API](https://gateway-api.sigs.k8s.io)-native 
 
 ```bash
 helm install eg oci://docker.io/envoyproxy/gateway-helm \
-  --version v1.4.0 \
+  --version v1.9.3 \
   --namespace envoy-gateway-system --create-namespace \
   --wait
 ```
