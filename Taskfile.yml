@@ -28,7 +28,9 @@ vars:
   # Helm chart (not ArgoCD-managed — Docker Hub rate limits block
   # unauthenticated OCI pulls from cluster IPs).
   # https://gateway.envoyproxy.io/docs/install/install-helm/
-  ENVOY_GATEWAY_VERSION: v1.9.2
+  # Also pinned in docs/docs/99-solo-local-setup.mdx (and its Italian
+  # mirror) — bump them together.
+  ENVOY_GATEWAY_VERSION: v1.9.3
   ENVOY_GATEWAY_NS: envoy-gateway-system
   # UXP (Upbound's Crossplane distribution), pre-installed in solo by
   # `solo:platform`. Keep in step with gitops/apps/crossplane.yaml.

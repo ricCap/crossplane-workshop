@@ -27,12 +27,14 @@ Goal: the workshop is runnable end to end, today. Five phases, in order; each ph
 
 ### Phase 1 — Everything participants need
 
-1. **Registry (Zot) ([#245](https://github.com/ricCap/crossplane-workshop/issues/245)).** Build it as designed in [§Decided: the registry](#decided-the-registry-223): `gitops/registry/` + `gitops/apps/registry.yaml`, the `https-registry` Gateway listener, `task registry:credentials`, and the registry login in the pair ZIP.
+1. **Registry (Zot) ([#245](https://github.com/ricCap/crossplane-workshop/issues/245)).** Done in #252. Built as designed in [§Decided: the registry](#decided-the-registry-223): `gitops/registry/` + `gitops/apps/registry.yaml`, the `https-registry` Gateway listener, `task registry:credentials`, and the registry login in the pair ZIP.
 2. **Crossplane pre-installed in pair clusters and in solo ([#229](https://github.com/ricCap/crossplane-workshop/issues/229)).** Shipped in #244 and tested on k3d; see [§Decision: pre-install Crossplane](#decision-pre-install-crossplane-229). Left for after the Aruba dry run (#248): drop the install block from module 01 step 5, keep the check.
-3. **Module 01 step 3** reads the registry login from the bundle (`source <pair>-registry.env`, `docker login --password-stdin`). Part of #245.
+3. **Module 01 step 3** reads the registry login from the bundle (`source <pair>-registry.env`, `docker login --password-stdin`). Done in #252.
 4. **On-the-day self-check ([#246](https://github.com/ricCap/crossplane-workshop/issues/246)).** No pre-event email, so module 01 gets one copy-paste script that prints green/red for Docker running, CLI `v2.5.0`, and the base images pulled.
-5. **Solo fallback is one command ([#227](https://github.com/ricCap/crossplane-workshop/issues/227)).** `task solo:all` provisions Crossplane (item 2) and a local registry, replacing the `k3d`/`docker exec` recipe in module 05.
-6. **Close-event** revokes registry logins and wipes the registry PVC (#245), and no longer leaks pair volumes ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)): the Composition sets the vcluster PVC `retentionPolicy: Delete`, and `task workshop:sweep-volumes` hands any `Released` pair PV back to the CSI driver in case the `acloud` StorageClass reclaims with `Retain`. Run it after the teardown PR merges, then check the Aruba console for volumes stuck in `Creating`. The runbook step for a volume that binds but won't attach (delete the PVC, then the pod) goes into #250.
+5. **Solo fallback is one command ([#227](https://github.com/ricCap/crossplane-workshop/issues/227)).** Done in #254: solo runs Zot in the cluster, reached from the laptop at `127.0.0.1:5111` (loopback-only k3d port), and an `ImageConfig` rewrites that prefix to the Service's fixed ClusterIP `10.43.0.50:5000`. Modules 05/06 are the same commands as on Aruba; solo only sets `REGISTRY=127.0.0.1:5111`. The copy-paste solo page path was run verbatim from `main` (2026-11-15, 85s), and a Linux build of the CLI built and pushed from a Linux container. Not yet run on a native Linux Docker host.
+6. **Close-event** revokes registry logins and wipes the registry PVC (#245), and no longer leaks pair volumes (done in #253) ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)): the Composition sets the vcluster PVC `retentionPolicy: Delete`, and `task workshop:sweep-volumes` hands any `Released` pair PV back to the CSI driver in case the `acloud` StorageClass reclaims with `Retain`. Run it after the teardown PR merges, then check the Aruba console for volumes stuck in `Creating`. The runbook step for a volume that binds but won't attach (delete the PVC, then the pod) goes into #250.
+
+7. **Version pins.** Envoy Gateway is `v1.9.3` on the Taskfile and the solo page (the page had drifted to `v1.4.0`). UXP `2.4.3-up.2` is out; whether to move from `up.1` is [#255](https://github.com/ricCap/crossplane-workshop/issues/255).
 
 Exit: `task docs:test` green; the local Zot spike passes against the config `registry:credentials` renders (own-prefix push OK, other prefix `DENIED`, anonymous pull OK, anonymous push `401`).
 
@@ -43,7 +45,7 @@ On `task local:all` (vind), two pairs. Walk 101 modules 01–06 as a participant
 - Pair access through the operator kubeconfig from `verify:pair` (Platform is not on vind).
 - Registry: vind has no public hostname or Let's Encrypt cert, so run Zot on the laptop from the rendered config and point `--registry` at `<LAN IP>:5112` (Crossplane's package manager accepts plain HTTP; nothing else pulls from it).
 - Confirm Crossplane is already running in each pair before module 01, and `crossplane-installed` / `configuration-installed` go green on the wall.
-- Also run `task solo:all` and walk module 01 + 05 on it.
+- Also walk modules 01–06 on solo, set up from the solo page's commands rather than `task solo:all`: the publishing flow is proven (#254), but the `Application` Composition and the `/team/local/` tile have not run on it yet.
 
 Exit: both pairs and solo reach the module 05 wall tile; timings recorded in this file.
 
@@ -171,6 +173,8 @@ From the 2026-10-25 smoketest; details in the linked issues and `git log`.
 - `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.1`.
 - provider-helm and `crossplane-apollo` crashloop once or twice on cold start (RBAC race). Self-heals; not a fault.
 - ArgoCD caches per-cluster API discovery; after installing CRDs into a pair, restart the application-controller (#237).
+
+- **Solo registry assumes k3d.** It relies on k3d's loopback port mapping and on k3s's default Service range (`10.43.0.0/16`) for the pinned `10.43.0.50`. On kind (`10.96.0.0/12`) the Service would be rejected. The solo page says so.
 
 ## Deferred (not scheduled)
 
