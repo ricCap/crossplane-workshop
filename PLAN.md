@@ -45,11 +45,31 @@ Exit met (2026-11-15): `task docs:test` green. The config `registry:credentials`
 On `task local:all` (vind), two pairs. Walk 101 modules 01–06 as a participant would, timing each one.
 
 - Pair access through the operator kubeconfig from `verify:pair` (Platform is not on vind).
-- Registry: vind has no public hostname or Let's Encrypt cert, so run Zot on the laptop from the rendered config and point `--registry` at `<LAN IP>:5112` (Crossplane's package manager accepts plain HTTP; nothing else pulls from it).
+- Registry: vind has no public hostname or Let's Encrypt cert, so run Zot on the laptop from the cluster's `registry/zot-config` Secret on port 5112. Do **not** point `--registry` at the LAN IP: `docker login` refuses plain HTTP to anything but localhost. Use the solo trick instead: `REGISTRY=127.0.0.1:5112` on the laptop, plus an `ImageConfig` in each pair rewriting the prefix `127.0.0.1:5112` to `<LAN IP>:5112` (Crossplane pulls plain HTTP from it).
 - Confirm Crossplane is already running in each pair before module 01, and `crossplane-installed` / `configuration-installed` go green on the wall.
 - Also walk modules 01–06 on solo, set up from the solo page's commands rather than `task solo:all`: the publishing flow is proven (#254), but the `Application` Composition and the `/team/local/` tile have not run on it yet.
 
 Exit: both pairs and solo reach the module 05 wall tile; timings recorded in this file.
+
+**Result (2026-11-15): exit met.** Both pairs (`bold-kiwi`, `merry-cherry`) and solo ran modules 01–06 with no failed command, and all four checks pass (`cluster-reachable`, `crossplane-installed`, `configuration-installed`, `application-ready`) on validator `v0.6.1`. The tiles show the module 06 change. Crossplane `v2.4.3-up.2` was already running in each pair before module 01.
+
+| Step | vind | solo |
+|---|---|---|
+| Cluster ready (`local:all` / page blocks 1–6) | 213 s | 96 s |
+| Pair XRs Ready after bootstrap | 354 s | — |
+| Module command time 01 / 02 / 03 / 04 / 05 / 06 | 1 / 1 / 6–13 / 19–24 / 17–22 / 8–9 s | 1 / 0 / 5 / 17 / 25 / 7 s |
+
+These are machine times, not participant times: a scripted walk with no reading or typing. Participant timings come from the Aruba dry run (#248). Disk: the vind node volume settles around 7 GB for two pairs, mostly images that pairs share through the host containerd, so a pair adds only its own pods' layers and volumes.
+
+Found and fixed:
+
+- **The docs and validator pin was `v0.5.1`**, which predates the 101 rebuild (#221) and the live wall (#232). Aruba would have served the old site, and `configuration-installed` came back `unknown check`. Released `v0.6.0`/`v0.6.1` and bumped the pin (#262), ahead of the Phase 5 release.
+- **Module 06's `kubectl patch configuration.pkg local-my-platform` failed for every real pair**: `xpkg install` names the Configuration `<pair>-my-platform` (#261).
+
+Open:
+
+- **Function dependencies are unpinned** (`>=v0.0.0`): the pairs got `function-auto-ready` `v0.7.3` while the management cluster runs `v0.7.2`, so on event day pairs get whatever is newest.
+- **Module 06's tile refresh** took ~100 s on solo, against the page's "occasionally up to a minute".
 
 ### Phase 3 — Dry run on Aruba ([#248](https://github.com/ricCap/crossplane-workshop/issues/248))
 
@@ -74,7 +94,7 @@ Exit: five pairs on the wall, no 429s, no pair stuck on volume provisioning, nod
 ### Phase 5 — Ready for the event
 
 - **Workshop-day runbook ([#250](https://github.com/ricCap/crossplane-workshop/issues/250)).** Replace [WORKSHOP-DAY-1-CHECKLIST.md](WORKSHOP-DAY-1-CHECKLIST.md) with T-1d / T-0 / after: provision pairs the day before (#239), EULA, credentials, `verify:all MODE=platform` the morning of, spare pair, `pairs:distribute`, QR codes on the board, teardown, credential rotation.
-- **Release ([#251](https://github.com/ricCap/crossplane-workshop/issues/251)).** Sweep new MDX for `…/main/…` URLs, cut `vX.Y.Z`, bump [gitops/docs/deployment.yaml](gitops/docs/deployment.yaml), watch both image builds.
+- **Release ([#251](https://github.com/ricCap/crossplane-workshop/issues/251)).** `v0.6.1` is out and pinned (Phase 2). Cut a final `vX.Y.Z` after the last module fix: sweep new MDX for `…/main/…` URLs, release, merge the bot's bump PR, watch both image builds.
 - **Tear down or keep** the load-test cluster, decided by the event date. If kept, rotate every credential (`pairs:distribute` re-issues kubeconfigs and registry logins).
 - Slides: the instructor owns them.
 
