@@ -1,0 +1,19 @@
+# Solo path (#227): packages are pushed from the laptop to
+# 127.0.0.1:5111, which inside the cluster is the pod itself. Rewrite
+# that prefix to the in-cluster registry (registry.yaml). The
+# Configuration keeps the name you typed in spec.package; only
+# status.resolvedPackage shows the rewritten address.
+#
+# Not part of all.yaml: the ImageConfig CRD exists only once Crossplane
+# is installed, so apply this after it:
+#   kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/main/gitops/solo/imageconfig.yaml
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: solo-local-registry
+spec:
+  matchImages:
+    - type: Prefix
+      prefix: "127.0.0.1:5111"
+  rewriteImage:
+    prefix: "10.43.0.50:5000"
