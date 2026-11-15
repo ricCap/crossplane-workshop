@@ -34,7 +34,7 @@ vars:
   ENVOY_GATEWAY_NS: envoy-gateway-system
   # UXP (Upbound's Crossplane distribution), pre-installed in solo by
   # `solo:platform`. Keep in step with gitops/apps/crossplane.yaml.
-  UXP_CHART_VERSION: 2.4.3-up.1
+  UXP_CHART_VERSION: 2.4.3-up.2
   # vCluster Platform — web UI for participant vcluster access.
   # Installed via `task bootstrap:vcluster-platform` (not ArgoCD)
   # to keep admin credentials out of git.

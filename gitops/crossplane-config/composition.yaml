@@ -891,7 +891,7 @@ spec:
                 chart:
                   name: crossplane
                   repository: https://charts.upbound.io/stable
-                  version: "2.4.3-up.1"
+                  version: "2.4.3-up.2"
                 namespace: crossplane-system
                 wait: true
                 waitTimeout: 10m

@@ -135,7 +135,7 @@ subjects:
     namespace: crossplane-system
 ---
 # Workaround for a UXP chart bug first hit on v2.2.0-up.5, still in
-# place on v2.4.3-up.1: `crossplane-init` reinstalls the (alpha)
+# place on v2.4.3-up.2: `crossplane-init` reinstalls the (alpha)
 # `storeconfigs.secrets.crossplane.io` CRD during the CoreCRDs step
 # and then tries to create a default StoreConfig, but the bundled
 # `crossplane` ClusterRole no longer grants any verbs on storeconfigs.
@@ -162,6 +162,9 @@ subjects:
 # while dropping it while still needed breaks pod init outright.
 # Worth confirming on the rebuilt cluster: if init no longer creates
 # a StoreConfig, this whole object can go.
+#
+# Unchanged by the 2.4.3-up.2 bump: the two charts differ only in
+# image tags (crossplane, controller-manager, apollo 0.4.27 -> 0.4.28).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

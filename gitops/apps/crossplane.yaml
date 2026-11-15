@@ -23,7 +23,7 @@ spec:
   source:
     repoURL: https://charts.upbound.io/stable
     chart: crossplane
-    targetRevision: 2.4.3-up.1
+    targetRevision: 2.4.3-up.2
     helm:
       releaseName: crossplane
       values: |
