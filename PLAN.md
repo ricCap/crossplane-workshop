@@ -34,7 +34,7 @@ Goal: the workshop is runnable end to end, today. Five phases, in order; each ph
 5. **Solo fallback is one command ([#227](https://github.com/ricCap/crossplane-workshop/issues/227)).** Done in #254: solo runs Zot in the cluster, reached from the laptop at `127.0.0.1:5111` (loopback-only k3d port), and an `ImageConfig` rewrites that prefix to the Service's fixed ClusterIP `10.43.0.50:5000`. Modules 05/06 are the same commands as on Aruba; solo only sets `REGISTRY=127.0.0.1:5111`. The copy-paste solo page path was run verbatim from `main` (2026-11-15, 85s), and a Linux build of the CLI built and pushed from a Linux container. Not yet run on a native Linux Docker host.
 6. **Close-event** revokes registry logins and wipes the registry PVC (#245), and no longer leaks pair volumes (done in #253) ([#239](https://github.com/ricCap/crossplane-workshop/issues/239)): the Composition sets the vcluster PVC `retentionPolicy: Delete`, and `task workshop:sweep-volumes` hands any `Released` pair PV back to the CSI driver in case the `acloud` StorageClass reclaims with `Retain`. Run it after the teardown PR merges, then check the Aruba console for volumes stuck in `Creating`. The runbook step for a volume that binds but won't attach (delete the PVC, then the pod) goes into #250.
 
-7. **Version pins.** Envoy Gateway is `v1.9.3` on the Taskfile and the solo page (the page had drifted to `v1.4.0`). UXP `2.4.3-up.2` is out; whether to move from `up.1` is [#255](https://github.com/ricCap/crossplane-workshop/issues/255).
+7. **Version pins.** Envoy Gateway is `v1.9.3` on the Taskfile and the solo page (the page had drifted to `v1.4.0`). UXP moved from `2.4.3-up.1` to `2.4.3-up.2` everywhere ([#255](https://github.com/ricCap/crossplane-workshop/issues/255)): a patch release cut the same day across every UXP line, and the chart diff is image tags only. Proven on solo; Aruba confirms it in the dry run (#248).
 
 Exit: `task docs:test` green; the local Zot spike passes against the config `registry:credentials` renders (own-prefix push OK, other prefix `DENIED`, anonymous pull OK, anonymous push `401`).
 
@@ -170,7 +170,7 @@ When the 3-hour run turns the Aruba bundle back on, set `registry.host` (#222) t
 
 From the 2026-10-25 smoketest; details in the linked issues and `git log`.
 
-- `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.1`.
+- `crossplane-init` still needs the storeconfigs RBAC shim in `gitops/crossplane-packages/rbac.yaml` on UXP `2.4.3-up.2`.
 - provider-helm and `crossplane-apollo` crashloop once or twice on cold start (RBAC race). Self-heals; not a fault.
 - ArgoCD caches per-cluster API discovery; after installing CRDs into a pair, restart the application-controller (#237).
 
