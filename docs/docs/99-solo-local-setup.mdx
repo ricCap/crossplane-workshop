@@ -21,7 +21,7 @@ You do not need to clone this repo. Every manifest is fetched from public URLs; 
 > You can use any local kubernetes installation (minikube/kind/...). Just beware of load balancer conflicts.
 
 
-That's it. Crossplane is not a prerequisite — installing it is the first module of Crossplane 101.
+That's it. You install Crossplane yourself in step 4.
 
 ## 1. Create the cluster
 
@@ -62,11 +62,26 @@ Wait for the docs pod to come up:
 kubectl wait --for=condition=Available deploy/docs -n docs --timeout=180s
 ```
 
-## 4. Open the workshop
+## 4. Install Crossplane
+
+The Crossplane 101 modules assume a running Crossplane. Install UXP, Upbound's distribution of Crossplane, with the same release name and values a workshop pair cluster has:
+
+```bash
+helm upgrade --install crossplane crossplane \
+  --repo https://charts.upbound.io/stable \
+  --version 2.4.3-up.1 --devel \
+  --namespace crossplane-system --create-namespace \
+  --set webui.enabled=true \
+  --wait --timeout 10m
+```
+
+`--devel` is needed because Helm treats the `-up.1` suffix as a pre-release tag and skips it otherwise. Expect a minute or two while the images pull.
+
+## 5. Open the workshop
 
 Visit [http://localhost:8080/](http://localhost:8080/). You should land on the same page you're reading now, served from your k3d cluster.
 
-## 5. Do the modules
+## 6. Do the modules
 
 Follow Connect-to-your-cluster, then the Crossplane 101 modules, in order. Two differences from the workshop-day flow:
 
@@ -75,7 +90,7 @@ Follow Connect-to-your-cluster, then the Crossplane 101 modules, in order. Two d
 
 Each module's validation button will evaluate against your k3d cluster and flip green as you progress.
 
-## 6. Clean up
+## 7. Clean up
 
 ```bash
 k3d cluster delete crossplane-workshop-solo

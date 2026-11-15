@@ -1,7 +1,9 @@
 # Composition that turns a DeveloperEnvironment XR (Crossplane v2,
 # cluster-scoped, no claim layer) into a complete participant
-# environment: namespace, vcluster Helm release, per-pair HTTPRoute
-# for /team/<pair>/ routing via Gateway API, and a ResourceQuota.
+# environment: namespace, vcluster Helm release, Crossplane (UXP)
+# pre-installed inside that vcluster (unless preinstallCrossplane is
+# false), per-pair HTTPRoute for /team/<pair>/ routing via Gateway API,
+# quotas, NetworkPolicies and the Platform registration.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -416,8 +418,8 @@ spec:
           # upbound-controller-manager initialize-crds initContainer)
           # ship containers without complete resource specs and would
           # otherwise be rejected by the host syncer's admission, which
-          # makes module 3's `helm install crossplane … --wait` time
-          # out silently.
+          # makes the pre-installed Crossplane Release (Step 2 below) time
+          # out on `wait` and leaves the XR not Ready.
           #
           # LimitRange admission runs before ResourceQuota, so missing
           # fields get defaulted in time for the quota gate. Defaults
@@ -800,7 +802,97 @@ spec:
                 toFieldPath: spec.forProvider.manifest.metadata.namespace
 
 
-    # --- Step 2: Platform user (go-templating) ---
+    # --- Step 2: Crossplane pre-install (go-templating) (#229) ---
+    # Crossplane 101 assumes the pair cluster already runs Crossplane.
+    # Gated by `spec.preinstallCrossplane` (XRD default true), which is
+    # why this lives in go-templating rather than patch-and-transform:
+    # P&T can't leave a resource out conditionally.
+    #
+    # Two resources:
+    #   * provider-helm ProviderConfig `vcluster-<pair>`, pointing at the
+    #     pair's own vcluster through the admin kubeconfig the vcluster
+    #     chart writes to Secret/vc-<pair>. Its server URL is the
+    #     in-cluster `https://<pair>.participant-<pair>:443` set by
+    #     `exportKubeConfig.server` above, and the syncer pod accepts
+    #     ingress from anywhere (netpol-allow-syncer-ingress-all), so no
+    #     extra RBAC or NetworkPolicy is needed. ProviderConfigs have no
+    #     Ready condition, so it is marked ready explicitly.
+    #   * Release `crossplane-<pair>`: UXP into crossplane-system inside
+    #     the vcluster. `wait: true` keeps the XR not Ready until
+    #     Crossplane runs, so a slow pull or failed install shows up at
+    #     provisioning time, not in front of the room.
+    #
+    # Release design, driven by participants running their own
+    # `helm upgrade --install crossplane …` over this install:
+    #   * Helm release name `crossplane` in `crossplane-system`, via the
+    #     external-name annotation (the MR name must be unique on the
+    #     management cluster).
+    #   * Values limited to webui.enabled. A participant's upgrade resets
+    #     anything it doesn't pass back to the chart default.
+    #   * managementPolicies omit Update, so provider-helm never reverts
+    #     a participant's change. Consequence: bumping the version here
+    #     only reaches newly created pairs. Pairs are rebuilt per event.
+    #   * managementPolicies omit Delete (orphan). When the XR is deleted
+    #     the vcluster goes with it; an uninstall against an already-gone
+    #     apiserver would hang the finalizer.
+    #
+    # Keep the chart version in step with gitops/apps/crossplane.yaml.
+    # The UXP pods land in participant-<pair> on the host, so the
+    # LimitRange above fills in the resource fields UXP's charts leave
+    # out.
+    - step: crossplane-preinstall
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $xr := .observed.composite.resource }}
+            {{ $pairId := $xr.spec.pairId }}
+            {{ if dig "spec" "preinstallCrossplane" true $xr }}
+            ---
+            apiVersion: helm.crossplane.io/v1beta1
+            kind: ProviderConfig
+            metadata:
+              name: vcluster-{{ $pairId }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: vcluster-providerconfig
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              credentials:
+                source: Secret
+                secretRef:
+                  namespace: participant-{{ $pairId }}
+                  name: vc-{{ $pairId }}
+                  key: config
+            ---
+            apiVersion: helm.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              name: crossplane-{{ $pairId }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: crossplane-release
+                crossplane.io/external-name: crossplane
+            spec:
+              managementPolicies: ["Observe", "Create"]
+              providerConfigRef:
+                name: vcluster-{{ $pairId }}
+              forProvider:
+                chart:
+                  name: crossplane
+                  repository: https://charts.upbound.io/stable
+                  version: "2.4.3-up.1"
+                namespace: crossplane-system
+                wait: true
+                waitTimeout: 10m
+                values:
+                  webui:
+                    enabled: true
+            {{ end }}
+
+    # --- Step 3: Platform user (go-templating) ---
     # Creates a Platform User per pair and registers the pair's
     # vcluster as an external VirtualClusterInstance with the User as
     # owner. The User has NO password — participants do not log into
@@ -882,7 +974,7 @@ spec:
                         verbs: ["*"]
                         users: ["admin"]
 
-    # --- Step 3: Auto-ready ---
+    # --- Step 4: Auto-ready ---
     # Marks the XR as Ready when all composed resources are Ready.
     # Required because function-go-templating resources don't
     # propagate readiness to the composite by default.

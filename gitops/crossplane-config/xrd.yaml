@@ -81,5 +81,11 @@ spec:
                     pods:
                       type: string
                       default: "90"
+                preinstallCrossplane:
+                  type: boolean
+                  default: true
+                  description: >-
+                    Install Crossplane (UXP) inside the pair vcluster as
+                    part of provisioning.
               required:
                 - pairId
