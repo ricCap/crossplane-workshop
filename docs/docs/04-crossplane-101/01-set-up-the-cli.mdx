@@ -102,42 +102,9 @@ webui-5c65cc8bdf-9wtzn                     1/1     Running   0          4h
 
 Two of those five are the ones you'll interact with. **`crossplane`** is the core controller — the long-running program that watches XRDs, Compositions, XRs and Functions and runs a reconciliation loop on each. Every module after this one depends on that Pod being healthy. **`webui`** is UXP's read-only dashboard, handy for inspecting what you compose without `kubectl`. The other three are infrastructure you won't touch.
 
-If instead you get `No resources found in crossplane-system namespace`, install it:
+Your cluster comes with Crossplane already installed. This is **UXP**, Upbound's distribution of Crossplane: the same core, plus the bundled Web UI. Everything in this workshop transfers to upstream Crossplane one for one — see the [Cheatsheet](../cheatsheet) for the difference.
 
-<details>
-<summary>Crossplane isn't running — install it (⏱️ ~5m)</summary>
-
-Add the Upbound Helm repo:
-
-```bash
-helm repo add upbound-stable https://charts.upbound.io/stable
-helm repo update upbound-stable
-```
-
-Install UXP into `crossplane-system`:
-
-```bash
-helm install crossplane upbound-stable/crossplane \
-  --version 2.4.3-up.2 \
-  --namespace crossplane-system \
-  --create-namespace \
-  --devel \
-  --wait \
-  --set webui.enabled=true
-```
-
-Four flags are doing real work:
-
-- `--version 2.4.3-up.2` pins the chart. Without it Helm takes the newest available, which has drifted past what these modules were written against.
-- `--devel` is required to install that version at all — the `-up.1` suffix is a SemVer pre-release tag, and Helm filters those out by default.
-- `--wait` blocks until the Crossplane Deployments report Available, so the command only returns once the cluster is actually ready. Expect 30–60 seconds on a workshop-sized cluster.
-- `--set webui.enabled=true` turns on the read-only Web UI.
-
-This installs **UXP**, Upbound's distribution of Crossplane: the same core, plus the bundled Web UI. Everything in this workshop transfers to upstream Crossplane one for one — see the [Cheatsheet](../cheatsheet) for the difference.
-
-Then re-run the check above and wait for `Running`.
-
-</details>
+If instead you get `No resources found in crossplane-system namespace`, your cluster wasn't provisioned correctly. Ask an instructor before you go on.
 
 <ValidateCheck check="cluster-reachable" />
 
