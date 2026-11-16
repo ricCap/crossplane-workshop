@@ -21,6 +21,7 @@ GitOps scaffolding for a Crossplane workshop on ArubaCloud. Crossplane 101 is a 
 - `docs/` — the Docusaurus workshop site (English source under `docs/docs/`, Italian mirror under `docs/i18n/it/`).
 - `validator/` — the per-pair check service behind the `<ValidateCheck>` buttons and the wall.
 - `Taskfile.yml` — every command lives here.
+- `RUNBOOK.md` — the operator runbook for an event: T-1d, T-0 and after.
 
 The **"gotcha moment"**: participant vclusters are provisioned by a Crossplane Composition on the management cluster. A `DeveloperEnvironment` composes a provider-helm `Release` for the vcluster, a second `Release` (with its own `ProviderConfig`) that pre-installs Crossplane inside it, plus provider-kubernetes `Object`s for the Namespace, HTTPRoute, ResourceQuota, LimitRange, NetworkPolicies, RBAC and the Loft `User` / `VirtualClusterInstance`. Routing uses Gateway API (Envoy Gateway) instead of Ingress.
 
@@ -70,7 +71,7 @@ Use the local task on a vind because Platform isn't exposed there (no LE cert fo
 
 The roadmap is GitHub milestones and issues, not a file in the repo. The current delivery's milestone description holds the context (date, pair count, scope, what is out); each piece of work is an issue in it; the reasoning behind a big call is a comment on its issue (look for "Decision record"). Work parked without a date carries the `deferred` label and no milestone.
 
-Whenever you agree a new plan with the user, update the milestone and issues in the same session. Findings from a dry run become issues in the milestone; runbook items go on the runbook issue.
+Whenever you agree a new plan with the user, update the milestone and issues in the same session. Findings from a dry run become issues in the milestone; runbook items go in [`RUNBOOK.md`](RUNBOOK.md).
 
 ## Authoring workshop modules
 
