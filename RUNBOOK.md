@@ -1,8 +1,9 @@
 # Workshop runbook — Crossplane 101 (90 minutes)
 
 Operator runbook for the 90-minute Crossplane 101 delivery on Aruba
-(Cloud Native Denmark format). Every step that touches a cluster is a
-`task` command; the rest happen in a browser or a console and say so.
+(Cloud Native Denmark format). Steps are `task` commands where one
+exists; the rest happen in a browser, a console or with `kubectl`, and
+say so.
 Background on each credential and task is in [AGENTS.md](AGENTS.md).
 
 This delivery does **not** run `workshop:enable-aruba`, so
@@ -52,14 +53,14 @@ The scoped key makes `verify:all MODE=platform` fail with
 
 **Release.**
 
-- [ ] The event release is cut and the pin bumped (#251, AGENTS.md §Releasing).
-- [ ] `task docs:check-pin` passes.
+- [ ] The event release is cut, the pin in `gitops/docs/deployment.yaml`
+      bumped and synced (#251, AGENTS.md §Releasing).
 
 ## T-0 — the morning of
 
 1. `vcluster platform login https://platform-crossplane.workshop.riccardocapraro.com --access-key <unscoped-key>`
 2. `task verify:all MODE=platform` — the participant path for every pair.
-3. `task docs:check-pin`
+3. The docs Deployment runs the release tag (AGENTS.md §Releasing, step 5).
 4. Pick the ZIP password, then
    `KUBECONFIG_ZIP_PASSWORD=<pw> task pairs:distribute`.
    This rotates every pair's kubeconfig and registry login, so run it once,
@@ -92,8 +93,12 @@ the Aruba path is down, everyone falls back to solo (k3d), page
 
 **Cluster teardown**, if the cluster is being deleted:
 
-1. `task cluster:teardown` — stops ArgoCD, deletes every DeveloperEnvironment,
-   the registry and Envoy namespaces, then fails if any PV or LoadBalancer
-   Service is left.
-2. Delete the cluster in the Aruba console.
-3. Check Block Storage and LB / Elastic IPs in the console are empty.
+do this before deleting it in the Aruba console, so no volume or load
+balancer outlives it:
+
+1. Scale `argo-cd-argocd-application-controller` (namespace `argocd`) to 0.
+2. `kubectl delete developerenvironments --all --wait`
+3. `kubectl delete namespace registry envoy-gateway-system --wait`
+4. `kubectl get pv` and the LoadBalancer Services are empty.
+5. Delete the cluster in the Aruba console.
+6. Check Block Storage and LB / Elastic IPs in the console are empty.

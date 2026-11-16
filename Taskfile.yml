@@ -255,38 +255,6 @@ tasks:
     cmds:
       - node docs/scripts/check-i18n-sync.js --bump FILE={{.FILE}}
 
-  docs:check-pin:
-    desc: |
-      Pre-event check of the docs + validator image pin. Fails unless
-      gitops/docs/deployment.yaml pins both images to one tag, that tag
-      is the latest GitHub Release, and the docs Deployment on the
-      current kubectl context runs it. See RUNBOOK.md.
-    cmds:
-      - |
-        set -euo pipefail
-        pinned=$(grep -oE 'crossplane-workshop-(docs|validator):[^"[:space:]]+' gitops/docs/deployment.yaml \
-          | cut -d: -f2 | sort -u)
-        if [ "$(echo "${pinned}" | wc -l | tr -d ' ')" -ne 1 ]; then
-          echo "FAIL: docs and validator are pinned to different tags:" >&2
-          echo "${pinned}" | sed 's/^/  /' >&2
-          exit 1
-        fi
-        latest=$(gh release view --repo {{.GITHUB_REPO}} --json tagName -q .tagName)
-        live=$(kubectl get deploy docs -n {{.DOCS_NS}} -o jsonpath='{.spec.template.spec.containers[*].image}' \
-          | tr ' ' '\n' | cut -d: -f2 | sort -u)
-        echo "pinned in git:  ${pinned}"
-        echo "latest release: ${latest}"
-        echo "live on $(kubectl config current-context): ${live}"
-        if [ "${pinned}" != "${latest}" ]; then
-          echo "FAIL: the pin is not the latest release. Bump gitops/docs/deployment.yaml (AGENTS.md §Releasing)." >&2
-          exit 1
-        fi
-        if [ "${live}" != "${pinned}" ]; then
-          echo "FAIL: the cluster does not run the pinned tag yet. Is the bump merged and synced?" >&2
-          exit 1
-        fi
-        echo "OK"
-
   # ------------------------------------------------------------------
   # Bootstrap (shared by Phase 1 and Phase 2)
   # ------------------------------------------------------------------
@@ -1831,61 +1799,6 @@ tasks:
         echo ""
         echo "Patched. The CSI driver deletes each volume; re-run in a"
         echo "minute to confirm none are left."
-
-  cluster:teardown:
-    desc: |
-      Empty the management cluster before deleting it in the Aruba
-      console, so no block-storage volume or load balancer outlives it.
-      Run against the cluster you are about to delete; it acts on the
-      current kubectl context.
-
-        1. Scale the ArgoCD application controller to 0, so nothing
-           re-creates what the next steps delete.
-        2. Delete every DeveloperEnvironment and wait (vclusters,
-           pair namespaces and their PVCs go with them).
-        3. Delete the registry and envoy-gateway-system namespaces and
-           wait (Zot's PVC and the Envoy LoadBalancer Service).
-        4. Fail if any PV or LoadBalancer Service is left.
-
-      Then delete the cluster in the Aruba console and check Block
-      Storage and LB / Elastic IPs there. See RUNBOOK.md.
-
-      Usage:
-        task cluster:teardown              # asks "yes"
-        task cluster:teardown CONFIRM=yes
-    cmds:
-      - |
-        set -euo pipefail
-        ctx=$(kubectl config current-context)
-        echo "About to empty the cluster behind context: ${ctx}"
-        if [ "${CONFIRM:-}" != "yes" ]; then
-          read -p "Proceed? (yes/no) " response
-          if [ "$response" != "yes" ]; then
-            echo "aborted."
-            exit 1
-          fi
-        fi
-
-        kubectl scale statefulset argo-cd-argocd-application-controller -n {{.ARGOCD_NS}} --replicas=0
-        kubectl delete developerenvironments --all --wait --timeout=15m
-        kubectl delete namespace registry {{.ENVOY_GATEWAY_NS}} --ignore-not-found --wait --timeout=10m
-
-        left=0
-        pvs=$(kubectl get pv -o name)
-        if [ -n "${pvs}" ]; then
-          echo "PVs still present:"; echo "${pvs}" | sed 's/^/  /'; left=1
-        fi
-        lbs=$(kubectl get svc -A -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}')
-        if [ -n "${lbs}" ]; then
-          echo "LoadBalancer Services still present:"; echo "${lbs}" | sed 's/^/  /'; left=1
-        fi
-        if [ "${left}" -ne 0 ]; then
-          echo "Not empty yet. Wait a minute and re-run; see workshop:sweep-volumes for Released PVs." >&2
-          exit 1
-        fi
-        echo ""
-        echo "Empty. Now delete the cluster in the Aruba console, then check"
-        echo "Block Storage and LB / Elastic IPs there for leftovers."
 
   # ------------------------------------------------------------------
   # Verify
