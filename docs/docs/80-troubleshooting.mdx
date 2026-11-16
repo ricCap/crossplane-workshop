@@ -78,3 +78,38 @@ one-day workshop, less ideal as a long-term dependency.
 
 For this workshop, prefer ECR for any official image, and `mirror.gcr.io`
 only when you need a non-library image.
+
+## Crossplane CLI can't reach Docker Desktop on Linux
+
+### Why it happens
+
+On Linux, Docker Desktop runs its own engine inside a VM and exposes it
+on a separate socket, `~/.docker/desktop/docker.sock`. The `docker` CLI
+finds it through the `desktop-linux` context. The Crossplane CLI ignores
+Docker contexts: it reads `DOCKER_HOST` and otherwise falls back to
+`/var/run/docker.sock`, the native engine's socket.
+
+So `docker ps` works, but `crossplane dependency add` (or any other
+`crossplane` command that needs Docker) fails, because it is talking to
+an engine that isn't running, or to a different engine than the one
+you logged in to.
+
+### How to confirm it's the socket
+
+```bash
+docker context ls
+```
+
+If the active context (marked `*`) is `desktop-linux` and the Crossplane
+error mentions `/var/run/docker.sock`, the diagnosis is confirmed.
+
+### How to fix
+
+Point `DOCKER_HOST` at the Docker Desktop socket:
+
+```bash
+export DOCKER_HOST=$(docker context inspect desktop-linux --format '{{.Endpoints.docker.Host}}')
+```
+
+Run the `crossplane` command again in the same shell. To make it stick,
+add the `export` line to your `~/.bashrc` or `~/.zshrc`.

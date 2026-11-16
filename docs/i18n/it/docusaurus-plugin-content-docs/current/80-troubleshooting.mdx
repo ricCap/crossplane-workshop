@@ -1,7 +1,7 @@
 ---
 sidebar_position: 80
 title: Troubleshooting
-translation_source_commit: 1c3d32844801e09de032a21d965df6c3ab1cfa03
+translation_source_commit: 8856cbb0872d642b7fd5ef1ebca1dfce6de55786
 ---
 
 # Troubleshooting
@@ -82,3 +82,38 @@ di un giorno, meno ideale come dipendenza di lungo termine.
 
 Per questo workshop, preferisci ECR per qualunque immagine ufficiale, e
 `mirror.gcr.io` solo quando ti serve un'immagine non-library.
+
+## La CLI di Crossplane non raggiunge Docker Desktop su Linux
+
+### Perché succede
+
+Su Linux, Docker Desktop esegue il proprio engine dentro una VM e lo
+espone su un socket separato, `~/.docker/desktop/docker.sock`. La CLI
+`docker` lo trova tramite il context `desktop-linux`. La CLI di
+Crossplane ignora i context di Docker: legge `DOCKER_HOST` e altrimenti
+ripiega su `/var/run/docker.sock`, il socket dell'engine nativo.
+
+Quindi `docker ps` funziona, ma `crossplane dependency add` (o qualunque
+altro comando `crossplane` che ha bisogno di Docker) fallisce, perché
+parla con un engine che non è in esecuzione, o con un engine diverso da
+quello su cui hai fatto login.
+
+### Come confermare che è il socket
+
+```bash
+docker context ls
+```
+
+Se il context attivo (segnato con `*`) è `desktop-linux` e l'errore di
+Crossplane menziona `/var/run/docker.sock`, la diagnosi è confermata.
+
+### Come fixare
+
+Punta `DOCKER_HOST` al socket di Docker Desktop:
+
+```bash
+export DOCKER_HOST=$(docker context inspect desktop-linux --format '{{.Endpoints.docker.Host}}')
+```
+
+Rilancia il comando `crossplane` nella stessa shell. Per renderlo
+permanente, aggiungi la riga `export` al tuo `~/.bashrc` o `~/.zshrc`.
