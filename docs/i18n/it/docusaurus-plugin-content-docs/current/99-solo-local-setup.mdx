@@ -8,7 +8,11 @@ translation_source_commit: 41055bd07c8cf230986ea8d9865d3c4f1fc968e8
 
 Il workshop principale consegna a ogni coppia un cluster pre-provisionato. Se vuoi percorrere Connetti-il-tuo-cluster e il track **Crossplane 101** per conto tuo — fuori dal workshop dal vivo, senza infrastruttura condivisa — questa pagina è la ricetta completa. Tutto gira in un singolo cluster [k3d](https://k3d.io) sulla tua macchina.
 
-Non serve clonare questo repo. Ogni manifest è scaricato da URL pubblici; ogni immagine è scaricata da registry pubblici.
+Non serve clonare alcun repo. Ogni manifest è scaricato da URL pubblici; ogni immagine è scaricata da registry pubblici.
+
+:::note Lavori su Windows?
+Il workshop è stato testato su Mac e Ubuntu (entrambi con Docker Desktop). Su Windows, la scelta migliore è WSL.
+:::
 
 ## Prerequisiti
 
@@ -19,10 +23,9 @@ Non serve clonare questo repo. Ogni manifest è scaricato da URL pubblici; ogni 
 | [helm](https://helm.sh/docs/intro/install/) | `brew install helm` |
 | [k3d](https://k3d.io/#installation) | `brew install k3d` |
 
-> Questa ricetta presuppone k3d. Il registry di pacchetti si basa sul port mapping di k3d e sul range di Service predefinito di k3s, quindi su minikube, kind o un altro cluster locale i passi del registry vanno adattati.
-
-
-Tutto qui. Crossplane lo installi tu al passo 4.
+:::note Usi kind o minikube?
+Questa ricetta presuppone k3d. Il registry di pacchetti si basa sul port mapping di k3d e sul range di Service predefinito di k3s, quindi su minikube, kind o un altro cluster locale i passi del registry vanno adattati.
+:::
 
 ## 1. Crea il cluster
 
@@ -33,7 +36,12 @@ k3d cluster create crossplane-workshop-solo \
   --k3s-arg "--disable=traefik@server:0"
 ```
 
-Tre flag che vale la pena spiegare. `-p "8080:80@loadbalancer"` inoltra la porta 8080 del tuo host al ServiceLB del cluster, che è dove Envoy Gateway termina il traffico. `-p "127.0.0.1:5111:30511@server:0"` espone il registry di pacchetti del cluster sul tuo laptop su `127.0.0.1:5111`, e solo lì: nient'altro sulla tua rete può raggiungerlo. `--k3s-arg "--disable=traefik@server:0"` spegne l'ingress controller traefik incluso in k3s — il workshop instrada attraverso Envoy Gateway (Gateway API), e due controller che si contendono la porta 80 finiscono col farti ottenere la pagina 404 di traefik invece dei docs. Quando il cluster è su, `kubectl cluster-info` dovrebbe mostrare un context `k3d-crossplane-workshop-solo`.
+Tre flag che vale la pena spiegare:
+* `-p "8080:80@loadbalancer"` inoltra la porta 8080 del tuo host al ServiceLB del cluster, che è dove Envoy Gateway termina il traffico.
+* `-p "127.0.0.1:5111:30511@server:0"` espone il registry di pacchetti del cluster sul tuo laptop su `127.0.0.1:5111`, e solo lì: nient'altro sulla tua rete può raggiungerlo.
+* `--k3s-arg "--disable=traefik@server:0"` spegne l'ingress controller traefik incluso in k3s — il workshop instrada attraverso Envoy Gateway (Gateway API), e due controller che si contendono la porta 80 finiscono col farti ottenere la pagina 404 di traefik invece dei docs.
+
+Quando il cluster è su, `kubectl cluster-info` dovrebbe mostrare un context `k3d-crossplane-workshop-solo`.
 
 ## 2. Installa Envoy Gateway
 
@@ -50,10 +58,14 @@ helm install eg oci://docker.io/envoyproxy/gateway-helm \
 
 Un solo `kubectl apply` installa:
 1. il sito Docusaurus (questo)
-2. il sidecar validator
+2. il sidecar validator (per fare controlli dentro il tuo cluster da localhost)
 3. un listener `Gateway` sulla porta 80
 4. degli HTTPRoute che espongono `/` → docs, `/team/local/` → il frontend che creerai nel modulo Definisci-un'Application, e `/team/local/api/` → il suo backend
-5. un registry di pacchetti, su cui farai push della piattaforma che costruisci nel modulo Pubblica-la-tua-piattaforma
+5. un registry di pacchetti (zot), su cui farai push della piattaforma che costruisci nel modulo Pubblica-la-tua-piattaforma
+
+:::note Non fidarti, verifica
+Sentiti libero di controllare lo YAML prima di applicarlo. Non è lungo.
+:::
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/ricCap/crossplane-workshop/{{REF}}/gitops/solo/all.yaml

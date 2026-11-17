@@ -75,7 +75,7 @@
     <text class="muted" text-anchor="middle" x="487" y="466">xpkg.upbound.io,</text>
     <text class="muted" text-anchor="middle" x="487" y="486">ghcr.io/&lt;you&gt;/&lt;pkg&gt;, …</text>
   </g>
-  <text class="ext-label" text-anchor="middle" x="487" y="384">External</text>
+  <text class="ext-label" text-anchor="start" x="352" y="386">External</text>
 
   <!-- Arrow registry -> Configuration MR -->
   <path class="arrow" d="M 487 508 C 489 538, 487 556, 487 578" />
@@ -90,6 +90,6 @@
     <text class="muted" text-anchor="middle" x="495" y="654">Crossplane installs the package's XRDs + Compositions,</text>
     <text class="muted" text-anchor="middle" x="495" y="676">then resolves and pulls the Providers + Functions from dependsOn</text>
   </g>
-  <text class="cluster-label" text-anchor="middle" x="495" y="578">Target cluster</text>
+  <text class="cluster-label" text-anchor="start" x="84" y="578">Target cluster</text>
 
 </svg>

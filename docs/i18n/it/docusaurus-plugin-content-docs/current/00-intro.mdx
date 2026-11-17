@@ -10,7 +10,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Benvenuti al workshop di Crossplane ⏱️ 8m
 
-In circa un'ora costruirai la tua API Kubernetes con [Crossplane](https://crossplane.io), la impacchetterai e la pubblicherai dal tuo laptop nel cluster del workshop — come faresti in un progetto reale. Uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane — XRD, Composition, XR, Function e Package — e con un cluster su cui continuare a sperimentare anche dopo il workshop.
+In circa un'ora costruirai la tua API Kubernetes con [Crossplane](https://crossplane.io), la impacchetterai e la pubblicherai dal tuo laptop nel cluster del workshop come faresti in un progetto reale, e uscirai con un modello mentale funzionante degli oggetti centrali di Crossplane.
 
 **Il problema che Crossplane risolve**, in due frasi: `kubectl apply` è ottimo per i manifest di un singolo team, ma ogni vera piattaforma si dirama in decine di oggetti di basso livello (Deployment, Service, risorse cloud, release Helm) che qualcuno deve coordinare per "un'applicazione" o "un database". Crossplane ti permette di pubblicare l'API del tuo team — un singolo kind `Application` — che crea silenziosamente tutte quelle parti di basso livello, così gli altri team consumano la tua piattaforma con un singolo file YAML invece di decine. La sezione [Il quadro generale del Cheatsheet](./cheatsheet#the-big-picture) approfondisce un livello in più.
 
@@ -38,7 +38,9 @@ I **moduli task** (Connetti il tuo cluster, più tutto Crossplane 101) seguono l
 
 Il **Cheatsheet** è una pagina di riferimento. Tienilo aperto in una seconda scheda — è il modo più veloce per controllare cos'è un XRD o una Composition senza uscire dal modulo corrente. Contiene anche una breve [§1.1 sottosezione "Controller e l'operator pattern"](./cheatsheet#controllers-and-the-operator-pattern) che vale la pena leggere una volta prima del modulo 3, soprattutto se "controller" e "loop di riconciliazione" sono termini nuovi per te.
 
+:::note Lavori in solo in locale?
 Se stai facendo questo workshop sul tuo laptop, fuori dalla sessione dal vivo, salta prima a [Setup locale solo (k3d)](./solo-local-setup).
+:::
 
 ## Come funziona la validazione
 

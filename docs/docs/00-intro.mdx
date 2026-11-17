@@ -2,6 +2,9 @@
 sidebar_position: 1
 slug: /
 title: Introduction
+ai_edit: locked
+ai_edit_reviewed: 2026-11-17
+ai_edit_reviewer: ricCap
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -9,7 +12,7 @@ import ValidateCheck from '@site/src/components/ValidateCheck';
 
 # Welcome to the Crossplane workshop ⏱️ 8m
 
-In about an hour you will build your own Kubernetes API with [Crossplane](https://crossplane.io), package it, and publish it from your laptop into your workshop cluster — the way you would in a real project. You'll walk away with a working mental model of Crossplane's core objects — XRD, Composition, XR, Function and Package — and a cluster you can keep experimenting in afterwards.
+In about an hour you will build your own Kubernetes API with [Crossplane](https://crossplane.io), package it, and publish it from your laptop into your workshop cluster the same way you would in a real project, and walk away with a working mental model of Crossplane's core objects.
 
 **The problem Crossplane solves**, in two sentences: `kubectl apply` is great for one team's manifests, but every real platform fans out into dozens of low-level objects (Deployments, Services, cloud resources, Helm releases) that someone has to coordinate for "an app" or "a database". Crossplane lets you publish your team's own API — a single `Application` kind — that quietly creates all those low-level pieces, so other teams consume your platform with one YAML file instead of dozens. The [Cheatsheet's big picture](./cheatsheet#the-big-picture) goes a layer deeper.
 
@@ -37,7 +40,9 @@ The **task modules** (Connect to your cluster, plus everything in Crossplane 101
 
 The **Cheatsheet** is a reference page. Keep it open in a second tab — it's the fastest way to look up what an XRD or a Composition is without leaving your current module. It also has a short [§1.1 "Controllers and the operator pattern" subsection](./cheatsheet#controllers-and-the-operator-pattern) worth reading once before module 3, especially if "controller" and "reconciliation loop" are new vocabulary.
 
+:::note Running solo locally?
 If you're running this on your own laptop outside the live workshop, jump to [Solo local setup (k3d)](./solo-local-setup) first.
+:::
 
 ## How validation works
 
