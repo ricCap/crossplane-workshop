@@ -1,6 +1,9 @@
 ---
 sidebar_position: 3
 title: Define an Application
+ai_edit: locked
+ai_edit_reviewed: 2026-11-17
+ai_edit_reviewer: ricCap
 ---
 
 import PairId from '@site/src/components/PairId';
@@ -57,7 +60,7 @@ This writes `apis/applications/composition.yaml`, adds `function-auto-ready` to 
 crossplane dependency add xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform
 ```
 
-The generated Composition only has `function-auto-ready`, which reports on resources but creates none. `function-patch-and-transform` is the one that makes them.
+The generated Composition only has `function-auto-ready`, which reports on resources but doesn't create any. `function-patch-and-transform` is the one that creates them.
 
 ### 3. Fill in the recipe
 
@@ -485,9 +488,7 @@ Three things worth looking at before moving on:
 
 ### A note on RBAC ⏱️ 2m
 
-One Kubernetes truth worth surfacing before you move on, because it decides what you're allowed to compose.
-
-Crossplane core is what applies the resources your Composition emits. Like every controller, it can only create kinds it holds RBAC for. UXP's bundled `crossplane` ClusterRole already grants the verbs you need on the three kinds in this recipe, so the flow works without you touching RBAC at all. If your cluster is reachable, confirm it:
+Crossplane core is what applies the resources your Composition emits. Like every controller, it can only create kinds it holds RBAC for. UXP's bundled `crossplane` ClusterRole already grants the verbs you need on the three kinds in this recipe, so the flow works without you touching RBAC at all. You can check Crossplane's permissions like this:
 
 ```bash
 kubectl auth can-i create configmaps \
@@ -499,12 +500,12 @@ kubectl auth can-i create configmaps \
 yes
 ```
 
-Two reasons it matters anyway:
+Why it matters:
 
-- **Compose a different kind and you have to extend the grant.** The pattern is an *aggregated* `ClusterRole` carrying the label `rbac.crossplane.io/aggregate-to-crossplane: "true"` — Kubernetes' RBAC aggregator merges its rules into the existing `crossplane` ClusterRole at runtime, so you never edit the chart's role. This recipe stays inside ConfigMap, Service and Deployment, so you don't need one. A Composition that produced a `Job` would.
+- **Compose a different kind and you have to extend the grant.** Add an aggregated `ClusterRole` labelled `rbac.crossplane.io/aggregate-to-crossplane: "true"`. Kubernetes merges its rules into the `crossplane` ClusterRole, so you never edit the chart's role.
 - **Production RBAC is narrower than this.** A broad wildcard grant is fine on a workshop cluster. In production you'd scope it down to explicit verbs on the kinds your platform actually composes, and review it the way you'd review any other privileged ServiceAccount.
 
-This is a trade-off Crossplane v2 makes visible. The resources here are applied by Crossplane core itself, so the grant is Crossplane's. Compose through a provider instead — `provider-kubernetes`, say — and the equivalent grant moves to *that provider's* ServiceAccount via its `ProviderConfig`: the same question, one layer further away.
+When you compose resources through a provider — for instance, `provider-helm` — the permissions are set on *that provider's* ServiceAccount using a `ProviderConfig`.
 
 ## 3.3 What just happened
 
