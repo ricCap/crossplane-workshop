@@ -557,8 +557,8 @@ Do not reintroduce a password Secret; access keys are the auth path.
 
 - **Runtime**: Kubernetes v1.35 on the event cluster (v1.33 on the smoketest), containerd 1.7, Calico v3.29 (NetworkPolicy works). StorageClass `acloud` (CSI, `WaitForFirstConsumer`, `Delete`), volumes network-attached so they do not count against node ephemeral storage.
 - **Baseline** (ArgoCD, Crossplane + functions + providers, UXP webui, Platform, Envoy, cert-manager, docs, CSI, metrics-server): ~1.3 vCPU / 2.8 GiB requests.
-- **Per pair** with Crossplane pre-installed (#229, measured on k3d 2026-11-09): **720m / 1.5 GiB requests** counted against the pair quota (syncer 250m/512Mi, the rest mostly LimitRange defaults on UXP's containers); actual use ~100m / 790 MiB idle. Requests are what bin-packing sees — re-check the rule of thumb below on the real pool. Quota allows 2 vCPU / 4 GiB.
-- **Rule of thumb**: ~5–6 pairs per node before bin-packing fails, plus one node's headroom. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.
+- **Per pair** with Crossplane pre-installed (#229, measured on k3d 2026-11-09): **720m / 1.5 GiB requests** counted against the pair quota (syncer 250m/512Mi, the rest mostly LimitRange defaults on UXP's containers); actual use ~100m / 790 MiB idle. Requests are what bin-packing sees — re-check the rule of thumb below on the real pool. The pair `ResourceQuota` allows 6 vCPU / 12 GiB requests (18 / 24 GiB limits), so it will not stop a runaway pair before it fills a node.
+- **Rule of thumb**: on 4 vCPU / 8 GiB nodes memory binds first, ~4 idle pairs per node; budget ~2.5 GiB per pair once participants install functions. For Cloud Native Denmark (16 pairs + spare) the pool is 5× K8A16, so losing one node still fits the room. Each pair also costs a ~5 GiB PVC against Aruba's block-storage quota.
 - **Envoy runs as a DaemonSet** (#235). Keep `externalTrafficPolicy: Local`: `Cluster` would SNAT traffic and collapse Platform's per-client login rate limit to per-node, 429ing a room at ~2–4 pairs per node.
 
 ## Known behaviour worth remembering

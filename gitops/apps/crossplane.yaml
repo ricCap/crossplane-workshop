@@ -34,7 +34,9 @@ spec:
             memory: 128Mi
           limits:
             cpu: 500m
-            memory: 512Mi
+            # 1Gi, not 512Mi: scaling to 16+ pairs reconciles every
+            # DeveloperEnvironment and its ~15 composed resources at once.
+            memory: 1Gi
         # Web UI — bundled with UXP v2, read-only. Used in the
         # workshop visualization step to inspect XRDs, Compositions,
         # XRs and managed resources without kubectl.
