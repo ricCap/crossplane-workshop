@@ -8,7 +8,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: docs
-  minReplicas: 1
+  # Two so the docs site and the wall survive losing a node.
+  minReplicas: 2
   maxReplicas: 3
   metrics:
     - type: Resource

@@ -559,6 +559,12 @@ tasks:
         helm repo add loft https://charts.loft.sh 2>/dev/null || true
         helm repo update loft
 
+        # Two replicas spread across nodes: every participant kubectl/helm
+        # request is proxied through Platform, so one replica is a
+        # single point of failure for the whole room. The chart turns on
+        # leader election by itself when replicaCount > 1. Sized for 16
+        # pairs; the old 1 CPU limit would throttle under helm bursts.
+        #
         # config.costControl.enabled=false skips the Prometheus / global-prometheus / OpenCost Helm releases Loft auto-installs at runtime when cost analytics is enabled.
         helm upgrade --install vcluster-platform loft/vcluster-platform \
           --version {{.VCLUSTER_PLATFORM_VERSION}} \
@@ -569,11 +575,12 @@ tasks:
           --set ingress.enabled=false \
           --set config.loftHost=platform-crossplane.workshop.riccardocapraro.com \
           --set config.costControl.enabled=false \
-          --set replicaCount=1 \
-          --set "resources.requests.cpu=200m" \
-          --set "resources.requests.memory=512Mi" \
-          --set "resources.limits.cpu=1" \
-          --set "resources.limits.memory=2Gi" \
+          --set replicaCount=2 \
+          --set-json 'affinity.podAntiAffinity={"preferredDuringSchedulingIgnoredDuringExecution":[{"weight":100,"podAffinityTerm":{"topologyKey":"kubernetes.io/hostname","labelSelector":{"matchLabels":{"app":"loft"}}}}]}' \
+          --set "resources.requests.cpu=500m" \
+          --set "resources.requests.memory=1Gi" \
+          --set "resources.limits.cpu=2" \
+          --set "resources.limits.memory=4Gi" \
           --wait --timeout 5m
 
         echo "vCluster Platform installed. UI: https://platform-crossplane.workshop.riccardocapraro.com"
