@@ -559,11 +559,13 @@ tasks:
         helm repo add loft https://charts.loft.sh 2>/dev/null || true
         helm repo update loft
 
-        # Two replicas spread across nodes: every participant kubectl/helm
-        # request is proxied through Platform, so one replica is a
-        # single point of failure for the whole room. The chart turns on
-        # leader election by itself when replicaCount > 1. Sized for 16
-        # pairs; the old 1 CPU limit would throttle under helm bursts.
+        # One replica: replicaCount > 1 turns on "High-Availability Mode",
+        # which the trial license does not include (the UI refuses it).
+        # Every participant kubectl/helm request goes through Platform, so
+        # instead of HA we shorten failover: the NoExecute tolerations
+        # below evict it from a dead node after 30s instead of the default
+        # 300s, so it reschedules in roughly 1-2 minutes. Resources sized
+        # for 16 pairs; the old 1 CPU limit would throttle helm bursts.
         #
         # config.costControl.enabled=false skips the Prometheus / global-prometheus / OpenCost Helm releases Loft auto-installs at runtime when cost analytics is enabled.
         helm upgrade --install vcluster-platform loft/vcluster-platform \
@@ -575,8 +577,8 @@ tasks:
           --set ingress.enabled=false \
           --set config.loftHost=platform-crossplane.workshop.riccardocapraro.com \
           --set config.costControl.enabled=false \
-          --set replicaCount=2 \
-          --set-json 'affinity.podAntiAffinity={"preferredDuringSchedulingIgnoredDuringExecution":[{"weight":100,"podAffinityTerm":{"topologyKey":"kubernetes.io/hostname","labelSelector":{"matchLabels":{"app":"loft"}}}}]}' \
+          --set replicaCount=1 \
+          --set-json 'tolerations=[{"key":"node.kubernetes.io/not-ready","operator":"Exists","effect":"NoExecute","tolerationSeconds":30},{"key":"node.kubernetes.io/unreachable","operator":"Exists","effect":"NoExecute","tolerationSeconds":30}]' \
           --set "resources.requests.cpu=500m" \
           --set "resources.requests.memory=1Gi" \
           --set "resources.limits.cpu=2" \
