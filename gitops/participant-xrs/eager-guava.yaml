@@ -1,0 +1,6 @@
+apiVersion: workshop.example.io/v1alpha1
+kind: DeveloperEnvironment
+metadata:
+  name: eager-guava
+spec:
+  pairId: eager-guava
