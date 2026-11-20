@@ -23,6 +23,14 @@
 # and would start 429ing at roughly 2-4 pairs per node. The Envoy fleet is
 # a DaemonSet with `Local` specifically to avoid that — see
 # gitops/envoy-gateway/envoyproxy.yaml.
+#
+# Venue exemption (Cloud Native Denmark, 2026-11-20). The venue Wi-Fi
+# NATs the whole room to one public IP, so per-IP buckets collapse into
+# one shared 200 req/s bucket and a couple of concurrent `helm install`s
+# 429 everyone. The second selector excludes the venue IP from the rule;
+# a request matching no rule is not limited. (A separate, higher rule for
+# the venue would not work: Envoy Gateway applies the strictest matching
+# rule.) Remove it after the event.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata:
@@ -41,6 +49,10 @@ spec:
             - sourceCIDR:
                 value: "0.0.0.0/0"
                 type: Distinct
+            - sourceCIDR:
+                value: "213.83.186.90/32"
+                type: Exact
+                invert: true
           limit:
             requests: 200
             unit: Second
