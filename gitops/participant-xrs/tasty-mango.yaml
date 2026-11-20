@@ -1,6 +1,0 @@
-apiVersion: workshop.example.io/v1alpha1
-kind: DeveloperEnvironment
-metadata:
-  name: tasty-mango
-spec:
-  pairId: tasty-mango
