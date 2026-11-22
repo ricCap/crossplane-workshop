@@ -2,6 +2,8 @@
 
 Hands-on GitOps + Crossplane on Kubernetes.
 
+See it in action with `docker run -it -p 8080:80 --rm  ghcr.io/riccap/crossplane-workshop-docs:v0.6.4`
+
 A 3-hour workshop where participant pairs each get an isolated vCluster sandbox on a shared management cluster. The twist: at the end, participants discover their vCluster was itself provisioned by a Crossplane Composition -- the same pattern they just learned.
 
 ## Architecture overview
